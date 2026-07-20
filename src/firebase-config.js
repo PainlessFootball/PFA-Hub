@@ -13,4 +13,11 @@
 //   appId: "1:123456789:web:abc123"
 // };
 
-export const firebaseConfig = null;
+export const firebaseConfig = {
+  apiKey: "AIzaSyCAEj192BG68ORz74Vo9243AaJgx4Yn9HQ",
+  authDomain: "painless-football-allian-55de4.firebaseapp.com",
+  projectId: "painless-football-allian-55de4",
+  storageBucket: "painless-football-allian-55de4.firebasestorage.app",
+  messagingSenderId: "671133068854",
+  appId: "1:671133068854:web:15db9f567a75575170b297"
+};
