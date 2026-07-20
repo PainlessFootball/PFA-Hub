@@ -205,6 +205,7 @@ export default function App() {
   const [newsBody, setNewsBody] = useState("");
   const [newsTag, setNewsTag] = useState("NEWS");
   const chatEndRef = useRef(null);
+  const bulkLoadedRef = useRef(false);
 
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
@@ -314,6 +315,18 @@ export default function App() {
     }
   }, [tierKey, mode, leagueMap, standingsCache, loadLeague, nflState]);
 
+  // once discovery has filled in leagueMap, fetch standings for every connected
+  // league (not just the one being viewed) so the homepage Hot Seat report can
+  // show a last-place coach from all 13 tiers, not just whichever is selected
+  useEffect(() => {
+    if (mode !== "live" || bulkLoadedRef.current) return;
+    if (Object.keys(leagueMap).length <= 1) return;
+    bulkLoadedRef.current = true;
+    Object.values(leagueMap).forEach((id) => {
+      if (id && !standingsCache[id]) loadLeague(id);
+    });
+  }, [mode, leagueMap, standingsCache, loadLeague]);
+
   const saveName = () => {
     const nm = nameInput.trim().slice(0, 24);
     if (!nm) return;
@@ -352,6 +365,15 @@ export default function App() {
   const demoRows = tierKey === "NFL" ? DEMO_NFL.map((r) => ({ ...r, maxPts: null })) : null;
   const rows = mode === "live" ? liveRows : demoRows;
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
+
+  const hotSeatFor = (tKey) => {
+    if (mode === "live") {
+      const id = leagueMap[tKey];
+      const tRows = id ? standingsCache[id] : null;
+      return tRows && tRows.length ? tRows[tRows.length - 1] : null;
+    }
+    return tKey === "NFL" ? DEMO_NFL[DEMO_NFL.length - 1] : null;
+  };
   const tagColor = (t) =>
     t === "BREAKING" ? C.ember : t === "ANNOUNCEMENT" ? C.gold : t === "COACHING CAROUSEL" ? C.turf : C.slate;
 
@@ -446,43 +468,6 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {view === "home" && (
           <div>
-            <div className="mb-6">
-              <div className="flex items-baseline justify-between mb-2">
-                <div className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                  Top coaches · career CP
-                </div>
-                <button onClick={() => setView("coaches")} className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>
-                  Full ladder →
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                {DEMO_CAREER.slice(0, 5).map((r, i) => (
-                  <div
-                    key={r.coach}
-                    className="px-3 py-2.5 rounded-sm"
-                    style={{
-                      background: i === 0 ? "rgba(232,163,61,0.12)" : C.panel,
-                      border: `1px solid ${i === 0 ? C.goldDim : C.line}`,
-                    }}
-                  >
-                    <div className="flex items-baseline gap-2">
-                      <span
-                        className="text-xl leading-none"
-                        style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, color: i === 0 ? C.gold : C.slate }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-semibold truncate">{r.coach}</span>
-                    </div>
-                    <div className="mt-1 text-xs truncate" style={{ color: C.slate }}>{r.team}</div>
-                    <div className="mt-1 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>
-                      {fmt(r.cp)} <span className="text-xs" style={{ color: C.slate }}>CP</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             <div className="flex flex-col lg:flex-row gap-6">
               <section className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-3">
@@ -632,6 +617,65 @@ export default function App() {
                   </div>
                 </div>
               </section>
+            </div>
+
+            <div className="mt-6">
+              <div className="flex items-baseline justify-between mb-1">
+                <h2 className="text-2xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                  The Hot Seat
+                </h2>
+                <button onClick={() => setView("standings")} className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>
+                  Full standings →
+                </button>
+              </div>
+              <div className="mb-3 text-xs" style={{ color: C.slate }}>
+                Last place in every league, right now. Sleep with one eye open.
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {TIERS.map((t) => {
+                  const seat = hotSeatFor(t.key);
+                  const connected = Boolean(leagueMap[t.key]);
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => {
+                        setTierKey(t.key);
+                        setView("standings");
+                      }}
+                      className="text-left px-3 py-2.5 rounded-sm transition-colors"
+                      style={{
+                        background: "rgba(212,96,76,0.07)",
+                        border: `1px solid ${seat ? "rgba(212,96,76,0.35)" : C.line}`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs uppercase tracking-wider"
+                          style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, color: C.slate, letterSpacing: "0.06em" }}
+                        >
+                          {t.key}
+                        </span>
+                        {seat && <span className="text-xs" style={{ color: C.ember }}>●</span>}
+                      </div>
+                      {seat ? (
+                        <>
+                          <div className="mt-1 text-sm font-semibold truncate">{seat.coach}</div>
+                          <div className="text-xs truncate" style={{ color: C.slate }}>{seat.team}</div>
+                          <div className="mt-1 text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <span style={{ color: C.turf }}>{seat.w}</span>
+                            <span style={{ color: C.slate }}>–</span>
+                            <span style={{ color: C.ember }}>{seat.l}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-1 text-xs" style={{ color: C.slate }}>
+                          {mode === "live" ? (connected ? "Loading…" : "Not connected") : "Live only"}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
