@@ -40,12 +40,24 @@ export function watchChat(cb) {
 
 export async function sendChat(msg) {
   if (!firebaseReady) {
-    const c = (localGet("pfa-chat") || []).concat(msg).slice(-200);
+    const entry = { ...msg, id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}` };
+    const c = (localGet("pfa-chat") || []).concat(entry).slice(-200);
     localSet("pfa-chat", c);
     return c;
   }
   await ensureDb();
   await fs.addDoc(fs.collection(db, "chat"), msg);
+  return null;
+}
+
+export async function removeChatMessage(id) {
+  if (!firebaseReady) {
+    const c = (localGet("pfa-chat") || []).filter((m) => m.id !== id);
+    localSet("pfa-chat", c);
+    return c;
+  }
+  await ensureDb();
+  await fs.deleteDoc(fs.doc(db, "chat", id));
   return null;
 }
 
