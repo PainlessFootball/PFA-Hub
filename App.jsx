@@ -55,6 +55,13 @@ const PLAYOFF_BRACKET_URL =
   "https://docs.google.com/spreadsheets/d/1DatK9-R9w230r-DpPuFBCvMI0xhQaqn8mKj7DzQuOU8/edit?usp=sharing";
 const SLEEPER = "https://api.sleeper.app/v1";
 
+// Career stats from the Admin tab (columns AM:BA) — empty until that export
+// is provided. Keyed by coach name (lowercased) once populated, e.g.:
+//   "harvey28": { careerCP: 1020.78, careerW: 50, careerL: 18, titles: 1, ... }
+// The Coach Profile popup below checks this and shows a "pending" note for
+// any coach not yet in here, rather than guessing at numbers.
+const CAREER_STATS = {};
+
 const C = {
   ink: "#0B1220",
   panel: "#131E31",
@@ -274,11 +281,66 @@ function Avatar({ name, avatar, size = 36 }) {
   );
 }
 
+// ── Coach Profile popup: current team + conference are always shown (from
+// the same Sleeper data as the directory); career stats show once CAREER_
+// STATS has an entry for this coach, otherwise a plain "not in yet" note.
+function CoachProfileModal({ coach, onClose }) {
+  if (!coach) return null;
+  const stats = CAREER_STATS[coach.name.toLowerCase()];
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(11,18,32,0.75)" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-sm p-5"
+        style={{ background: C.panel, border: `1px solid ${C.line}` }}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Avatar name={coach.name} avatar={coach.avatar} size={52} />
+            <div>
+              <div className="text-lg font-semibold leading-tight">{coach.name}</div>
+              <div className="text-xs" style={{ color: C.slate }}>{coach.team || "—"}</div>
+              {coach.tierKey && (
+                <div className="text-xs uppercase tracking-wider mt-0.5" style={{ color: C.gold }}>
+                  {coach.tierName || coach.tierKey}
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>
+            close
+          </button>
+        </div>
+
+        {stats ? (
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {Object.entries(stats).map(([label, value]) => (
+              <div key={label} className="px-2.5 py-2 rounded-sm" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
+                <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>{label}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs leading-relaxed" style={{ color: C.slate }}>
+            Career stats aren't wired in yet — this fills in once the Admin tab's coaching-history columns are connected.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
   const [tierKey, setTierKey] = useState("NFL");
   const [dirQuery, setDirQuery] = useState("");
+  const [selectedCoach, setSelectedCoach] = useState(null);
   const [nflState, setNflState] = useState(null);
   const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
   const [standingsCache, setStandingsCache] = useState({});
@@ -516,6 +578,11 @@ export default function App() {
   const findCoachAvatar = (name) => {
     const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
     return hit ? hit.avatar : null;
+  };
+
+  const openCoachProfile = (name) => {
+    const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
+    setSelectedCoach(hit || { name, avatar: null, team: null, tierKey: null, tierName: null });
   };
 
   const filteredDirectory = useMemo(() => {
@@ -786,10 +853,7 @@ export default function App() {
                           <div className="flex items-baseline gap-2 text-xs">
                             <button
                               type="button"
-                              onClick={() => {
-                                setDirQuery(m.name);
-                                setView("directory");
-                              }}
+                              onClick={() => openCoachProfile(m.name)}
                               className="font-semibold"
                               style={{ color: m.name === coachName ? C.gold : C.chalk }}
                             >
@@ -1023,7 +1087,9 @@ export default function App() {
                           >
                             <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{r.place}</td>
                             <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
-                              {r.coach}
+                              <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
+                                {r.coach}
+                              </button>
                               {isLast && (
                                 <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
                                   hot seat
@@ -1101,7 +1167,11 @@ export default function App() {
                   {DEMO_CAREER.map((r, i) => (
                     <tr key={r.coach} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
                       <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{i + 1}</td>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>{r.coach}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
+                        <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
+                          {r.coach}
+                        </button>
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
                       <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>{fmt(r.cp)}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -1150,9 +1220,11 @@ export default function App() {
             )}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {filteredDirectory.map((c, i) => (
-                <div
+                <button
+                  type="button"
                   key={(c.userId || c.name) + i}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm"
+                  onClick={() => openCoachProfile(c.name)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-left transition-colors"
                   style={{ background: C.panel, border: `1px solid ${C.line}` }}
                 >
                   <Avatar name={c.name} avatar={c.avatar} size={38} />
@@ -1161,7 +1233,7 @@ export default function App() {
                     <div className="text-xs truncate" style={{ color: C.slate }}>{c.team}</div>
                     <div className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>{c.tierKey}</div>
                   </div>
-                </div>
+                </button>
               ))}
               {filteredDirectory.length === 0 && (
                 <div className="col-span-full py-10 text-center text-sm" style={{ color: C.slate }}>
@@ -1250,6 +1322,8 @@ export default function App() {
           <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>sleeper api · firebase · alliance sheet</span>
         </div>
       </footer>
+
+      <CoachProfileModal coach={selectedCoach} onClose={() => setSelectedCoach(null)} />
     </div>
   );
 }
