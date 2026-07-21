@@ -6,6 +6,7 @@ import {
   watchNews,
   postNewsItem,
   removeNewsItem,
+  removeChatMessage,
   getCoachName,
   setCoachNameStored,
 } from "./storage.js";
@@ -17,7 +18,41 @@ import {
 // Alliance data (coaching points, records): sheet feed / sampled below
 // ─────────────────────────────────────────────────────────────
 
-const NFL_LEAGUE_ID = "1316582839847759872";
+// League IDs by season. Sleeper issues new league IDs every year, so this is
+// the one place to update each summer when the new season's leagues spin up.
+// Add earlier seasons here once their IDs are on hand (same shape, one object
+// per year) — once a couple of years are in here, a season picker can be
+// added to each league's page.
+const LEAGUE_HISTORY = {
+  2026: {
+    NFL: "1316582839847759872",
+    USFL: "1316586636028448768",
+    XFL: "1316588494914613248",
+    SEC: "1316594738958192640",
+    "BIG XII": "1317152669235703808",
+    ACC: "1317191636379254784",
+    TEN: "1317530523035242496",
+    SUN: "1317557888784306176",
+    SOCO: "1317559700799131648",
+    IVY: "1317562012057735168",
+    SWAC: "1317574770207789056",
+    GLIAC: "1317895570131546112",
+    FLHS: "1317921468134232064",
+  },
+  // 2025: { NFL: "...", USFL: "...", ... },
+  // 2024: { ... },
+  // 2023: { ... },
+  // 2022: { ... },
+};
+
+const CURRENT_SEASON = 2026;
+const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
+
+// Link to the Alliance's separate playoff-bracket spreadsheet (shared by all
+// tiers for now). If per-league tab links are wanted later, add each tier's
+// `#gid=...` fragment here instead of the bare sheet URL.
+const PLAYOFF_BRACKET_URL =
+  "https://docs.google.com/spreadsheets/d/1DatK9-R9w230r-DpPuFBCvMI0xhQaqn8mKj7DzQuOU8/edit?usp=sharing";
 const SLEEPER = "https://api.sleeper.app/v1";
 
 const C = {
@@ -190,7 +225,7 @@ export default function App() {
   const [view, setView] = useState("home");
   const [tierKey, setTierKey] = useState("NFL");
   const [nflState, setNflState] = useState(null);
-  const [leagueMap, setLeagueMap] = useState({ NFL: NFL_LEAGUE_ID });
+  const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
   const [standingsCache, setStandingsCache] = useState({});
   const [matchupsCache, setMatchupsCache] = useState({});
   const [tierLoading, setTierLoading] = useState(false);
@@ -279,7 +314,7 @@ export default function App() {
                 if (t.key !== "NFL" && (n.includes(t.key) || n.includes(t.name.toUpperCase()))) map[t.key] = lg.league_id;
               });
             });
-            if (!cancelled) setLeagueMap(map);
+            if (!cancelled) setLeagueMap((prev) => ({ ...map, ...prev }));
           }
         } catch (e) {}
       } catch (e) {
@@ -357,6 +392,11 @@ export default function App() {
   const deleteNews = async (id) => {
     const local = await removeNewsItem(id);
     if (local) setNews(local.length ? local : SEED_NEWS);
+  };
+
+  const deleteChatMsg = async (id) => {
+    const local = await removeChatMessage(id);
+    if (local) setChat(local);
   };
 
   const tier = TIERS.find((t) => t.key === tierKey);
@@ -449,7 +489,7 @@ export default function App() {
           </div>
           <nav className="mt-4 flex overflow-x-auto">
             <Tab id="home">Home</Tab>
-            <Tab id="standings">Standings</Tab>
+            <Tab id="standings">The Ladder</Tab>
             <Tab id="coaches">Top Coaches</Tab>
             <Tab id="pyramid">The Pyramid</Tab>
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
@@ -554,7 +594,7 @@ export default function App() {
               <section className="lg:w-96 shrink-0 flex flex-col" style={{ minHeight: "24rem" }}>
                 <div className="flex items-baseline justify-between mb-3">
                   <h2 className="text-2xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                    The Bullpen
+                    The Clubhouse
                   </h2>
                   <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>all 13 leagues</span>
                 </div>
@@ -570,6 +610,11 @@ export default function App() {
                         <div className="flex items-baseline gap-2 text-xs">
                           <span className="font-semibold" style={{ color: m.name === coachName ? C.gold : C.chalk }}>{m.name}</span>
                           <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
+                          {commish && (
+                            <button onClick={() => deleteChatMsg(m.id)} className="ml-auto text-xs" style={{ color: C.ember }}>
+                              delete
+                            </button>
+                          )}
                         </div>
                         <div className="text-sm leading-snug mt-0.5">{m.text}</div>
                       </div>
@@ -723,7 +768,18 @@ export default function App() {
                 <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
                   {tier.name}
                 </h2>
-                <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
+                  <a
+                    href={PLAYOFF_BRACKET_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs uppercase tracking-wider"
+                    style={{ color: C.gold }}
+                  >
+                    Playoff bracket ↗
+                  </a>
+                </div>
               </div>
 
               {rows ? (
@@ -812,7 +868,7 @@ export default function App() {
               Career Coaching Points
             </h2>
             <p className="text-sm mb-4" style={{ color: C.slate }}>
-              The all-time ladder. Coaching points are earned by team performance, weighted by tier — and spent to claim open teams.
+              The all-time ladder. Coaching points are earned by team performance, weighted by tier, and accrue season over season — never spent, only built on. Your total is your qualification the next time a job opens up.
             </p>
             <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
@@ -850,7 +906,7 @@ export default function App() {
           <section className="grid md:grid-cols-2 gap-8">
             <div>
               <h2 className="text-3xl uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                How the Alliance works
+                The Pyramid
               </h2>
               <div className="space-y-3 text-sm leading-relaxed">
                 <p>
@@ -858,8 +914,13 @@ export default function App() {
                   same rosters, scoring, and NFL players — the difference is the stakes.
                 </p>
                 <p>
-                  Your team's performance earns you a <span style={{ color: C.gold }}>coaching score</span>. Higher tiers pay more.
-                  You spend those points competing against other coaches for open teams — climbing toward the NFL like a real coaching career.
+                  Your team's performance earns you <span style={{ color: C.gold }}>coaching points</span>. Higher tiers pay more. You
+                  never spend them — they accrue season over season, rewarding sustained success over one great year. Your total is
+                  your qualification for the job.
+                </p>
+                <p>
+                  When a team opens up, applications are blind — nobody knows who else is applying. The team hires whoever's most
+                  qualified: highest coaching points gets it, and leaves behind a promotion-worthy team, now needing a new coach.
                 </p>
                 <p>
                   Teams don't progress. <em>Coaches</em> do. Finish last or underperform and you're{" "}
