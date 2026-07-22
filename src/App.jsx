@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   firebaseReady,
   watchChat,
@@ -54,6 +54,210 @@ const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
 const PLAYOFF_BRACKET_URL =
   "https://docs.google.com/spreadsheets/d/1DatK9-R9w230r-DpPuFBCvMI0xhQaqn8mKj7DzQuOU8/edit?usp=sharing";
 const SLEEPER = "https://api.sleeper.app/v1";
+
+// Career stats from the Admin tab (columns AM:BA) — empty until that export
+// is provided. Keyed by coach name (lowercased) once populated, e.g.:
+//   "harvey28": { careerCP: 1020.78, careerW: 50, careerL: 18, titles: 1, ... }
+// The Coach Profile popup below checks this and shows a "pending" note for
+// any coach not yet in here, rather than guessing at numbers.
+const CAREER_STATS = {
+  "aziv49": { "Career CP": "1020.78", "Career Avg CP": "255.20", "Record": "50-18", "Win %": "73.5%", "Total Points": "13423.10", "Avg Pts / Season": "192.17", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "3", "Division Wins": "3", "Playoff Wins": "5" },
+  "ahdi": { "Career CP": "149.10", "Career Avg CP": "37.28", "Record": "8-9", "Win %": "47.1%", "Total Points": "3803.75", "Avg Pts / Season": "105.66", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "0", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "alexwilson20": { "Career CP": "279.00", "Career Avg CP": "69.75", "Record": "22-29", "Win %": "43.1%", "Total Points": "10235.60", "Avg Pts / Season": "193.38", "Alliance Highs": "0", "Alliance Lows": "21", "League Highs": "16", "League Lows": "21", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "alphaone": { "Career CP": "39.89", "Career Avg CP": "19.95", "Record": "5-12", "Win %": "29.4%", "Total Points": "2620.15", "Avg Pts / Season": "72.78", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "0", "League Lows": "2", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "arvot": { "Career CP": "77.86", "Career Avg CP": "19.46", "Record": "8-9", "Win %": "47.1%", "Total Points": "3565.25", "Avg Pts / Season": "99.03", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "0", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "asqxct": { "Career CP": "642.53", "Career Avg CP": "160.63", "Record": "35-33", "Win %": "51.5%", "Total Points": "13116.35", "Avg Pts / Season": "187.12", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "2", "Division Wins": "2", "Playoff Wins": "1" },
+  "aziv49 int": { "Career CP": "325.79", "Career Avg CP": "81.45", "Record": "18-16", "Win %": "52.9%", "Total Points": "7562.85", "Avg Pts / Season": "216.50", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "4", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "bblew52": { "Career CP": "681.30", "Career Avg CP": "170.32", "Record": "33-35", "Win %": "48.5%", "Total Points": "14132.75", "Avg Pts / Season": "201.86", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "10", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "bjf35": { "Career CP": "414.36", "Career Avg CP": "103.59", "Record": "27-41", "Win %": "39.7%", "Total Points": "11744.95", "Avg Pts / Season": "168.15", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "bbclives": { "Career CP": "422.28", "Career Avg CP": "105.57", "Record": "28-40", "Win %": "41.2%", "Total Points": "13260.65", "Avg Pts / Season": "189.77", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "benchedballers": { "Career CP": "809.54", "Career Avg CP": "202.38", "Record": "43-25", "Win %": "63.2%", "Total Points": "12852.80", "Avg Pts / Season": "184.22", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" },
+  "biggypoppa": { "Career CP": "412.25", "Career Avg CP": "103.06", "Record": "27-41", "Win %": "39.7%", "Total Points": "13090.10", "Avg Pts / Season": "187.31", "Alliance Highs": "0", "Alliance Lows": "6", "League Highs": "0", "League Lows": "6", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "bigpapajohn1311": { "Career CP": "211.62", "Career Avg CP": "52.90", "Record": "16-18", "Win %": "47.1%", "Total Points": "6988.05", "Avg Pts / Season": "199.69", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "2", "League Lows": "2", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "booyamclovin": { "Career CP": "485.40", "Career Avg CP": "121.35", "Record": "30-38", "Win %": "44.1%", "Total Points": "13960.75", "Avg Pts / Season": "199.57", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "1", "League Lows": "3", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "broncozzz": { "Career CP": "447.59", "Career Avg CP": "111.90", "Record": "27-41", "Win %": "39.7%", "Total Points": "13170.75", "Avg Pts / Season": "188.13", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "1", "League Lows": "2", "Manager Bonus": "-4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "butterfield": { "Career CP": "255.77", "Career Avg CP": "63.94", "Record": "19-15", "Win %": "55.9%", "Total Points": "6946.45", "Avg Pts / Season": "198.26", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "chorn16": { "Career CP": "208.56", "Career Avg CP": "52.14", "Record": "18-16", "Win %": "52.9%", "Total Points": "6932.60", "Avg Pts / Season": "198.43", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "calvins22": { "Career CP": "869.74", "Career Avg CP": "217.44", "Record": "41-27", "Win %": "60.3%", "Total Points": "12775.20", "Avg Pts / Season": "183.12", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "4", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "0" },
+  "casualconsensus int": { "Career CP": "92.24", "Career Avg CP": "23.06", "Record": "15-19", "Win %": "44.1%", "Total Points": "6386.05", "Avg Pts / Season": "182.85", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "1", "League Lows": "4", "Manager Bonus": "-7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "chivoski": { "Career CP": "237.72", "Career Avg CP": "59.43", "Record": "19-32", "Win %": "37.3%", "Total Points": "8812.35", "Avg Pts / Season": "170.01", "Alliance Highs": "0", "Alliance Lows": "21", "League Highs": "17", "League Lows": "21", "Manager Bonus": "-7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "chrisevans": { "Career CP": "385.16", "Career Avg CP": "96.29", "Record": "28-40", "Win %": "41.2%", "Total Points": "13834.20", "Avg Pts / Season": "197.92", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "1", "League Lows": "2", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "chuckiv": { "Career CP": "821.05", "Career Avg CP": "205.26", "Record": "39-29", "Win %": "57.4%", "Total Points": "11403.20", "Avg Pts / Season": "162.95", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "0", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "coopdaddy510": { "Career CP": "546.90", "Career Avg CP": "136.73", "Record": "31-20", "Win %": "60.8%", "Total Points": "10839.05", "Avg Pts / Season": "204.62", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" },
+  "curlyz28": { "Career CP": "782.99", "Career Avg CP": "195.75", "Record": "37-31", "Win %": "54.4%", "Total Points": "13709.05", "Avg Pts / Season": "195.90", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "1", "League Lows": "2", "Manager Bonus": "-2", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "2" },
+  "dbgiants": { "Career CP": "188.03", "Career Avg CP": "47.01", "Record": "22-29", "Win %": "43.1%", "Total Points": "9395.45", "Avg Pts / Season": "177.76", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "0", "League Lows": "5", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "djmooremvp": { "Career CP": "257.08", "Career Avg CP": "64.27", "Record": "19-32", "Win %": "37.3%", "Total Points": "9621.60", "Avg Pts / Season": "181.42", "Alliance Highs": "0", "Alliance Lows": "8", "League Highs": "1", "League Lows": "8", "Manager Bonus": "5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "dleggett": { "Career CP": "576.83", "Career Avg CP": "144.21", "Record": "36-32", "Win %": "52.9%", "Total Points": "13445.55", "Avg Pts / Season": "192.40", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "3", "League Lows": "1", "Manager Bonus": "5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "dabouse": { "Career CP": "92.71", "Career Avg CP": "23.18", "Record": "7-10", "Win %": "41.2%", "Total Points": "3200.40", "Avg Pts / Season": "88.90", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "daniel7696": { "Career CP": "240.45", "Career Avg CP": "60.11", "Record": "22-34", "Win %": "39.3%", "Total Points": "12329.00", "Avg Pts / Season": "176.55", "Alliance Highs": "1", "Alliance Lows": "28", "League Highs": "17", "League Lows": "28", "Manager Bonus": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "diego777": { "Career CP": "847.38", "Career Avg CP": "211.85", "Record": "44-24", "Win %": "64.7%", "Total Points": "13959.70", "Avg Pts / Season": "200.01", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" },
+  "dilly314": { "Career CP": "699.04", "Career Avg CP": "174.76", "Record": "40-28", "Win %": "58.8%", "Total Points": "14803.20", "Avg Pts / Season": "211.76", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "5", "League Lows": "0", "Manager Bonus": "8", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "dirtybyrd30": { "Career CP": "811.22", "Career Avg CP": "202.80", "Record": "50-18", "Win %": "73.5%", "Total Points": "16752.30", "Avg Pts / Season": "239.39", "Alliance Highs": "2", "Alliance Lows": "1", "League Highs": "12", "League Lows": "1", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" },
+  "donotatme": { "Career CP": "676.00", "Career Avg CP": "169.00", "Record": "32-35", "Win %": "47.8%", "Total Points": "10946.25", "Avg Pts / Season": "156.18", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "doryb88": { "Career CP": "470.48", "Career Avg CP": "117.62", "Record": "28-40", "Win %": "41.2%", "Total Points": "12548.44", "Avg Pts / Season": "179.62", "Alliance Highs": "0", "Alliance Lows": "6", "League Highs": "1", "League Lows": "6", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "drewm1603": { "Career CP": "901.62", "Career Avg CP": "225.40", "Record": "41-27", "Win %": "60.3%", "Total Points": "11384.30", "Avg Pts / Season": "162.67", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "4", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "2", "Division Wins": "0", "Playoff Wins": "4" },
+  "drewm1603 int": { "Career CP": "144.94", "Career Avg CP": "36.23", "Record": "11-6", "Win %": "64.7%", "Total Points": "3484.30", "Avg Pts / Season": "96.79", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "drunkfootball": { "Career CP": "663.84", "Career Avg CP": "165.96", "Record": "36-32", "Win %": "52.9%", "Total Points": "14435.40", "Avg Pts / Season": "206.12", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "7", "League Lows": "1", "Manager Bonus": "-3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" },
+  "dylan3380": { "Career CP": "654.12", "Career Avg CP": "163.53", "Record": "40-28", "Win %": "58.8%", "Total Points": "14854.10", "Avg Pts / Season": "212.56", "Alliance Highs": "1", "Alliance Lows": "2", "League Highs": "6", "League Lows": "2", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "edinburghfins": { "Career CP": "126.43", "Career Avg CP": "31.61", "Record": "18-16", "Win %": "52.9%", "Total Points": "7323.80", "Avg Pts / Season": "209.87", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "edixon2": { "Career CP": "257.50", "Career Avg CP": "64.38", "Record": "15-19", "Win %": "44.1%", "Total Points": "7150.74", "Avg Pts / Season": "204.60", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "edixon2 l": { "Career CP": "257.50", "Career Avg CP": "64.38", "Record": "15-19", "Win %": "44.1%", "Total Points": "7150.74", "Avg Pts / Season": "204.60", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "fecato": { "Career CP": "421.76", "Career Avg CP": "105.44", "Record": "27-41", "Win %": "39.7%", "Total Points": "13097.90", "Avg Pts / Season": "196.07", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "1", "League Lows": "4", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "fin3": { "Career CP": "829.08", "Career Avg CP": "207.27", "Record": "44-24", "Win %": "64.7%", "Total Points": "14349.70", "Avg Pts / Season": "205.20", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "5", "League Lows": "1", "Manager Bonus": "8", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "1" },
+  "firephool": { "Career CP": "611.91", "Career Avg CP": "152.98", "Record": "32-36", "Win %": "47.1%", "Total Points": "13655.50", "Avg Pts / Season": "195.32", "Alliance Highs": "15", "Alliance Lows": "4", "League Highs": "3", "League Lows": "4", "Manager Bonus": "2", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "5" },
+  "foggybuckets": { "Career CP": "930.99", "Career Avg CP": "232.75", "Record": "49-19", "Win %": "72.1%", "Total Points": "13614.70", "Avg Pts / Season": "194.61", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "9", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "2", "Division Wins": "1", "Playoff Wins": "5" },
+  "folta21": { "Career CP": "251.95", "Career Avg CP": "62.99", "Record": "19-15", "Win %": "55.9%", "Total Points": "6859.65", "Avg Pts / Season": "196.55", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "folta21 int": { "Career CP": "174.86", "Career Avg CP": "43.72", "Record": "11-6", "Win %": "64.7%", "Total Points": "3748.95", "Avg Pts / Season": "104.14", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "garrettbff": { "Career CP": "434.65", "Career Avg CP": "108.66", "Record": "31-37", "Win %": "45.6%", "Total Points": "12664.95", "Avg Pts / Season": "181.35", "Alliance Highs": "0", "Alliance Lows": "12", "League Highs": "1", "League Lows": "12", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "garrettbff int": { "Career CP": "434.65", "Career Avg CP": "108.66", "Record": "31-37", "Win %": "45.6%", "Total Points": "12664.95", "Avg Pts / Season": "181.35", "Alliance Highs": "0", "Alliance Lows": "12", "League Highs": "1", "League Lows": "12", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "germybeast": { "Career CP": "780.91", "Career Avg CP": "195.23", "Record": "39-29", "Win %": "57.4%", "Total Points": "13965.05", "Avg Pts / Season": "199.86", "Alliance Highs": "0", "Alliance Lows": "17", "League Highs": "20", "League Lows": "17", "Manager Bonus": "6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "greek11 l": { "Career CP": "152.13", "Career Avg CP": "38.03", "Record": "16-18", "Win %": "47.1%", "Total Points": "6565.40", "Avg Pts / Season": "187.76", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "0", "League Lows": "0", "Manager Bonus": "-4", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "0" },
+  "harold2576": { "Career CP": "532.67", "Career Avg CP": "133.17", "Record": "37-14", "Win %": "72.5%", "Total Points": "11581.30", "Avg Pts / Season": "218.69", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "12", "League Lows": "1", "Manager Bonus": "3", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "3" },
+  "harvey28": { "Career CP": "811.43", "Career Avg CP": "202.86", "Record": "44-24", "Win %": "64.7%", "Total Points": "12632.05", "Avg Pts / Season": "181.75", "Alliance Highs": "0", "Alliance Lows": "8", "League Highs": "3", "League Lows": "8", "Manager Bonus": "2", "Conference Wins": "2", "Division Wins": "1", "Playoff Wins": "9" },
+  "jjbinc int": { "Career CP": "182.33", "Career Avg CP": "45.58", "Record": "16-18", "Win %": "47.1%", "Total Points": "6624.60", "Avg Pts / Season": "189.62", "Alliance Highs": "1", "Alliance Lows": "6", "League Highs": "2", "League Lows": "6", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "jvl007": { "Career CP": "491.79", "Career Avg CP": "122.95", "Record": "34-34", "Win %": "50.0%", "Total Points": "13980.55", "Avg Pts / Season": "200.03", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "2", "League Lows": "5", "Manager Bonus": "-6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "jwilmot": { "Career CP": "719.22", "Career Avg CP": "179.80", "Record": "36-32", "Win %": "52.9%", "Total Points": "11108.70", "Avg Pts / Season": "158.88", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "jaquise": { "Career CP": "566.33", "Career Avg CP": "141.58", "Record": "40-28", "Win %": "58.8%", "Total Points": "15087.00", "Avg Pts / Season": "215.64", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "8", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" },
+  "johnjohn882": { "Career CP": "430.91", "Career Avg CP": "107.73", "Record": "28-40", "Win %": "41.2%", "Total Points": "12651.30", "Avg Pts / Season": "180.73", "Alliance Highs": "0", "Alliance Lows": "10", "League Highs": "3", "League Lows": "10", "Manager Bonus": "-7", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" },
+  "johnzy4": { "Career CP": "161.77", "Career Avg CP": "40.44", "Record": "21-30", "Win %": "41.2%", "Total Points": "9942.35", "Avg Pts / Season": "188.53", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "6", "League Lows": "6", "Manager Bonus": "-13", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "jorgeortiz11": { "Career CP": "274.90", "Career Avg CP": "68.73", "Record": "18-16", "Win %": "52.9%", "Total Points": "7336.45", "Avg Pts / Season": "209.77", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "4", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "josssock": { "Career CP": "962.18", "Career Avg CP": "240.55", "Record": "47-21", "Win %": "69.1%", "Total Points": "12802.65", "Avg Pts / Season": "182.78", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "9", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "2", "Playoff Wins": "5" },
+  "juugking": { "Career CP": "800.43", "Career Avg CP": "200.11", "Record": "44-24", "Win %": "64.7%", "Total Points": "15379.80", "Avg Pts / Season": "219.60", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "11", "League Lows": "1", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "4" },
+  "jweadon": { "Career CP": "447.91", "Career Avg CP": "111.98", "Record": "30-38", "Win %": "44.1%", "Total Points": "13377.80", "Avg Pts / Season": "191.43", "Alliance Highs": "0", "Alliance Lows": "9", "League Highs": "5", "League Lows": "9", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "kshooter15": { "Career CP": "491.89", "Career Avg CP": "122.97", "Record": "37-31", "Win %": "54.4%", "Total Points": "14133.70", "Avg Pts / Season": "210.81", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" },
+  "kendoll92": { "Career CP": "800.43", "Career Avg CP": "200.11", "Record": "44-24", "Win %": "64.7%", "Total Points": "15379.80", "Avg Pts / Season": "219.60", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "11", "League Lows": "1", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "4" },
+  "kisser22": { "Career CP": "13.85", "Career Avg CP": "3.46", "Record": "4-13", "Win %": "23.5%", "Total Points": "2837.10", "Avg Pts / Season": "78.81", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "klowntown": { "Career CP": "338.43", "Career Avg CP": "84.61", "Record": "30-38", "Win %": "44.1%", "Total Points": "12579.00", "Avg Pts / Season": "180.00", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "landlords": { "Career CP": "672.50", "Career Avg CP": "168.12", "Record": "36-32", "Win %": "52.9%", "Total Points": "13368.90", "Avg Pts / Season": "191.21", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "1" },
+  "landshark18": { "Career CP": "893.38", "Career Avg CP": "223.34", "Record": "37-28", "Win %": "56.9%", "Total Points": "11712.80", "Avg Pts / Season": "167.17", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "5", "League Lows": "0", "Manager Bonus": "5", "Conference Wins": "1", "Division Wins": "3", "Playoff Wins": "3" },
+  "lightning77": { "Career CP": "335.57", "Career Avg CP": "83.89", "Record": "24-44", "Win %": "35.3%", "Total Points": "9651.50", "Avg Pts / Season": "137.58", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "mbulls": { "Career CP": "317.37", "Career Avg CP": "79.34", "Record": "29-39", "Win %": "42.6%", "Total Points": "13149.40", "Avg Pts / Season": "188.12", "Alliance Highs": "0", "Alliance Lows": "8", "League Highs": "0", "League Lows": "8", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "mvpmalik2": { "Career CP": "301.86", "Career Avg CP": "75.47", "Record": "27-41", "Win %": "39.7%", "Total Points": "11895.55", "Avg Pts / Season": "179.30", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "-4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "mambasdisciples": { "Career CP": "622.60", "Career Avg CP": "155.65", "Record": "44-24", "Win %": "64.7%", "Total Points": "15924.90", "Avg Pts / Season": "227.26", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "7", "League Lows": "0", "Manager Bonus": "-4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" },
+  "michaeltomlin": { "Career CP": "531.25", "Career Avg CP": "132.81", "Record": "29-22", "Win %": "56.9%", "Total Points": "10616.75", "Avg Pts / Season": "200.65", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "12", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "mintystoob": { "Career CP": "183.90", "Career Avg CP": "45.98", "Record": "13-21", "Win %": "38.2%", "Total Points": "6959.10", "Avg Pts / Season": "198.62", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "motty": { "Career CP": "673.49", "Career Avg CP": "168.37", "Record": "39-29", "Win %": "57.4%", "Total Points": "13426.55", "Avg Pts / Season": "192.28", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "3", "League Lows": "3", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "mrcoolbuns": { "Career CP": "775.06", "Career Avg CP": "193.76", "Record": "41-27", "Win %": "60.3%", "Total Points": "14470.20", "Avg Pts / Season": "215.22", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "13", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" },
+  "mrhawke19": { "Career CP": "758.73", "Career Avg CP": "189.68", "Record": "34-34", "Win %": "50.0%", "Total Points": "13750.85", "Avg Pts / Season": "196.80", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "1", "League Lows": "3", "Manager Bonus": "4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "newkbomb": { "Career CP": "847.02", "Career Avg CP": "211.75", "Record": "46-22", "Win %": "67.6%", "Total Points": "14940.95", "Avg Pts / Season": "213.91", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "2" },
+  "noga2003": { "Career CP": "808.16", "Career Avg CP": "202.04", "Record": "38-30", "Win %": "55.9%", "Total Points": "14066.20", "Avg Pts / Season": "201.34", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "4", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" },
+  "olavegarden18": { "Career CP": "778.90", "Career Avg CP": "194.73", "Record": "37-31", "Win %": "54.4%", "Total Points": "11324.50", "Avg Pts / Season": "162.01", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "2" },
+  "oschmini": { "Career CP": "625.84", "Career Avg CP": "156.46", "Record": "33-35", "Win %": "48.5%", "Total Points": "10302.05", "Avg Pts / Season": "147.04", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "0", "League Lows": "2", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "papared": { "Career CP": "285.23", "Career Avg CP": "71.31", "Record": "26-42", "Win %": "38.2%", "Total Points": "12972.35", "Avg Pts / Season": "185.33", "Alliance Highs": "0", "Alliance Lows": "7", "League Highs": "3", "League Lows": "7", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "pigskinftw": { "Career CP": "416.12", "Career Avg CP": "104.03", "Record": "26-25", "Win %": "51.0%", "Total Points": "10167.60", "Avg Pts / Season": "191.84", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "3", "League Lows": "3", "Manager Bonus": "6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "proctordoctor": { "Career CP": "291.63", "Career Avg CP": "72.91", "Record": "20-31", "Win %": "39.2%", "Total Points": "9475.75", "Avg Pts / Season": "178.84", "Alliance Highs": "0", "Alliance Lows": "6", "League Highs": "0", "League Lows": "6", "Manager Bonus": "-7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "pwnranger l4": { "Career CP": "409.93", "Career Avg CP": "102.48", "Record": "21-13", "Win %": "61.8%", "Total Points": "7733.25", "Avg Pts / Season": "221.20", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "pwnranger l5": { "Career CP": "302.75", "Career Avg CP": "75.69", "Record": "20-14", "Win %": "58.8%", "Total Points": "7109.60", "Avg Pts / Season": "203.20", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "pwnrangr": { "Career CP": "675.00", "Career Avg CP": "168.75", "Record": "37-31", "Win %": "54.4%", "Total Points": "11964.85", "Avg Pts / Season": "171.33", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "0", "League Lows": "1", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "2", "Playoff Wins": "1" },
+  "pwnrangr l2": { "Career CP": "650.44", "Career Avg CP": "162.61", "Record": "36-32", "Win %": "52.9%", "Total Points": "12855.10", "Avg Pts / Season": "184.04", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "0", "League Lows": "1", "Manager Bonus": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" },
+  "pwnrangr l3": { "Career CP": "605.08", "Career Avg CP": "151.27", "Record": "33-18", "Win %": "64.7%", "Total Points": "11449.15", "Avg Pts / Season": "216.01", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "pwnrangr l5": { "Career CP": "217.06", "Career Avg CP": "54.27", "Record": "20-31", "Win %": "39.2%", "Total Points": "9144.95", "Avg Pts / Season": "172.37", "Alliance Highs": "0", "Alliance Lows": "7", "League Highs": "0", "League Lows": "7", "Manager Bonus": "-4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "pwnrangr l6": { "Career CP": "60.54", "Career Avg CP": "15.13", "Record": "7-10", "Win %": "41.2%", "Total Points": "3625.95", "Avg Pts / Season": "100.72", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "pwnrangr int3": { "Career CP": "523.45", "Career Avg CP": "130.86", "Record": "36-32", "Win %": "52.9%", "Total Points": "13543.85", "Avg Pts / Season": "194.04", "Alliance Highs": "1", "Alliance Lows": "5", "League Highs": "2", "League Lows": "5", "Manager Bonus": "-9", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "pwnrangr int7": { "Career CP": "56.05", "Career Avg CP": "14.01", "Record": "8-26", "Win %": "23.5%", "Total Points": "5601.74", "Avg Pts / Season": "160.08", "Alliance Highs": "0", "Alliance Lows": "8", "League Highs": "0", "League Lows": "8", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "quincidental": { "Career CP": "381.14", "Career Avg CP": "95.28", "Record": "25-26", "Win %": "49.0%", "Total Points": "10784.75", "Avg Pts / Season": "203.84", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "8", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "recki20": { "Career CP": "227.22", "Career Avg CP": "56.80", "Record": "23-28", "Win %": "45.1%", "Total Points": "10007.80", "Avg Pts / Season": "188.93", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "1", "League Lows": "4", "Manager Bonus": "7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "redphoenix437": { "Career CP": "933.99", "Career Avg CP": "233.50", "Record": "45-23", "Win %": "66.2%", "Total Points": "14315.00", "Avg Pts / Season": "204.47", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "8" },
+  "rhhniner": { "Career CP": "533.70", "Career Avg CP": "133.42", "Record": "35-33", "Win %": "51.5%", "Total Points": "13972.89", "Avg Pts / Season": "199.54", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "7", "League Lows": "1", "Manager Bonus": "6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "rifelife520": { "Career CP": "2.26", "Career Avg CP": "1.13", "Record": "4-13", "Win %": "23.5%", "Total Points": "2839.35", "Avg Pts / Season": "78.87", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "rifelife520 l": { "Career CP": "330.25", "Career Avg CP": "82.56", "Record": "23-11", "Win %": "67.6%", "Total Points": "7901.05", "Avg Pts / Season": "225.88", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "4", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "rifelife520 int": { "Career CP": "818.44", "Career Avg CP": "204.61", "Record": "46-22", "Win %": "67.6%", "Total Points": "15533.85", "Avg Pts / Season": "221.87", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "10", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "3" },
+  "rifelife520 int1": { "Career CP": "0.00", "Career Avg CP": "#DIV/0!", "Record": "0-0", "Win %": "#DIV/0!", "Total Points": "0.00", "Avg Pts / Season": "#DIV/0!", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "0", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "rifelife520 int2": { "Career CP": "0.00", "Career Avg CP": "#DIV/0!", "Record": "0-0", "Win %": "#DIV/0!", "Total Points": "0.00", "Avg Pts / Season": "#DIV/0!", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "0", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "rifelife520 int3": { "Career CP": "818.44", "Career Avg CP": "204.61", "Record": "46-22", "Win %": "67.6%", "Total Points": "15533.85", "Avg Pts / Season": "221.87", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "10", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "3" },
+  "rifelife520 int4": { "Career CP": "2.26", "Career Avg CP": "1.13", "Record": "4-13", "Win %": "23.5%", "Total Points": "2839.35", "Avg Pts / Season": "78.87", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "-10", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "roedshow502": { "Career CP": "388.87", "Career Avg CP": "97.22", "Record": "24-27", "Win %": "47.1%", "Total Points": "10363.85", "Avg Pts / Season": "196.04", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "3", "League Lows": "2", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "schmacky": { "Career CP": "116.92", "Career Avg CP": "29.23", "Record": "6-11", "Win %": "35.3%", "Total Points": "3467.65", "Avg Pts / Season": "96.32", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "sb428": { "Career CP": "623.17", "Career Avg CP": "155.79", "Record": "43-25", "Win %": "63.2%", "Total Points": "15528.80", "Avg Pts / Season": "221.99", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "7", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "2" },
+  "seanhowe92": { "Career CP": "178.68", "Career Avg CP": "44.67", "Record": "15-19", "Win %": "44.1%", "Total Points": "6447.95", "Avg Pts / Season": "184.61", "Alliance Highs": "0", "Alliance Lows": "19", "League Highs": "17", "League Lows": "19", "Manager Bonus": "-4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "shubhay": { "Career CP": "472.46", "Career Avg CP": "118.11", "Record": "33-35", "Win %": "48.5%", "Total Points": "11424.54", "Avg Pts / Season": "163.31", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "2", "League Lows": "2", "Manager Bonus": "-8", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" },
+  "spacebarracecar": { "Career CP": "401.66", "Career Avg CP": "100.42", "Record": "23-11", "Win %": "67.6%", "Total Points": "7798.95", "Avg Pts / Season": "223.60", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "5", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "6" },
+  "spano15": { "Career CP": "538.23", "Career Avg CP": "134.56", "Record": "35-33", "Win %": "51.5%", "Total Points": "13593.30", "Avg Pts / Season": "194.27", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "1", "League Lows": "3", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "springfieldatom5": { "Career CP": "123.73", "Career Avg CP": "30.93", "Record": "11-6", "Win %": "64.7%", "Total Points": "3296.75", "Avg Pts / Season": "91.58", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "ssutton1": { "Career CP": "790.24", "Career Avg CP": "197.56", "Record": "39-29", "Win %": "57.4%", "Total Points": "11337.25", "Avg Pts / Season": "161.93", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "stokescity": { "Career CP": "505.87", "Career Avg CP": "126.47", "Record": "37-14", "Win %": "72.5%", "Total Points": "12349.60", "Avg Pts / Season": "233.23", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "12", "League Lows": "0", "Manager Bonus": "-2", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" },
+  "taunto": { "Career CP": "41.61", "Career Avg CP": "10.40", "Record": "6-11", "Win %": "35.3%", "Total Points": "3047.30", "Avg Pts / Season": "84.65", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "0", "League Lows": "2", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "thebadalec": { "Career CP": "745.32", "Career Avg CP": "186.33", "Record": "39-29", "Win %": "57.4%", "Total Points": "14931.65", "Avg Pts / Season": "213.37", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "3", "League Lows": "2", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "thewoat100": { "Career CP": "621.41", "Career Avg CP": "155.35", "Record": "42-26", "Win %": "61.8%", "Total Points": "14226.75", "Avg Pts / Season": "213.12", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "5", "League Lows": "2", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "timc13": { "Career CP": "585.10", "Career Avg CP": "146.28", "Record": "43-25", "Win %": "63.2%", "Total Points": "14147.95", "Avg Pts / Season": "201.70", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "8", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "2", "Division Wins": "3", "Playoff Wins": "7" },
+  "tobistresenteam": { "Career CP": "874.27", "Career Avg CP": "218.57", "Record": "41-27", "Win %": "60.3%", "Total Points": "11699.20", "Avg Pts / Season": "167.44", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "2", "Division Wins": "1", "Playoff Wins": "3" },
+  "tomjohnmike": { "Career CP": "667.82", "Career Avg CP": "166.96", "Record": "41-27", "Win %": "60.3%", "Total Points": "14980.35", "Avg Pts / Season": "213.86", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "4", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "2" },
+  "trizzytr3": { "Career CP": "491.74", "Career Avg CP": "122.94", "Record": "29-39", "Win %": "42.6%", "Total Points": "11944.40", "Avg Pts / Season": "171.03", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "tylerwt003": { "Career CP": "756.22", "Career Avg CP": "189.06", "Record": "42-26", "Win %": "61.8%", "Total Points": "15652.45", "Avg Pts / Season": "223.65", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "11", "League Lows": "0", "Manager Bonus": "7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "vberry8": { "Career CP": "82.29", "Career Avg CP": "20.57", "Record": "15-36", "Win %": "29.4%", "Total Points": "8996.90", "Avg Pts / Season": "169.74", "Alliance Highs": "0", "Alliance Lows": "8", "League Highs": "1", "League Lows": "8", "Manager Bonus": "-9", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "veramic": { "Career CP": "276.66", "Career Avg CP": "69.17", "Record": "23-45", "Win %": "33.8%", "Total Points": "12471.85", "Avg Pts / Season": "178.42", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "vikezfann": { "Career CP": "786.32", "Career Avg CP": "196.58", "Record": "40-28", "Win %": "58.8%", "Total Points": "13237.35", "Avg Pts / Season": "189.45", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "0", "League Lows": "1", "Manager Bonus": "14", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "warboys86": { "Career CP": "432.40", "Career Avg CP": "108.10", "Record": "33-35", "Win %": "48.5%", "Total Points": "13625.60", "Avg Pts / Season": "194.86", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "4", "League Lows": "4", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "wereallyouthere": { "Career CP": "860.38", "Career Avg CP": "215.10", "Record": "37-31", "Win %": "54.4%", "Total Points": "11717.15", "Avg Pts / Season": "167.51", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "2" },
+  "willstephenssr": { "Career CP": "288.68", "Career Avg CP": "72.17", "Record": "20-31", "Win %": "39.2%", "Total Points": "10083.70", "Avg Pts / Season": "190.54", "Alliance Highs": "2", "Alliance Lows": "5", "League Highs": "4", "League Lows": "5", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "wonks": { "Career CP": "751.52", "Career Avg CP": "187.88", "Record": "39-29", "Win %": "57.4%", "Total Points": "15139.35", "Avg Pts / Season": "216.49", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "4", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "wonks l": { "Career CP": "176.17", "Career Avg CP": "44.04", "Record": "13-21", "Win %": "38.2%", "Total Points": "6828.50", "Avg Pts / Season": "194.86", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "wynnguy": { "Career CP": "968.43", "Career Avg CP": "242.11", "Record": "56-12", "Win %": "82.4%", "Total Points": "16666.75", "Avg Pts / Season": "238.24", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "14", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "2", "Division Wins": "1", "Playoff Wins": "7" },
+  "yinyangkitties": { "Career CP": "355.35", "Career Avg CP": "88.84", "Record": "22-29", "Win %": "43.1%", "Total Points": "8965.09", "Avg Pts / Season": "169.76", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "1", "League Lows": "2", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "yinyangkitties l": { "Career CP": "285.41", "Career Avg CP": "71.35", "Record": "21-13", "Win %": "61.8%", "Total Points": "7233.60", "Avg Pts / Season": "206.58", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "zach2326": { "Career CP": "765.54", "Career Avg CP": "191.39", "Record": "41-26", "Win %": "61.2%", "Total Points": "13959.45", "Avg Pts / Season": "199.38", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "6", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "3" },
+  "ziplocbaggins": { "Career CP": "884.87", "Career Avg CP": "221.22", "Record": "46-22", "Win %": "67.6%", "Total Points": "14605.20", "Avg Pts / Season": "208.94", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "7" },
+  "ziplocbaggins l": { "Career CP": "780.47", "Career Avg CP": "195.12", "Record": "46-22", "Win %": "67.6%", "Total Points": "14347.90", "Avg Pts / Season": "205.37", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "7" },
+  "acubes21": { "Career CP": "716.17", "Career Avg CP": "179.04", "Record": "44-24", "Win %": "64.7%", "Total Points": "15466.85", "Avg Pts / Season": "221.28", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "8", "League Lows": "1", "Manager Bonus": "6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "alexfinnis": { "Career CP": "730.85", "Career Avg CP": "182.71", "Record": "38-30", "Win %": "55.9%", "Total Points": "14359.25", "Avg Pts / Season": "214.45", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "5", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "amkm324": { "Career CP": "933.29", "Career Avg CP": "233.32", "Record": "44-24", "Win %": "64.7%", "Total Points": "13706.40", "Avg Pts / Season": "196.05", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "2", "Playoff Wins": "4" },
+  "antimisanthrope": { "Career CP": "101.99", "Career Avg CP": "25.50", "Record": "13-21", "Win %": "38.2%", "Total Points": "6025.65", "Avg Pts / Season": "172.50", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "0", "League Lows": "2", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "arveatz21": { "Career CP": "237.72", "Career Avg CP": "59.43", "Record": "19-32", "Win %": "37.3%", "Total Points": "8812.35", "Avg Pts / Season": "170.01", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "1", "League Lows": "5", "Manager Bonus": "-11", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "austin3x": { "Career CP": "173.79", "Career Avg CP": "43.45", "Record": "10-7", "Win %": "58.8%", "Total Points": "3592.50", "Avg Pts / Season": "99.79", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "babba10101": { "Career CP": "655.40", "Career Avg CP": "163.85", "Record": "39-29", "Win %": "57.4%", "Total Points": "14686.30", "Avg Pts / Season": "210.13", "Alliance Highs": "1", "Alliance Lows": "3", "League Highs": "2", "League Lows": "3", "Manager Bonus": "8", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "beardmantv": { "Career CP": "547.81", "Career Avg CP": "136.95", "Record": "34-34", "Win %": "50.0%", "Total Points": "14220.20", "Avg Pts / Season": "203.52", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "2", "League Lows": "5", "Manager Bonus": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "beaster303": { "Career CP": "306.02", "Career Avg CP": "76.51", "Record": "28-40", "Win %": "41.2%", "Total Points": "12838.70", "Avg Pts / Season": "183.75", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "5", "League Lows": "1", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "beaverius": { "Career CP": "346.32", "Career Avg CP": "86.58", "Record": "28-40", "Win %": "41.2%", "Total Points": "12763.65", "Avg Pts / Season": "182.32", "Alliance Highs": "0", "Alliance Lows": "6", "League Highs": "2", "League Lows": "6", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "boonedoggaf": { "Career CP": "449.90", "Career Avg CP": "112.47", "Record": "31-37", "Win %": "45.6%", "Total Points": "13380.65", "Avg Pts / Season": "191.44", "Alliance Highs": "1", "Alliance Lows": "3", "League Highs": "1", "League Lows": "3", "Manager Bonus": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "booshay": { "Career CP": "451.94", "Career Avg CP": "112.99", "Record": "27-41", "Win %": "39.7%", "Total Points": "9815.65", "Avg Pts / Season": "140.24", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "6", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" },
+  "bradlevo": { "Career CP": "774.14", "Career Avg CP": "193.54", "Record": "49-19", "Win %": "72.1%", "Total Points": "15126.39", "Avg Pts / Season": "216.25", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "8", "League Lows": "0", "Manager Bonus": "2", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "5" },
+  "catinthehat2": { "Career CP": "588.41", "Career Avg CP": "147.10", "Record": "37-31", "Win %": "54.4%", "Total Points": "13800.65", "Avg Pts / Season": "197.37", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "cozzin": { "Career CP": "273.98", "Career Avg CP": "68.50", "Record": "21-30", "Win %": "41.2%", "Total Points": "9456.40", "Avg Pts / Season": "178.78", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "crb2121": { "Career CP": "283.44", "Career Avg CP": "70.86", "Record": "21-13", "Win %": "61.8%", "Total Points": "7521.25", "Avg Pts / Season": "214.83", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "cre8t1v3": { "Career CP": "604.49", "Career Avg CP": "151.12", "Record": "34-32", "Win %": "51.5%", "Total Points": "13575.49", "Avg Pts / Season": "202.67", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "7", "League Lows": "3", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "cre8t1v3 int": { "Career CP": "604.49", "Career Avg CP": "151.12", "Record": "34-32", "Win %": "51.5%", "Total Points": "13575.49", "Avg Pts / Season": "202.67", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "7", "League Lows": "3", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "cspeese22": { "Career CP": "421.61", "Career Avg CP": "105.40", "Record": "27-24", "Win %": "52.9%", "Total Points": "11191.20", "Avg Pts / Season": "211.12", "Alliance Highs": "1", "Alliance Lows": "5", "League Highs": "7", "League Lows": "5", "Manager Bonus": "6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "db091391": { "Career CP": "668.02", "Career Avg CP": "167.00", "Record": "37-31", "Win %": "54.4%", "Total Points": "14621.55", "Avg Pts / Season": "209.07", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "3", "League Lows": "1", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" },
+  "dommez": { "Career CP": "35.70", "Career Avg CP": "8.92", "Record": "5-12", "Win %": "29.4%", "Total Points": "3068.70", "Avg Pts / Season": "85.24", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "0", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "evanthomas536": { "Career CP": "301.69", "Career Avg CP": "75.42", "Record": "26-42", "Win %": "38.2%", "Total Points": "12723.65", "Avg Pts / Season": "182.04", "Alliance Highs": "0", "Alliance Lows": "14", "League Highs": "1", "League Lows": "14", "Manager Bonus": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "fantasytren": { "Career CP": "425.79", "Career Avg CP": "106.45", "Record": "28-40", "Win %": "41.2%", "Total Points": "13441.30", "Avg Pts / Season": "192.07", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "finnbar3": { "Career CP": "789.86", "Career Avg CP": "197.47", "Record": "41-27", "Win %": "60.3%", "Total Points": "13207.14", "Avg Pts / Season": "188.61", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "7", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "3" },
+  "garcia925": { "Career CP": "513.09", "Career Avg CP": "128.27", "Record": "39-29", "Win %": "57.4%", "Total Points": "14901.05", "Avg Pts / Season": "213.14", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "6", "League Lows": "0", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "garmstrong2002": { "Career CP": "528.49", "Career Avg CP": "132.12", "Record": "29-39", "Win %": "42.6%", "Total Points": "12881.85", "Avg Pts / Season": "193.85", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "1", "League Lows": "4", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "gavdjedi": { "Career CP": "223.27", "Career Avg CP": "55.82", "Record": "26-42", "Win %": "38.2%", "Total Points": "13151.75", "Avg Pts / Season": "187.97", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "0", "League Lows": "5", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "glang727": { "Career CP": "518.22", "Career Avg CP": "129.55", "Record": "36-32", "Win %": "52.9%", "Total Points": "14586.85", "Avg Pts / Season": "208.48", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "1", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" },
+  "huibuh": { "Career CP": "946.61", "Career Avg CP": "236.65", "Record": "41-27", "Win %": "60.3%", "Total Points": "12614.50", "Avg Pts / Season": "180.23", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "11", "League Lows": "0", "Manager Bonus": "5", "Conference Wins": "3", "Division Wins": "3", "Playoff Wins": "6" },
+  "jamie04": { "Career CP": "248.88", "Career Avg CP": "62.22", "Record": "20-14", "Win %": "58.8%", "Total Points": "7230.95", "Avg Pts / Season": "206.71", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "3", "League Lows": "1", "Manager Bonus": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "jay21177": { "Career CP": "499.67", "Career Avg CP": "124.92", "Record": "27-41", "Win %": "39.7%", "Total Points": "13596.25", "Avg Pts / Season": "194.64", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "1", "League Lows": "5", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "kingigor31": { "Career CP": "208.56", "Career Avg CP": "52.14", "Record": "18-16", "Win %": "52.9%", "Total Points": "6932.60", "Avg Pts / Season": "198.43", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "0", "League Lows": "3", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "koala530": { "Career CP": "153.04", "Career Avg CP": "38.26", "Record": "12-5", "Win %": "70.6%", "Total Points": "3813.55", "Avg Pts / Season": "105.93", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "2", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "mattbanks3x": { "Career CP": "930.46", "Career Avg CP": "232.62", "Record": "46-22", "Win %": "67.6%", "Total Points": "15080.85", "Avg Pts / Season": "215.29", "Alliance Highs": "1", "Alliance Lows": "0", "League Highs": "11", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "2" },
+  "mchostetler1": { "Career CP": "563.24", "Career Avg CP": "140.81", "Record": "35-33", "Win %": "51.5%", "Total Points": "13833.85", "Avg Pts / Season": "197.78", "Alliance Highs": "1", "Alliance Lows": "1", "League Highs": "3", "League Lows": "1", "Manager Bonus": "4", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "1" },
+  "mightykidsmeal": { "Career CP": "619.97", "Career Avg CP": "154.99", "Record": "37-31", "Win %": "54.4%", "Total Points": "14310.30", "Avg Pts / Season": "204.73", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "2", "League Lows": "2", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "mlporter2001": { "Career CP": "130.50", "Career Avg CP": "32.63", "Record": "13-21", "Win %": "38.2%", "Total Points": "6605.90", "Avg Pts / Season": "188.71", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "0", "League Lows": "2", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "nblu82": { "Career CP": "339.09", "Career Avg CP": "84.77", "Record": "25-43", "Win %": "36.8%", "Total Points": "12559.85", "Avg Pts / Season": "179.77", "Alliance Highs": "0", "Alliance Lows": "14", "League Highs": "1", "League Lows": "14", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "nbowers12": { "Career CP": "113.25", "Career Avg CP": "28.31", "Record": "10-7", "Win %": "58.8%", "Total Points": "3310.00", "Avg Pts / Season": "91.94", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "0", "League Lows": "1", "Manager Bonus": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "patty5": { "Career CP": "147.35", "Career Avg CP": "36.84", "Record": "9-8", "Win %": "52.9%", "Total Points": "3475.60", "Avg Pts / Season": "96.54", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "pauly102 l": { "Career CP": "91.06", "Career Avg CP": "22.77", "Record": "11-23", "Win %": "32.4%", "Total Points": "6510.75", "Avg Pts / Season": "185.94", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "3", "League Lows": "4", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "putinsbalenciagas": { "Career CP": "603.87", "Career Avg CP": "150.97", "Record": "27-41", "Win %": "39.7%", "Total Points": "9927.29", "Avg Pts / Season": "141.94", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "0", "League Lows": "1", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "ravenger": { "Career CP": "514.57", "Career Avg CP": "128.64", "Record": "31-37", "Win %": "45.6%", "Total Points": "11269.90", "Avg Pts / Season": "160.79", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "sammykins13": { "Career CP": "206.96", "Career Avg CP": "51.74", "Record": "17-17", "Win %": "50.0%", "Total Points": "6385.95", "Avg Pts / Season": "182.61", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "samwow123": { "Career CP": "850.75", "Career Avg CP": "212.69", "Record": "49-19", "Win %": "72.1%", "Total Points": "16522.40", "Avg Pts / Season": "236.26", "Alliance Highs": "3", "Alliance Lows": "0", "League Highs": "7", "League Lows": "0", "Manager Bonus": "-5", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "5" },
+  "samwow123 l": { "Career CP": "456.55", "Career Avg CP": "114.14", "Record": "27-7", "Win %": "79.4%", "Total Points": "8170.25", "Avg Pts / Season": "233.63", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "6", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "5" },
+  "srcav": { "Career CP": "653.43", "Career Avg CP": "163.36", "Record": "35-33", "Win %": "51.5%", "Total Points": "14464.95", "Avg Pts / Season": "206.99", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "4", "League Lows": "3", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "svelter": { "Career CP": "311.52", "Career Avg CP": "77.88", "Record": "31-37", "Win %": "45.6%", "Total Points": "12872.74", "Avg Pts / Season": "184.02", "Alliance Highs": "0", "Alliance Lows": "5", "League Highs": "0", "League Lows": "5", "Manager Bonus": "-2", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "1" },
+  "tallandflat": { "Career CP": "443.36", "Career Avg CP": "110.84", "Record": "28-40", "Win %": "41.2%", "Total Points": "13919.85", "Avg Pts / Season": "199.30", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "2", "League Lows": "1", "Manager Bonus": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "treetwig": { "Career CP": "461.13", "Career Avg CP": "115.28", "Record": "26-25", "Win %": "51.0%", "Total Points": "11146.15", "Avg Pts / Season": "210.33", "Alliance Highs": "2", "Alliance Lows": "0", "League Highs": "3", "League Lows": "0", "Manager Bonus": "7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "wdh76": { "Career CP": "568.69", "Career Avg CP": "142.17", "Record": "32-19", "Win %": "62.7%", "Total Points": "11462.45", "Avg Pts / Season": "216.07", "Alliance Highs": "4", "Alliance Lows": "0", "League Highs": "17", "League Lows": "0", "Manager Bonus": "3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "1" },
+  "wearyiungs": { "Career CP": "110.39", "Career Avg CP": "55.19", "Record": "11-6", "Win %": "64.7%", "Total Points": "3249.40", "Avg Pts / Season": "90.26", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" },
+  "willywonga33": { "Career CP": "214.79", "Career Avg CP": "53.70", "Record": "18-16", "Win %": "52.9%", "Total Points": "6651.30", "Avg Pts / Season": "190.78", "Alliance Highs": "0", "Alliance Lows": "4", "League Highs": "0", "League Lows": "4", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" },
+  "z1856z": { "Career CP": "779.08", "Career Avg CP": "194.77", "Record": "44-24", "Win %": "64.7%", "Total Points": "15019.65", "Avg Pts / Season": "214.51", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "10", "League Lows": "0", "Manager Bonus": "-3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "5" },
+  "z1856z l": { "Career CP": "238.07", "Career Avg CP": "59.52", "Record": "22-12", "Win %": "64.7%", "Total Points": "7664.85", "Avg Pts / Season": "218.73", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "5", "League Lows": "1", "Manager Bonus": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" },
+  "zcal": { "Career CP": "654.19", "Career Avg CP": "163.55", "Record": "33-35", "Win %": "48.5%", "Total Points": "11144.19", "Avg Pts / Season": "159.35", "Alliance Highs": "0", "Alliance Lows": "2", "League Highs": "2", "League Lows": "2", "Manager Bonus": "2", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "2" },
+  "zero00": { "Career CP": "764.92", "Career Avg CP": "191.23", "Record": "32-36", "Win %": "47.1%", "Total Points": "12888.95", "Avg Pts / Season": "184.64", "Alliance Highs": "0", "Alliance Lows": "3", "League Highs": "4", "League Lows": "3", "Manager Bonus": "3", "Conference Wins": "1", "Division Wins": "2", "Playoff Wins": "3" },
+  "zero00 l": { "Career CP": "311.24", "Career Avg CP": "77.81", "Record": "14-20", "Win %": "41.2%", "Total Points": "7202.05", "Avg Pts / Season": "206.21", "Alliance Highs": "0", "Alliance Lows": "1", "League Highs": "1", "League Lows": "1", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" },
+  "zero00 int": { "Career CP": "550.57", "Career Avg CP": "137.64", "Record": "29-5", "Win %": "85.3%", "Total Points": "7925.50", "Avg Pts / Season": "226.82", "Alliance Highs": "0", "Alliance Lows": "0", "League Highs": "6", "League Lows": "0", "Manager Bonus": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "5" },
+};
 
 const C = {
   ink: "#0B1220",
@@ -170,6 +374,22 @@ const ago = (ts) => {
   return `${Math.floor(s / 86400)}d`;
 };
 
+// ── Conference Strength — Troy's original spreadsheet metric, rebuilt.
+// Two comparison pools: the 10-tier "Alliance" (everything below the pro
+// tiers), and USFL+XFL compared only against each other. NFL has no pool to
+// compare against, so it gets no score. All inputs are season-total points,
+// already present in standingsCache — nothing new to fetch.
+const ALLIANCE_POOL = ["SEC", "BIG XII", "ACC", "TEN", "SUN", "SOCO", "IVY", "SWAC", "GLIAC", "FLHS"];
+const PRO_POOL = ["USFL", "XFL"];
+
+const median = (arr) => {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
+const average = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+
 // ── Logo: uses /pfa-logo.png from the public folder; SVG shield fallback ──
 function Logo({ size = 52 }) {
   const [imgOk, setImgOk] = useState(true);
@@ -220,10 +440,104 @@ function Logo({ size = 52 }) {
   );
 }
 
+// ── Avatar: a coach's Sleeper profile photo, with an initials fallback for
+// coaches without one set, or if the image fails to load ──
+function Avatar({ name, avatar, size = 36 }) {
+  const [broken, setBroken] = useState(false);
+  const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
+  if (avatar && !broken) {
+    return (
+      <img
+        src={`https://sleepercdn.com/avatars/thumbs/${avatar}`}
+        alt={name}
+        onError={() => setBroken(true)}
+        style={{ width: size, height: size, borderRadius: "9999px", objectFit: "cover", border: `1px solid ${C.line}`, flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "9999px",
+        background: C.panelHi,
+        border: `1px solid ${C.line}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontWeight: 700,
+        color: C.gold,
+        fontSize: Math.round(size * 0.42),
+        flexShrink: 0,
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+// ── Coach Profile popup: current team + conference are always shown (from
+// the same Sleeper data as the directory); career stats show once CAREER_
+// STATS has an entry for this coach, otherwise a plain "not in yet" note.
+function CoachProfileModal({ coach, onClose }) {
+  if (!coach) return null;
+  const stats = CAREER_STATS[coach.name.toLowerCase()];
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(11,18,32,0.75)" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-sm p-5"
+        style={{ background: C.panel, border: `1px solid ${C.line}` }}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Avatar name={coach.name} avatar={coach.avatar} size={52} />
+            <div>
+              <div className="text-lg font-semibold leading-tight">{coach.name}</div>
+              <div className="text-xs" style={{ color: C.slate }}>{coach.team || "—"}</div>
+              {coach.tierKey && (
+                <div className="text-xs uppercase tracking-wider mt-0.5" style={{ color: C.gold }}>
+                  {coach.tierName || coach.tierKey}
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>
+            close
+          </button>
+        </div>
+
+        {stats ? (
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {Object.entries(stats).map(([label, value]) => (
+              <div key={label} className="px-2.5 py-2 rounded-sm" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
+                <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>{label}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs leading-relaxed" style={{ color: C.slate }}>
+            No career stats on file for this coach yet.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
   const [tierKey, setTierKey] = useState("NFL");
+  const [dirQuery, setDirQuery] = useState("");
+  const [selectedCoach, setSelectedCoach] = useState(null);
   const [nflState, setNflState] = useState(null);
   const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
   const [standingsCache, setStandingsCache] = useState({});
@@ -258,6 +572,8 @@ export default function App() {
         pts: (s.fpts || 0) + (s.fpts_decimal || 0) / 100,
         maxPts: (s.ppts || 0) + (s.ppts_decimal || 0) / 100,
         rosterId: r.roster_id,
+        userId: u.user_id || null,
+        avatar: u.avatar || null,
       };
     });
     rows.sort((a, b) => b.w - a.w || b.pts - a.pts);
@@ -414,6 +730,127 @@ export default function App() {
     }
     return tKey === "NFL" ? DEMO_NFL[DEMO_NFL.length - 1] : null;
   };
+
+  // ── Coach directory: every coach currently rostered across all connected
+  // leagues, built entirely from data already fetched for standings — no
+  // separate roster of "232 coaches" needs to be maintained by hand.
+  const coachDirectory = useMemo(() => {
+    const list = [];
+    if (mode === "live") {
+      TIERS.forEach((t) => {
+        const id = leagueMap[t.key];
+        const tRows = id ? standingsCache[id] : null;
+        if (!tRows) return;
+        tRows.forEach((r) => {
+          if (!r.coach || r.coach === "—") return;
+          list.push({
+            userId: r.userId,
+            name: r.coach,
+            avatar: r.avatar,
+            team: r.team,
+            tierKey: t.key,
+            tierName: t.name,
+            w: r.w,
+            l: r.l,
+          });
+        });
+      });
+    } else {
+      DEMO_NFL.forEach((r) => {
+        list.push({
+          userId: null,
+          name: r.coach,
+          avatar: null,
+          team: r.team,
+          tierKey: "NFL",
+          tierName: "National Football League",
+          w: r.w,
+          l: r.l,
+        });
+      });
+    }
+    return list;
+  }, [mode, leagueMap, standingsCache]);
+
+  const findCoachAvatar = (name) => {
+    const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
+    return hit ? hit.avatar : null;
+  };
+
+  const openCoachProfile = (name) => {
+    const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
+    setSelectedCoach(hit || { name, avatar: null, team: null, tierKey: null, tierName: null });
+  };
+
+  const filteredDirectory = useMemo(() => {
+    const q = dirQuery.trim().toLowerCase();
+    if (!q) return coachDirectory;
+    return coachDirectory.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.team.toLowerCase().includes(q) ||
+        c.tierKey.toLowerCase().includes(q) ||
+        c.tierName.toLowerCase().includes(q)
+    );
+  }, [coachDirectory, dirQuery]);
+
+  // ── Conference Strength — Troy's original spreadsheet metric, rebuilt from
+  // season-total points already in standingsCache. Two pools: the 10-tier
+  // "Alliance," and USFL+XFL compared only against each other. NFL has no
+  // pool, so it isn't scored. Scores hover near zero until real games are
+  // played — that's expected during the off-season, not a bug.
+  const conferenceStrength = useMemo(() => {
+    if (mode !== "live") return {};
+
+    const baseStats = (tKey) => {
+      const id = leagueMap[tKey];
+      const tRows = id ? standingsCache[id] : null;
+      if (!tRows || tRows.length < 2) return null;
+      const scores = tRows.map((r) => r.pts || 0);
+      const teamMax = Math.max(...scores);
+      const teamMin = Math.min(...scores);
+      return {
+        teamMax,
+        teamMin,
+        d: teamMax - teamMin,
+        leagueAvg: average(scores),
+        leagueMedian: median(scores),
+      };
+    };
+
+    const scorePool = (poolKeys) => {
+      const stats = {};
+      poolKeys.forEach((k) => {
+        const s = baseStats(k);
+        if (s) stats[k] = s;
+      });
+      const keys = Object.keys(stats);
+      if (keys.length < 2) return {};
+
+      const poolMedianD = median(keys.map((k) => stats[k].d));
+      const poolAvgOfAvgs = average(keys.map((k) => stats[k].leagueAvg));
+      const poolMedianOfMedians = median(keys.map((k) => stats[k].leagueMedian));
+      const poolMedianOfMax = median(keys.map((k) => stats[k].teamMax));
+      const poolMedianOfMin = median(keys.map((k) => stats[k].teamMin));
+
+      const out = {};
+      keys.forEach((k) => {
+        const s = stats[k];
+        const score =
+          (s.d - poolMedianD) / -10 / 10 +
+          (s.leagueAvg - poolAvgOfAvgs) / 100 +
+          (s.leagueMedian - poolMedianOfMedians) / 20 +
+          (s.teamMax - poolMedianOfMax) / 100 +
+          (s.leagueMedian - poolMedianOfMedians) / 20 +
+          (s.teamMin - poolMedianOfMin) / 20;
+        out[k] = { score, poolSize: keys.length };
+      });
+      return out;
+    };
+
+    return { ...scorePool(ALLIANCE_POOL), ...scorePool(PRO_POOL) };
+  }, [mode, leagueMap, standingsCache]);
+
   const tagColor = (t) =>
     t === "BREAKING" ? C.ember : t === "ANNOUNCEMENT" ? C.gold : t === "COACHING CAROUSEL" ? C.turf : C.slate;
 
@@ -491,6 +928,7 @@ export default function App() {
             <Tab id="home">Home</Tab>
             <Tab id="standings">The Ladder</Tab>
             <Tab id="coaches">Top Coaches</Tab>
+            <Tab id="directory">Coach Search</Tab>
             <Tab id="pyramid">The Pyramid</Tab>
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
           </nav>
@@ -606,17 +1044,27 @@ export default function App() {
                       </div>
                     )}
                     {chat.map((m, i) => (
-                      <div key={m.id || i}>
-                        <div className="flex items-baseline gap-2 text-xs">
-                          <span className="font-semibold" style={{ color: m.name === coachName ? C.gold : C.chalk }}>{m.name}</span>
-                          <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
-                          {commish && (
-                            <button onClick={() => deleteChatMsg(m.id)} className="ml-auto text-xs" style={{ color: C.ember }}>
-                              delete
+                      <div key={m.id || i} className="flex items-start gap-2">
+                        <Avatar name={m.name} avatar={findCoachAvatar(m.name)} size={24} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => openCoachProfile(m.name)}
+                              className="font-semibold"
+                              style={{ color: m.name === coachName ? C.gold : C.chalk }}
+                            >
+                              {m.name}
                             </button>
-                          )}
+                            <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
+                            {commish && (
+                              <button onClick={() => deleteChatMsg(m.id)} className="ml-auto text-xs" style={{ color: C.ember }}>
+                                delete
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-sm leading-snug mt-0.5">{m.text}</div>
                         </div>
-                        <div className="text-sm leading-snug mt-0.5">{m.text}</div>
                       </div>
                     ))}
                     <div ref={chatEndRef} />
@@ -753,13 +1201,27 @@ export default function App() {
                       <span className="uppercase text-base leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}>
                         {t.key}
                       </span>
-                      {connected && <span className="ml-auto text-xs" style={{ color: active ? C.ink : C.turf }}>●</span>}
+                      <span className="ml-auto flex items-center gap-1.5">
+                        {conferenceStrength[t.key] && (
+                          <span
+                            className="text-xs"
+                            style={{ fontFamily: "'IBM Plex Mono', monospace", color: active ? C.ink : C.gold }}
+                            title="Conference Strength — higher means tougher competition relative to its comparison pool"
+                          >
+                            {conferenceStrength[t.key].score >= 0 ? "+" : ""}
+                            {conferenceStrength[t.key].score.toFixed(1)}
+                          </span>
+                        )}
+                        {connected && <span className="text-xs" style={{ color: active ? C.ink : C.turf }}>●</span>}
+                      </span>
                     </button>
                   );
                 })}
               </div>
               <div className="hidden lg:block mt-3 text-xs leading-relaxed" style={{ color: C.slate }}>
-                Tier 1 pays the most coaching points. Finish last anywhere and you're fired.
+                Tier 1 pays the most coaching points. Finish last anywhere and you're fired. The number next to each tier is its
+                Conference Strength score — positive means tougher than its comparison pool, negative means easier. NFL stands
+                alone with nothing to compare against, so it isn't scored. Expect scores near zero until games are actually played.
               </div>
             </aside>
 
@@ -782,6 +1244,25 @@ export default function App() {
                 </div>
               </div>
 
+              {conferenceStrength[tierKey] ? (
+                <div className="mb-4 text-xs" style={{ color: C.slate }}>
+                  Conference Strength:{" "}
+                  <span style={{ color: C.gold, fontWeight: 600 }}>
+                    {conferenceStrength[tierKey].score >= 0 ? "+" : ""}
+                    {conferenceStrength[tierKey].score.toFixed(1)}
+                  </span>{" "}
+                  against its {conferenceStrength[tierKey].poolSize}-league comparison pool. Positive means this tier's currently
+                  playing tougher; negative means easier. Expect it to sit near zero until real games are on the board.
+                </div>
+              ) : (
+                tierKey === "NFL" && (
+                  <div className="mb-4 text-xs" style={{ color: C.slate }}>
+                    NFL is the only league in its tier — nothing to compare it against, so it doesn't get a Conference Strength
+                    score.
+                  </div>
+                )
+              )}
+
               {rows ? (
                 <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
                   <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
@@ -803,7 +1284,9 @@ export default function App() {
                           >
                             <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{r.place}</td>
                             <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
-                              {r.coach}
+                              <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
+                                {r.coach}
+                              </button>
                               {isLast && (
                                 <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
                                   hot seat
@@ -881,7 +1364,11 @@ export default function App() {
                   {DEMO_CAREER.map((r, i) => (
                     <tr key={r.coach} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
                       <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{i + 1}</td>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>{r.coach}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
+                        <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
+                          {r.coach}
+                        </button>
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
                       <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>{fmt(r.cp)}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -899,6 +1386,58 @@ export default function App() {
             <p className="mt-3 text-xs" style={{ color: C.slate }}>
               This table currently shows 2025 career data. Next step: it reads live from the Alliance sheet's published feed.
             </p>
+          </section>
+        )}
+
+        {view === "directory" && (
+          <section>
+            <div className="flex items-baseline justify-between mb-1 gap-2 flex-wrap">
+              <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                Coach Search
+              </h2>
+              <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>
+                {coachDirectory.length} in the Alliance
+              </span>
+            </div>
+            <p className="text-sm mb-4" style={{ color: C.slate }}>
+              Look up any coach by name, team, or conference. Full career records and titles land here once the Alliance sheet
+              feed is connected — for now this shows who's currently coaching where.
+            </p>
+            <input
+              value={dirQuery}
+              onChange={(e) => setDirQuery(e.target.value)}
+              placeholder="Search by coach, team, or conference…"
+              className="w-full px-3 py-2 text-sm rounded-sm outline-none mb-4"
+              style={{ background: C.panel, border: `1px solid ${C.line}`, color: C.chalk }}
+            />
+            {mode !== "live" && (
+              <div className="mb-4 text-xs" style={{ color: C.slate }}>
+                Directory populates from live Sleeper data — currently showing sample NFL coaches only.
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {filteredDirectory.map((c, i) => (
+                <button
+                  type="button"
+                  key={(c.userId || c.name) + i}
+                  onClick={() => openCoachProfile(c.name)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-left transition-colors"
+                  style={{ background: C.panel, border: `1px solid ${C.line}` }}
+                >
+                  <Avatar name={c.name} avatar={c.avatar} size={38} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">{c.name}</div>
+                    <div className="text-xs truncate" style={{ color: C.slate }}>{c.team}</div>
+                    <div className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>{c.tierKey}</div>
+                  </div>
+                </button>
+              ))}
+              {filteredDirectory.length === 0 && (
+                <div className="col-span-full py-10 text-center text-sm" style={{ color: C.slate }}>
+                  No coaches match that search.
+                </div>
+              )}
+            </div>
           </section>
         )}
 
@@ -980,6 +1519,8 @@ export default function App() {
           <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>sleeper api · firebase · alliance sheet</span>
         </div>
       </footer>
+
+      <CoachProfileModal coach={selectedCoach} onClose={() => setSelectedCoach(null)} />
     </div>
   );
 }
