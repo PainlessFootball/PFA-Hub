@@ -9,6 +9,10 @@ import {
   removeChatMessage,
   getCoachName,
   setCoachNameStored,
+  watchApplications,
+  submitApplication,
+  watchPromotionWindow,
+  setPromotionWindow,
 } from "./storage.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -532,12 +536,94 @@ function CoachProfileModal({ coach, onClose }) {
   );
 }
 
+// ── Team Profile popup: Max Total Points comes straight from the same
+// standings data already on the page. Roster resolves player IDs against
+// Sleeper's players dictionary (fetched lazily — see ensurePlayersLoaded).
+const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
+
+function TeamProfileModal({ team, onClose, playersDict, playersLoading }) {
+  if (!team) return null;
+
+  const players = (team.playerIds || []).map((pid) => {
+    const p = playersDict ? playersDict[pid] : null;
+    return {
+      id: pid,
+      name: p ? p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() : pid,
+      position: p ? p.position || "—" : "—",
+      nflTeam: p ? p.team || "FA" : "",
+    };
+  });
+  players.sort((a, b) => {
+    const ia = POSITION_ORDER.indexOf(a.position);
+    const ib = POSITION_ORDER.indexOf(b.position);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(11,18,32,0.75)" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-sm p-5"
+        style={{ background: C.panel, border: `1px solid ${C.line}`, maxHeight: "85vh", overflowY: "auto" }}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="text-lg font-semibold leading-tight">{team.team}</div>
+            {team.tierKey && (
+              <div className="text-xs uppercase tracking-wider mt-0.5" style={{ color: C.gold }}>{team.tierName}</div>
+            )}
+          </div>
+          <button onClick={onClose} className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>
+            close
+          </button>
+        </div>
+
+        <div className="px-2.5 py-2 rounded-sm mb-4" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
+          <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Max Total Points</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>
+            {typeof team.maxPts === "number" ? fmt(team.maxPts) : "—"}
+          </div>
+        </div>
+
+        <div className="text-xs uppercase tracking-wider mb-2" style={{ color: C.slate }}>Roster</div>
+        {playersLoading ? (
+          <div className="text-xs" style={{ color: C.slate }}>Loading roster…</div>
+        ) : players.length === 0 ? (
+          <div className="text-xs" style={{ color: C.slate }}>No roster data available.</div>
+        ) : (
+          <div className="space-y-1">
+            {players.map((p) => (
+              <div key={p.id} className="flex items-center justify-between text-sm px-2 py-1 rounded-sm" style={{ background: C.ink }}>
+                <span className="truncate">{p.name}</span>
+                <span className="text-xs shrink-0 ml-2" style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
+                  {p.position}{p.nflTeam ? ` · ${p.nflTeam}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 text-xs" style={{ color: C.slate }}>
+          Draft picks aren't shown yet — still deciding the right shape for that with Lainey.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
   const [tierKey, setTierKey] = useState("NFL");
   const [dirQuery, setDirQuery] = useState("");
   const [selectedCoach, setSelectedCoach] = useState(null);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [playersDict, setPlayersDict] = useState(null);
+  const [playersLoading, setPlayersLoading] = useState(false);
   const [nflState, setNflState] = useState(null);
   const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
   const [standingsCache, setStandingsCache] = useState({});
@@ -553,6 +639,8 @@ export default function App() {
   const [newsTitle, setNewsTitle] = useState("");
   const [newsBody, setNewsBody] = useState("");
   const [newsTag, setNewsTag] = useState("NEWS");
+  const [applications, setApplications] = useState([]);
+  const [promotionWindowOpen, setPromotionWindowOpen] = useState(false);
   const chatEndRef = useRef(null);
   const bulkLoadedRef = useRef(false);
 
@@ -574,6 +662,7 @@ export default function App() {
         rosterId: r.roster_id,
         userId: u.user_id || null,
         avatar: u.avatar || null,
+        playerIds: r.players || [],
       };
     });
     rows.sort((a, b) => b.w - a.w || b.pts - a.pts);
@@ -642,15 +731,19 @@ export default function App() {
     };
   }, [loadLeague]);
 
-  // real-time chat + news subscriptions
+  // real-time chat + news + applications + promotion window subscriptions
   useEffect(() => {
     const unsubChat = watchChat((msgs) => setChat(msgs));
     const unsubNews = watchNews((items) => {
       if (items && items.length) setNews(items);
     });
+    const unsubApps = watchApplications((apps) => setApplications(apps));
+    const unsubPromo = watchPromotionWindow((open) => setPromotionWindowOpen(open));
     return () => {
       unsubChat();
       unsubNews();
+      unsubApps();
+      unsubPromo();
     };
   }, []);
 
@@ -715,6 +808,52 @@ export default function App() {
     if (local) setChat(local);
   };
 
+  // ── Apply-to-Team ──
+  const promotionPointsFor = (name) => {
+    const stats = CAREER_STATS[(name || "").toLowerCase()];
+    if (!stats) return null;
+    const n = parseFloat(stats["Career CP"]);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const applicantsForTeam = (tKey, team) =>
+    applications
+      .filter((a) => a.tierKey === tKey && a.team === team)
+      .slice()
+      .sort((a, b) => {
+        const pa = promotionPointsFor(a.coachName);
+        const pb = promotionPointsFor(b.coachName);
+        if (pa === null && pb === null) return 0;
+        if (pa === null) return 1;
+        if (pb === null) return -1;
+        return pb - pa;
+      });
+
+  const applyToTeam = async (tKey, team) => {
+    let name = coachName;
+    if (!name) {
+      const entered = window.prompt("Enter your coach name to apply:");
+      if (!entered) return;
+      name = entered.trim().slice(0, 24);
+      if (!name) return;
+      setCoachName(name);
+      setCoachNameStored(name);
+    }
+    const already = applications.some(
+      (a) => a.tierKey === tKey && a.team === team && a.coachName.toLowerCase() === name.toLowerCase()
+    );
+    if (already) return;
+    const app = { tierKey: tKey, team, coachName: name, ts: Date.now() };
+    const local = await submitApplication(app);
+    if (local) setApplications(local);
+  };
+
+  const togglePromotionWindow = async () => {
+    const next = !promotionWindowOpen;
+    setPromotionWindowOpen(next); // optimistic; live mode reconciles via onSnapshot moments later
+    await setPromotionWindow(next);
+  };
+
   const tier = TIERS.find((t) => t.key === tierKey);
   const leagueId = leagueMap[tierKey];
   const liveRows = leagueId ? standingsCache[leagueId] : null;
@@ -752,6 +891,8 @@ export default function App() {
             tierName: t.name,
             w: r.w,
             l: r.l,
+            maxPts: r.maxPts,
+            playerIds: r.playerIds,
           });
         });
       });
@@ -780,6 +921,35 @@ export default function App() {
   const openCoachProfile = (name) => {
     const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
     setSelectedCoach(hit || { name, avatar: null, team: null, tierKey: null, tierName: null });
+  };
+
+  // Sleeper's full player dictionary is a large, mostly-static file — fetch
+  // it once, lazily, the first time someone actually opens a team roster,
+  // rather than on every page load. Kept in memory only (not localStorage)
+  // since it's sizeable and this avoids any storage-quota surprises.
+  const ensurePlayersLoaded = useCallback(async () => {
+    if (playersDict || playersLoading) return;
+    setPlayersLoading(true);
+    try {
+      const data = await j(`${SLEEPER}/players/nfl`);
+      setPlayersDict(data);
+    } catch (e) {
+      setPlayersDict({});
+    } finally {
+      setPlayersLoading(false);
+    }
+  }, [playersDict, playersLoading]);
+
+  const openTeamProfile = (row, tKey) => {
+    const t = TIERS.find((x) => x.key === tKey);
+    setSelectedTeam({
+      team: row.team,
+      tierKey: tKey,
+      tierName: t ? t.name : tKey,
+      maxPts: row.maxPts,
+      playerIds: row.playerIds || [],
+    });
+    if (mode === "live") ensurePlayersLoaded();
   };
 
   const filteredDirectory = useMemo(() => {
@@ -1293,7 +1463,11 @@ export default function App() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
+                            <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+                              <button type="button" onClick={() => openTeamProfile(r, tierKey)} style={{ color: "inherit" }}>
+                                {r.team}
+                              </button>
+                            </td>
                             <td className="px-3 py-2 text-right whitespace-nowrap">
                               <span style={{ color: C.turf }}>{r.w}</span>
                               <span style={{ color: C.slate }}>–</span>
@@ -1338,6 +1512,96 @@ export default function App() {
                         <span className="truncate pl-2 text-right" style={{ fontWeight: 600 }}>{p.b.coach}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {rows && rows.some((r) => r.coach === "—") && (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                    <div className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                      Open Teams
+                    </div>
+                    {commish && (
+                      <button
+                        onClick={togglePromotionWindow}
+                        className="px-2.5 py-1 text-xs uppercase tracking-wider rounded-sm"
+                        style={{
+                          color: promotionWindowOpen ? C.ink : C.slate,
+                          background: promotionWindowOpen ? C.turf : "transparent",
+                          border: `1px solid ${promotionWindowOpen ? C.turf : C.line}`,
+                        }}
+                      >
+                        Promotion window: {promotionWindowOpen ? "open" : "closed"}
+                      </button>
+                    )}
+                  </div>
+                  {!promotionWindowOpen && (
+                    <div className="mb-2 text-xs" style={{ color: C.slate }}>
+                      {commish
+                        ? "Applications are hidden from coaches until you open the promotion window."
+                        : "Applications aren't open yet — check back once the promotion window opens."}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {rows
+                      .filter((r) => r.coach === "—")
+                      .map((r) => {
+                        const teamApps = applicantsForTeam(tierKey, r.team);
+                        const alreadyApplied =
+                          coachName && teamApps.some((a) => a.coachName.toLowerCase() === coachName.toLowerCase());
+                        return (
+                          <div key={r.team} className="p-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <button type="button" onClick={() => openTeamProfile(r, tierKey)} className="font-semibold text-sm" style={{ color: "inherit" }}>
+                                {r.team}
+                              </button>
+                              {promotionWindowOpen && (
+                                <button
+                                  disabled={alreadyApplied}
+                                  onClick={() => applyToTeam(tierKey, r.team)}
+                                  className="px-3 py-1 text-xs uppercase tracking-wider rounded-sm shrink-0"
+                                  style={{
+                                    background: alreadyApplied ? "transparent" : C.gold,
+                                    color: alreadyApplied ? C.turf : C.ink,
+                                    border: `1px solid ${alreadyApplied ? C.turf : C.gold}`,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {alreadyApplied ? "Applied ✓" : "Apply"}
+                                </button>
+                              )}
+                            </div>
+                            {commish && (
+                              <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.line}` }}>
+                                {teamApps.length === 0 ? (
+                                  <span className="text-xs" style={{ color: C.slate }}>No applicants yet.</span>
+                                ) : (
+                                  <ol className="space-y-1 text-xs">
+                                    {teamApps.map((a, i) => {
+                                      const pts = promotionPointsFor(a.coachName);
+                                      return (
+                                        <li key={a.id || i} className="flex items-center justify-between">
+                                          <button
+                                            type="button"
+                                            onClick={() => openCoachProfile(a.coachName)}
+                                            style={{ color: C.chalk }}
+                                          >
+                                            {i + 1}. {a.coachName}
+                                          </button>
+                                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>
+                                            {pts === null ? "—" : fmt(pts)} CP
+                                          </span>
+                                        </li>
+                                      );
+                                    })}
+                                  </ol>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -1521,6 +1785,12 @@ export default function App() {
       </footer>
 
       <CoachProfileModal coach={selectedCoach} onClose={() => setSelectedCoach(null)} />
+      <TeamProfileModal
+        team={selectedTeam}
+        onClose={() => setSelectedTeam(null)}
+        playersDict={playersDict}
+        playersLoading={playersLoading}
+      />
     </div>
   );
 }
