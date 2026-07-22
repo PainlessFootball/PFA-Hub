@@ -316,21 +316,42 @@ const NFL_DIVISIONS = {
 };
 const nflConferenceFor = (divisionNum) => (divisionNum && divisionNum <= 4 ? "AFC" : "NFC");
 
+// FLHS's 4 districts (no conference split) -> Sleeper division numbers.
+// Confirmed directly by Lainey.
+const FLHS_DISTRICTS = { 1: "District 13", 2: "District 14", 3: "District 15", 4: "District 16" };
+
+// Real conference names for the 5 two-conference leagues (Sleeper division
+// number -> name). Confirmed directly by Lainey.
+const TWO_CONF_NAMES = {
+  SUN: { 1: "East", 2: "West" },
+  SOCO: { 1: "North", 2: "South" },
+  IVY: { 1: "Ivy League", 2: "Patriot Conference" },
+  SWAC: { 1: "East", 2: "West" },
+  GLIAC: { 1: "Great Lakes", 2: "Ohio Athletic" },
+};
+
 // Playoff format per tier, per the Rules doc. "top8": straight top-8 by
 // record, no conferences. "conference-division": NFL-style, 4 division
-// winners + 4 wildcards per conference. Tiers not listed here are pending
-// confirmation (USFL/XFL format, the 5 two-conference leagues' actual
-// Sleeper division mapping, FLHS's district structure) — the bracket
-// section simply won't render for those until that's filled in.
+// winners + 4 wildcards per conference. "division-only": same idea as
+// conference-division but a single group (no conference split) — FLHS's 4
+// districts. "conference-top4": top 4 teams from each of 2 conferences, no
+// guaranteed division winners — Sun Belt/SoCo/Ivy/SWAC/GLIAC. Real
+// conference names aren't confirmed yet for those 5, so they show as
+// "Conference 1"/"Conference 2" (generic, but functionally correct) until
+// Lainey sends the actual Sleeper division mapping. USFL/XFL's format is
+// still pending entirely — the bracket section won't render for those yet.
 const PLAYOFF_FORMAT = {
   NFL: "conference-division",
   SEC: "top8", "BIG XII": "top8", ACC: "top8", TEN: "top8",
+  FLHS: "division-only",
+  SUN: "conference-top4", SOCO: "conference-top4", IVY: "conference-top4",
+  SWAC: "conference-top4", GLIAC: "conference-top4",
 };
 
-// Standard fixed single-elimination bracket for an 8-seed field:
-// round 1 = (1v8, 4v5, 3v6, 2v7), round 2 = winners of (1v8/4v5) and
-// (3v6/2v7), round 3 = final.
+// Standard fixed single-elimination bracket pairings.
+// 8-seed: round 1 = (1v8, 4v5, 3v6, 2v7). 4-seed: round 1 = (1v4, 2v3).
 const BRACKET_PAIRS_R1 = [[1, 8], [4, 5], [3, 6], [2, 7]];
+const BRACKET_PAIRS_R1_4 = [[1, 4], [2, 3]];
 
 const DEMO_NFL = [
   { coach: "Harvey28", team: "Tennessee Titans", place: 1, w: 11, l: 6, pts: 3137.0, cp: 285.48 },
@@ -1275,6 +1296,37 @@ export default function App() {
       return { format, brackets: conferences };
     }
 
+    if (format === "division-only") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const byDivision = {};
+      active.forEach((r) => {
+        (byDivision[r.division] = byDivision[r.division] || []).push(r);
+      });
+      const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
+      const winnersSeeded = sortByRecord(divisionWinners);
+      const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
+      const remaining = sortByRecord(active.filter((r) => !winnerRosterIds.has(r.rosterId)));
+      const wildcards = remaining.slice(0, 4);
+      return {
+        format,
+        brackets: [
+          { name: "Playoffs", seeds: [...winnersSeeded, ...wildcards] },
+          { name: "Consolation", seeds: remaining.slice(4, 12) },
+        ],
+      };
+    }
+
+    if (format === "conference-top4") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const divisions = [...new Set(active.map((r) => r.division))].sort((a, b) => a - b);
+      const names = TWO_CONF_NAMES[tKey] || {};
+      const brackets = divisions.map((divNum) => ({
+        name: names[divNum] || `Conference ${divNum}`,
+        seeds: sortByRecord(active.filter((r) => r.division === divNum)).slice(0, 4),
+      }));
+      return { format, brackets };
+    }
+
     return null;
   };
 
@@ -2078,7 +2130,7 @@ export default function App() {
                       <div key={b.name}>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
                         <div className="space-y-1">
-                          {BRACKET_PAIRS_R1.map(([seedA, seedB], i) => {
+                          {(b.seeds.length <= 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1).map(([seedA, seedB], i) => {
                             const teamA = b.seeds[seedA - 1];
                             const teamB = b.seeds[seedB - 1];
                             return (
