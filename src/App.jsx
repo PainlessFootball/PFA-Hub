@@ -1286,6 +1286,7 @@ export default function App() {
             l: r.l,
             maxPts: r.maxPts,
             playerIds: r.playerIds,
+            rosterId: r.rosterId,
           });
         });
       });
@@ -1332,6 +1333,8 @@ export default function App() {
         winPct: parseNum(s["Win %"]),
         totalPts: parseNum(s["Total Points"]),
         record: s["Record"],
+        maxPts: match ? dirEntry.maxPts : undefined,
+        rosterId: match ? dirEntry.rosterId : undefined,
       };
     });
   }, [coachDirectory]);
@@ -2130,7 +2133,11 @@ export default function App() {
                           <TrophyBadges name={r.name} size={12} />
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+                        <button type="button" onClick={() => openTeamProfile(r, r.tierKey)} style={{ color: "inherit" }}>
+                          {r.team}
+                        </button>
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
                       <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
                         {r.cp === -Infinity ? "—" : fmt(r.cp)}
