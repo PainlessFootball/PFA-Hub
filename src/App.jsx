@@ -865,27 +865,18 @@ function CoachProfileModal({ coach, onClose }) {
 }
 
 // ── Team Profile popup: Max Total Points comes straight from the same
-// standings data already on the page. Roster resolves player IDs against
-// Sleeper's players dictionary (fetched lazily — see ensurePlayersLoaded).
-const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
+// standings data already on the page. Roster is a link out to the real
+// Sleeper roster page (once ROSTER_LINKS has an entry — see below) rather
+// than an in-app player list, keeping room for team history, etc. later.
+// Draft picks are computed live from Sleeper's traded-picks data.
 
-function TeamProfileModal({ team, onClose, playersDict, playersLoading }) {
+// Roster links from the Admin tab (column AB), keyed by team name. Empty
+// until that export is provided — the popup just omits the link until then.
+const ROSTER_LINKS = {};
+
+function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading }) {
   if (!team) return null;
-
-  const players = (team.playerIds || []).map((pid) => {
-    const p = playersDict ? playersDict[pid] : null;
-    return {
-      id: pid,
-      name: p ? p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() : pid,
-      position: p ? p.position || "—" : "—",
-      nflTeam: p ? p.team || "FA" : "",
-    };
-  });
-  players.sort((a, b) => {
-    const ia = POSITION_ORDER.indexOf(a.position);
-    const ib = POSITION_ORDER.indexOf(b.position);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
+  const rosterLink = ROSTER_LINKS[(team.team || "").toLowerCase()];
 
   return (
     <div
@@ -910,33 +901,56 @@ function TeamProfileModal({ team, onClose, playersDict, playersLoading }) {
           </button>
         </div>
 
-        <div className="px-2.5 py-2 rounded-sm mb-4" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
-          <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Max Total Points</div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>
-            {typeof team.maxPts === "number" ? fmt(team.maxPts) : "—"}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="px-2.5 py-2 rounded-sm" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
+            <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Max Total Points</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>
+              {typeof team.maxPts === "number" ? fmt(team.maxPts) : "—"}
+            </div>
           </div>
+          <a
+            href={rosterLink || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-2 rounded-sm flex flex-col justify-center"
+            style={{
+              background: C.ink,
+              border: `1px solid ${C.line}`,
+              opacity: rosterLink ? 1 : 0.5,
+              pointerEvents: rosterLink ? "auto" : "none",
+            }}
+          >
+            <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Roster</div>
+            <div style={{ color: C.gold, fontWeight: 600 }}>{rosterLink ? "View on Sleeper ↗" : "Link not set"}</div>
+          </a>
         </div>
 
-        <div className="text-xs uppercase tracking-wider mb-2" style={{ color: C.slate }}>Roster</div>
-        {playersLoading ? (
-          <div className="text-xs" style={{ color: C.slate }}>Loading roster…</div>
-        ) : players.length === 0 ? (
-          <div className="text-xs" style={{ color: C.slate }}>No roster data available.</div>
+        <div className="text-xs uppercase tracking-wider mb-2" style={{ color: C.slate }}>Draft Picks</div>
+        {!team.rosterId || !team.leagueId ? (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>Not available for this team.</div>
+        ) : draftPicksLoading ? (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>Loading draft picks…</div>
+        ) : !draftPicks || draftPicks.length === 0 ? (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>No picks on file.</div>
         ) : (
-          <div className="space-y-1">
-            {players.map((p) => (
-              <div key={p.id} className="flex items-center justify-between text-sm px-2 py-1 rounded-sm" style={{ background: C.ink }}>
-                <span className="truncate">{p.name}</span>
-                <span className="text-xs shrink-0 ml-2" style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {p.position}{p.nflTeam ? ` · ${p.nflTeam}` : ""}
-                </span>
-              </div>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {draftPicks.map((p, i) => (
+              <span
+                key={i}
+                className="text-xs px-2 py-1 rounded-sm"
+                style={{ background: C.ink, border: `1px solid ${C.line}`, fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                {p.season} R{p.round}{p.viaTrade ? " *" : ""}
+              </span>
             ))}
           </div>
         )}
+        {draftPicks && draftPicks.some((p) => p.viaTrade) && (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>* acquired via trade</div>
+        )}
 
-        <div className="mt-4 text-xs" style={{ color: C.slate }}>
-          Draft picks aren't shown yet — still deciding the right shape for that with Lainey.
+        <div className="pt-3 text-xs" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>
+          Team history — coming soon.
         </div>
       </div>
     </div>
@@ -952,8 +966,8 @@ export default function App() {
   const [openRuleSections, setOpenRuleSections] = useState({ general: true });
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [playersDict, setPlayersDict] = useState(null);
-  const [playersLoading, setPlayersLoading] = useState(false);
+  const [draftDataCache, setDraftDataCache] = useState({});
+  const [draftDataLoading, setDraftDataLoading] = useState({});
   const [nflState, setNflState] = useState(null);
   const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
   const [standingsCache, setStandingsCache] = useState({});
@@ -1306,33 +1320,63 @@ export default function App() {
     setSelectedCoach(hit || { name, avatar: null, team: null, tierKey: null, tierName: null });
   };
 
-  // Sleeper's full player dictionary is a large, mostly-static file — fetch
-  // it once, lazily, the first time someone actually opens a team roster,
-  // rather than on every page load. Kept in memory only (not localStorage)
-  // since it's sizeable and this avoids any storage-quota surprises.
-  const ensurePlayersLoaded = useCallback(async () => {
-    if (playersDict || playersLoading) return;
-    setPlayersLoading(true);
+  // Draft-pick ownership (including trades) is fetched lazily per league,
+  // the first time someone opens a team profile in that league — not on
+  // every page load, and not for leagues nobody's looked at yet.
+  const ensureDraftDataLoaded = useCallback(async (leagueId) => {
+    if (!leagueId || draftDataCache[leagueId] || draftDataLoading[leagueId]) return;
+    setDraftDataLoading((prev) => ({ ...prev, [leagueId]: true }));
     try {
-      const data = await j(`${SLEEPER}/players/nfl`);
-      setPlayersDict(data);
+      const [tradedPicks, drafts] = await Promise.all([
+        j(`${SLEEPER}/league/${leagueId}/traded_picks`),
+        j(`${SLEEPER}/league/${leagueId}/drafts`),
+      ]);
+      const rounds = (drafts && drafts[0] && drafts[0].settings && drafts[0].settings.rounds) || 4;
+      setDraftDataCache((prev) => ({ ...prev, [leagueId]: { tradedPicks: tradedPicks || [], rounds } }));
     } catch (e) {
-      setPlayersDict({});
+      setDraftDataCache((prev) => ({ ...prev, [leagueId]: { tradedPicks: [], rounds: 4 } }));
     } finally {
-      setPlayersLoading(false);
+      setDraftDataLoading((prev) => ({ ...prev, [leagueId]: false }));
     }
-  }, [playersDict, playersLoading]);
+  }, [draftDataCache, draftDataLoading]);
+
+  // Which picks a roster currently owns for the next 3 seasons, accounting
+  // for trades — a pick traded away drops off this roster's list, and a
+  // pick acquired from another roster is added (flagged "via trade").
+  const ownedPicksFor = (leagueId, rosterId) => {
+    const data = draftDataCache[leagueId];
+    if (!data || !rosterId) return null;
+    const { tradedPicks, rounds } = data;
+    const startSeason = nflState ? parseInt(nflState.season, 10) : new Date().getFullYear();
+    const picks = [];
+    for (let yearOffset = 0; yearOffset < 3; yearOffset++) {
+      const season = String(startSeason + yearOffset);
+      for (let round = 1; round <= rounds; round++) {
+        const tradedAway = tradedPicks.find(
+          (p) => String(p.season) === season && p.round === round && p.roster_id === rosterId && p.owner_id !== rosterId
+        );
+        if (!tradedAway) picks.push({ season, round, viaTrade: false });
+      }
+      tradedPicks
+        .filter((p) => String(p.season) === season && p.owner_id === rosterId && p.roster_id !== rosterId)
+        .forEach((p) => picks.push({ season, round: p.round, viaTrade: true }));
+    }
+    picks.sort((a, b) => (a.season === b.season ? a.round - b.round : a.season.localeCompare(b.season)));
+    return picks;
+  };
 
   const openTeamProfile = (row, tKey) => {
     const t = TIERS.find((x) => x.key === tKey);
+    const leagueId = leagueMap[tKey];
     setSelectedTeam({
       team: row.team,
       tierKey: tKey,
       tierName: t ? t.name : tKey,
       maxPts: row.maxPts,
-      playerIds: row.playerIds || [],
+      rosterId: row.rosterId,
+      leagueId,
     });
-    if (mode === "live") ensurePlayersLoaded();
+    if (mode === "live" && leagueId && row.rosterId) ensureDraftDataLoaded(leagueId);
   };
 
   const filteredDirectory = useMemo(() => {
@@ -2346,8 +2390,8 @@ export default function App() {
       <TeamProfileModal
         team={selectedTeam}
         onClose={() => setSelectedTeam(null)}
-        playersDict={playersDict}
-        playersLoading={playersLoading}
+        draftPicks={selectedTeam ? ownedPicksFor(selectedTeam.leagueId, selectedTeam.rosterId) : null}
+        draftPicksLoading={selectedTeam ? Boolean(draftDataLoading[selectedTeam.leagueId]) : false}
       />
     </div>
   );
