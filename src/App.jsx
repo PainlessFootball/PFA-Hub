@@ -308,6 +308,30 @@ const TIERS = [
 // slightly differently than the site's TIERS keys — map the ones that differ.
 const CONF_TO_TIER_KEY = { XII: "BIG XII", FHS: "FLHS" };
 
+// NFL division numbers as configured in Sleeper -> real conference/division
+// names. Confirmed directly by Lainey.
+const NFL_DIVISIONS = {
+  1: "AFC East", 2: "AFC West", 3: "AFC North", 4: "AFC South",
+  5: "NFC East", 6: "NFC West", 7: "NFC North", 8: "NFC South",
+};
+const nflConferenceFor = (divisionNum) => (divisionNum && divisionNum <= 4 ? "AFC" : "NFC");
+
+// Playoff format per tier, per the Rules doc. "top8": straight top-8 by
+// record, no conferences. "conference-division": NFL-style, 4 division
+// winners + 4 wildcards per conference. Tiers not listed here are pending
+// confirmation (USFL/XFL format, the 5 two-conference leagues' actual
+// Sleeper division mapping, FLHS's district structure) — the bracket
+// section simply won't render for those until that's filled in.
+const PLAYOFF_FORMAT = {
+  NFL: "conference-division",
+  SEC: "top8", "BIG XII": "top8", ACC: "top8", TEN: "top8",
+};
+
+// Standard fixed single-elimination bracket for an 8-seed field:
+// round 1 = (1v8, 4v5, 3v6, 2v7), round 2 = winners of (1v8/4v5) and
+// (3v6/2v7), round 3 = final.
+const BRACKET_PAIRS_R1 = [[1, 8], [4, 5], [3, 6], [2, 7]];
+
 const DEMO_NFL = [
   { coach: "Harvey28", team: "Tennessee Titans", place: 1, w: 11, l: 6, pts: 3137.0, cp: 285.48 },
   { coach: "DrewM1603", team: "Los Angeles Rams", place: 2, w: 12, l: 5, pts: 3092.2, cp: 266.84 },
@@ -1053,6 +1077,7 @@ export default function App() {
         userId: u.user_id || null,
         avatar: u.avatar || null,
         playerIds: r.players || [],
+        division: (r.settings && r.settings.division) || null,
       };
     });
     rows.sort((a, b) => b.w - a.w || b.pts - a.pts);
@@ -1209,6 +1234,50 @@ export default function App() {
     return Number.isFinite(n) ? n : null;
   };
 
+  // Computes playoff seeding from final regular-season standings, per the
+  // Rules doc's format for each tier. Returns null for tiers whose format
+  // isn't confirmed yet (see PLAYOFF_FORMAT above) — the bracket section
+  // just doesn't render for those rather than guessing.
+  const computeBracket = (tKey) => {
+    const format = PLAYOFF_FORMAT[tKey];
+    if (!format) return null;
+    const id = leagueMap[tKey];
+    const rows = id ? standingsCache[id] : null;
+    if (!rows || !rows.length) return null;
+
+    const sortByRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
+
+    if (format === "top8") {
+      const ranked = sortByRecord(rows.filter((r) => r.coach !== "—"));
+      return {
+        format,
+        brackets: [
+          { name: "Playoffs", seeds: ranked.slice(0, 8) },
+          { name: "Consolation", seeds: ranked.slice(8, 16) },
+        ],
+      };
+    }
+
+    if (format === "conference-division") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const conferences = ["AFC", "NFC"].map((confName) => {
+        const confRows = active.filter((r) => nflConferenceFor(r.division) === confName);
+        const byDivision = {};
+        confRows.forEach((r) => {
+          (byDivision[r.division] = byDivision[r.division] || []).push(r);
+        });
+        const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
+        const winnersSeeded = sortByRecord(divisionWinners);
+        const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
+        const wildcards = sortByRecord(confRows.filter((r) => !winnerRosterIds.has(r.rosterId))).slice(0, 4);
+        return { name: confName, seeds: [...winnersSeeded, ...wildcards] };
+      });
+      return { format, brackets: conferences };
+    }
+
+    return null;
+  };
+
   const applicantsForTeam = (tKey, team) =>
     applications
       .filter((a) => a.tierKey === tKey && a.team === team)
@@ -1253,6 +1322,7 @@ export default function App() {
   const demoRows = tierKey === "NFL" ? DEMO_NFL.map((r) => ({ ...r, maxPts: null })) : null;
   const rows = mode === "live" ? liveRows : demoRows;
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
+  const bracket = mode === "live" ? computeBracket(tierKey) : null;
 
   const hotSeatFor = (tKey) => {
     if (mode === "live") {
@@ -1989,6 +2059,43 @@ export default function App() {
                         <span className="px-2 text-xs" style={{ color: C.slate }}>vs</span>
                         <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: p.b.live > p.a.live ? C.turf : C.slate }}>{fmt(p.b.live)}</span>
                         <span className="truncate pl-2 text-right" style={{ fontWeight: 600 }}>{p.b.coach}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {bracket && (
+                <div className="mt-6">
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                    Playoff Seeding
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: C.slate }}>
+                    Based on final regular-season standings. Round-by-round results fill in as playoff weeks are played.
+                  </p>
+                  <div className={`grid gap-4 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                    {bracket.brackets.map((b) => (
+                      <div key={b.name}>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
+                        <div className="space-y-1">
+                          {BRACKET_PAIRS_R1.map(([seedA, seedB], i) => {
+                            const teamA = b.seeds[seedA - 1];
+                            const teamB = b.seeds[seedB - 1];
+                            return (
+                              <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                                <span className="truncate">
+                                  <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedA}</span>{" "}
+                                  {teamA ? teamA.coach : "—"}
+                                </span>
+                                <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
+                                <span className="truncate text-right">
+                                  {teamB ? teamB.coach : "—"}{" "}
+                                  <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedB}</span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     ))}
                   </div>
