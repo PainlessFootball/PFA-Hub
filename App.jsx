@@ -289,19 +289,19 @@ const C = {
 };
 
 const TIERS = [
-  { key: "NFL", name: "National Football League", tier: 1 },
-  { key: "USFL", name: "United States Football League", tier: 2 },
-  { key: "XFL", name: "XFL", tier: 3 },
-  { key: "SEC", name: "Southeastern Conference", tier: 4 },
-  { key: "BIG XII", name: "Big 12 Conference", tier: 5 },
-  { key: "ACC", name: "Atlantic Coast Conference", tier: 6 },
-  { key: "TEN", name: "Big Ten Conference", tier: 7 },
-  { key: "SUN", name: "Sun Belt Conference", tier: 8 },
-  { key: "SOCO", name: "Southern Conference", tier: 9 },
-  { key: "IVY", name: "Ivy League", tier: 10 },
-  { key: "SWAC", name: "Southwestern Athletic", tier: 11 },
-  { key: "GLIAC", name: "Great Lakes Intercollegiate", tier: 12 },
-  { key: "FLHS", name: "Florida High School", tier: 13 },
+  { key: "NFL", name: "National Football League", tier: 1, size: 32 },
+  { key: "USFL", name: "United States Football League", tier: 2, size: 20 },
+  { key: "XFL", name: "XFL", tier: 3, size: 20 },
+  { key: "SEC", name: "Southeastern Conference", tier: 4, size: 16 },
+  { key: "BIG XII", name: "Big 12 Conference", tier: 5, size: 16 },
+  { key: "ACC", name: "Atlantic Coast Conference", tier: 6, size: 16 },
+  { key: "TEN", name: "Big Ten Conference", tier: 7, size: 16 },
+  { key: "SUN", name: "Sun Belt Conference", tier: 8, size: 16 },
+  { key: "SOCO", name: "Southern Conference", tier: 9, size: 16 },
+  { key: "IVY", name: "Ivy League", tier: 10, size: 16 },
+  { key: "SWAC", name: "Southwestern Athletic", tier: 11, size: 16 },
+  { key: "GLIAC", name: "Great Lakes Intercollegiate", tier: 12, size: 16 },
+  { key: "FLHS", name: "Florida High School", tier: 13, size: 16 },
 ];
 
 const DEMO_NFL = [
@@ -353,6 +353,114 @@ const DEMO_CAREER = [
   { coach: "samwow123", team: "South Carolina Gamecocks", cp: 850.75, w: 49, l: 19, pct: 0.721, pts: 16522.4 },
   { coach: "Diego777", team: "Pittsburgh Steelers", cp: 847.38, w: 44, l: 24, pct: 0.647, pts: 13959.7 },
   { coach: "Newkbomb", team: "Denver Gold", cp: 847.02, w: 46, l: 22, pct: 0.676, pts: 14940.95 },
+];
+
+const RULES_SECTIONS = [
+  {
+    id: "general",
+    title: "General Rules",
+    items: [
+      "All leagues share the same roster, waivers, draft, and scoring settings, and use only NFL players.",
+      "A coach may only have one team of record at a time — qualified veteran coaches may also take on Interim or Legacy coaching jobs.",
+      "All coaches must attempt to set a competitive lineup of starting, healthy players.",
+      "Insulting and disrespectful behavior will not be tolerated. Keep chats to friendly football talk and avoid incendiary subjects.",
+    ],
+  },
+  {
+    id: "trades",
+    title: "Trades",
+    items: [
+      "Trades will not be pushed through early — a 24-hour trade review is in effect (midnight to midnight the day after the trade; can take up to 48 hours to fully complete).",
+      "There's a trade \"speed limit\" and a deadline to get a player rostered by game day. Players who've already played are locked until Wednesday regardless of when the trade was accepted.",
+      "Trades can be reversed at the league/commissioner/president's discretion — you're the head coach, not the owner, and the AD/GM/owner can overrule you (rare, but done to keep leagues competitive).",
+      "Renting/borrowing players is prohibited — a player can't be traded back to their original team within the same season.",
+      "The trade deadline is Week 13.",
+    ],
+  },
+  {
+    id: "changing-teams",
+    title: "Changing Teams & Promotion",
+    items: [
+      "Jobs go to the coach with the highest Promotion Score who correctly applies by the deadline.",
+      "Coaches may move only once per offseason (promotion or demotion), and can't move within their current conference — except to/from the NFL.",
+      "Qualified coaches may move up OR down the tiers.",
+      "Coaches inactive for three consecutive weeks during the regular season are subject to termination — if you know you'll be busy, just let the Alliance know ahead of time.",
+    ],
+  },
+  {
+    id: "promoted",
+    title: "What Gets You Promoted",
+    items: [
+      "Scoring points, league high score, wins, winning streaks, best manager, being frugal with your FAAB, winning playoff games, and winning your league.",
+      "Coaching points accumulate season by season, so long-term success is rewarded over any one great season.",
+      "Coaching score = (Place + Wins + Points + FAAB + Performance Bonuses + League Difficulty) × Pts/Max. See the Coaches Scoring System tab for the complete list of bonus points and penalties.",
+      "You must qualify for a promotion — the last-11-placed NFL teams, the last-7-placed teams in 20-team leagues, and the last-5-placed teams in 16-team leagues are all ineligible for a coaching move up or down. That turns one game in the consolation bracket into a win-for-promotion scenario.",
+    ],
+  },
+  {
+    id: "fired",
+    title: "What Gets You Fired",
+    items: [
+      "\"Fired\" means unassigned from your team, not removed from the league — your team becomes available for other coaches to take.",
+      "A coach fired after the regular season is still in the Alliance; the team is managed by an interim coach until reassigned.",
+      "Finishing last place in a league's consolation bracket triggers this.",
+      "Fired coaches may reapply to their old team — if no one else takes it, they get it back. Fired coaches may not apply to a team in a higher tier.",
+      "A conference representative can appeal to the Commissioner's Council on a fired coach's behalf if there are extenuating circumstances.",
+    ],
+  },
+  {
+    id: "penalties-playoffs",
+    title: "Penalties & Playoffs",
+    items: [
+      "Coaches may be assigned penalties to their coaching score, draft picks, or FAAB budget commensurate with the infraction — see the Coaches Scoring System tab for the full list.",
+      "Playoffs are run via spreadsheet (see the pinned link in your league chat). Tiebreakers: W-L, then Points For, then Pts/Max.",
+      "NFL: each conference sends its four division winners and four wildcard teams from any division in that conference — one division could send every team.",
+      "Leagues without conferences (SEC, Big 12, ACC, Big Ten) send their top 8 teams.",
+      "Leagues with two conferences (Sun Belt, SoCo, Ivy, SWAC, GLIAC) send an equal number of teams per conference.",
+      "High School (FLHS) sends district winners plus the next-best teams from any division/district — one division could send every team.",
+      "Draft order is based on final standings after playoffs and consolation brackets — tanking isn't the best option, winners get the better picks.",
+    ],
+  },
+  {
+    id: "team-management",
+    title: "Team Management",
+    items: [
+      "FAAB is based on the actual NFL salary cap and matches that number each season. It resets at the start of the Sleeper/league season in March, and unused FAAB does not carry over.",
+      "Waivers are active for the entire offseason except during the fantasy draft, and begin again the first available Wednesday after the draft ends.",
+      "Only rookies may be placed on the Taxi squad, and players can't return to Taxi once activated to the roster or IR. The Taxi squad locks at the start of the NFL season's first game.",
+      "Roster management is your responsibility — mismanaging a transaction (drafting, dropping, or trading the wrong player) carries heavy penalties if a correction is even allowed.",
+    ],
+  },
+  {
+    id: "coach-types",
+    title: "Coach Types & Contracts",
+    items: [
+      "Orphan Teams: managed by the Alliance until a replacement is found, then offered to the best-qualified coach during the offseason coaching-change period.",
+      "Interim Coaches: step in when a coach unexpectedly \"retires\" mid-season. Their mission is to keep the team and league competitive and leave behind a team someone else will want next season. No trade privileges, but add/drop and waivers are allowed.",
+      "One Year Contract: offered to veteran coaches taking a team before the season starts, instead of adding a rookie coach. Full trade and add/drop privileges, plus a small coaching-point bonus based on the team's final performance.",
+      "Playoff Contract: keeps the job as long as the team stays in the playoffs — offered to temporary coaches who excel, or as an incentive for legacy coaches to stay on top or step aside. Full trade and add/drop privileges.",
+      "Legacy Teams: \"permanent\" positions meant to add stability to lower-tier leagues, decided case by case (popular teams/conferences are in demand). Full trade privileges, but no coaching bonuses accrue toward promotion — it's a separate project, purely for team pride and league competition. Coaching stats for promotion are only ever determined by a coach's actual Team of Record.",
+    ],
+  },
+  {
+    id: "special",
+    title: "High School & Week 18",
+    items: [
+      "The winner of the High School league may change their team's name and mascot to their high school of choice.",
+      "Relegated coaches in High School's lowest conference can be fired and replaced by a new player, but may go to the back of the waiting list for another team.",
+      "Week 18 is rivalry week — arrange a matchup with a buddy if you want. Week 18 stats do NOT count toward your coaching score.",
+    ],
+  },
+  {
+    id: "org",
+    title: "League Organization & Voting",
+    items: [
+      "President: elected by league representatives, can be voted out by a majority of them. Holds commissioner powers over all leagues and enforces league/player compliance.",
+      "Vice Presidents: the President selects at least two. They share the administrative workload and have full Presidential commissioner powers, ready to run every facet of the Alliance if the President becomes unavailable.",
+      "Representative: elected by (or a volunteer from) each league. Can be removed by the President, a league majority, or a majority of representatives. Elects the President, negotiates rule changes during a designated offseason period, enforces league rules, manages inactive teams, and keeps a day-to-day eye on trades and behavior.",
+      "Voting power: President (8 votes), Vice President (4 votes), Representative (2 votes), Coach (1 vote).",
+    ],
+  },
 ];
 
 const DEMO_300 = [
@@ -638,6 +746,7 @@ export default function App() {
   const [view, setView] = useState("home");
   const [tierKey, setTierKey] = useState("NFL");
   const [dirQuery, setDirQuery] = useState("");
+  const [openRuleSections, setOpenRuleSections] = useState({ general: true });
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [playersDict, setPlayersDict] = useState(null);
@@ -1120,7 +1229,8 @@ export default function App() {
             <Tab id="standings">Standings</Tab>
             <Tab id="coaches">Top Coaches</Tab>
             <Tab id="directory">Directory</Tab>
-            <Tab id="pyramid">The Pyramid</Tab>
+            <Tab id="pyramid">Rules</Tab>
+            <Tab id="300club">300 Club</Tab>
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
           </nav>
         </div>
@@ -1727,73 +1837,111 @@ export default function App() {
         )}
 
         {view === "pyramid" && (
-          <section className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h2 className="text-3xl uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                The Pyramid
-              </h2>
-              <div className="space-y-3 text-sm leading-relaxed">
-                <p>
-                  Thirteen dynasty leagues stacked in ranked tiers, from the NFL down to Florida High School. Every league shares the
-                  same rosters, scoring, and NFL players — the difference is the stakes.
-                </p>
-                <p>
-                  Your team's performance earns you <span style={{ color: C.gold }}>coaching points</span>. Higher tiers pay more. You
-                  never spend them — they accrue season over season, rewarding sustained success over one great year. Your total is
-                  your qualification for the job.
-                </p>
-                <p>
-                  When a team opens up, applications are blind — nobody knows who else is applying. The team hires whoever's most
-                  qualified: highest coaching points gets it, and leaves behind a promotion-worthy team, now needing a new coach.
-                </p>
-                <p>
-                  Teams don't progress. <em>Coaches</em> do. Finish last or underperform and you're{" "}
-                  <span style={{ color: C.ember }}>fired</span>: unassigned, your team open for the taking, your next job somewhere
-                  further down the ladder.
-                </p>
-              </div>
-              <div className="mt-5 flex flex-col items-start gap-1">
-                {TIERS.map((t) => (
-                  <div
-                    key={t.key}
-                    className="flex items-center gap-3 px-3 py-1 rounded-sm"
-                    style={{
-                      background: t.tier === 1 ? "rgba(232,163,61,0.14)" : C.panel,
-                      border: `1px solid ${t.tier === 1 ? C.goldDim : C.line}`,
-                      width: `${100 - (t.tier - 1) * 4.5}%`,
-                      minWidth: "11rem",
-                    }}
-                  >
-                    <span className="text-xs w-5 text-right" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate }}>{t.tier}</span>
-                    <span className="uppercase text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.08em", color: t.tier === 1 ? C.gold : C.chalk }}>
-                      {t.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-2xl uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                The 300 Club
-              </h3>
-              <p className="text-sm mb-3" style={{ color: C.slate }}>300+ points in a single game. Immortality, in decimals.</p>
-              <div className="space-y-2">
-                {DEMO_300.map((r, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                    <span className="text-2xl leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}>
-                      {fmt(r.pts)}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold truncate">{r.coach}</div>
-                      <div className="text-xs truncate" style={{ color: C.slate }}>{r.team} · {r.conf} · Wk {r.week}, {r.year}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-xs" style={{ color: C.slate }}>
-                Trophy Room, weekly Hi/Lo, playoff brackets, rules, and the calendar all get pages like this — each one a feed from the sheet or from Sleeper.
+          <section className="max-w-2xl">
+            <h2 className="text-3xl uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+              Rules
+            </h2>
+            <div className="space-y-3 text-sm leading-relaxed">
+              <p>
+                The Alliance is thirteen dynasty leagues in ranked tiers, from the NFL down to Florida High School. All leagues
+                share the same roster, waivers, draft, and scoring settings, and use only NFL players.
+              </p>
+              <p>
+                Your team's performance earns you a <span style={{ color: C.gold }}>coaching score</span>. Leagues are weighted so
+                coaches in higher tiers earn more coaching points than coaches in lower tiers, and points accumulate season over
+                season — long-term success is rewarded over any one great year.
+              </p>
+              <p>
+                You'll use that coaching score to compete against other coaches to promote into higher leagues or more desirable
+                teams. Coaches who finish last or underperform may be <span style={{ color: C.ember }}>fired</span> — unassigned,
+                not removed. Your team becomes available for other coaches to take, and you'll have to go look for an opportunity
+                with another team, possibly in a lower tier.
               </p>
             </div>
+
+            <div className="mt-5 flex flex-col items-start gap-1">
+              {TIERS.map((t) => (
+                <div
+                  key={t.key}
+                  className="flex items-center gap-3 px-3 py-1 rounded-sm"
+                  style={{
+                    background: t.tier === 1 ? "rgba(232,163,61,0.14)" : C.panel,
+                    border: `1px solid ${t.tier === 1 ? C.goldDim : C.line}`,
+                    width: `${100 - (t.tier - 1) * 4.5}%`,
+                    minWidth: "13rem",
+                  }}
+                >
+                  <span className="text-xs w-5 text-right" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate }}>{t.tier}</span>
+                  <span className="uppercase text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.08em", color: t.tier === 1 ? C.gold : C.chalk }}>
+                    {t.name}
+                  </span>
+                  <span className="ml-auto text-xs shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate }}>
+                    {t.size} roster
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-xs" style={{ color: C.slate }}>
+              232 teams total. Every roster carries a 20-man bench and an 8-player taxi squad (2-year eligibility).
+            </p>
+
+            <div className="mt-8 space-y-2">
+              {RULES_SECTIONS.map((sec) => {
+                const open = Boolean(openRuleSections[sec.id]);
+                return (
+                  <div key={sec.id} className="rounded-sm overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenRuleSections((prev) => ({ ...prev, [sec.id]: !prev[sec.id] }))}
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+                      style={{ background: C.panel }}
+                    >
+                      <span className="uppercase text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}>
+                        {sec.title}
+                      </span>
+                      <span className="text-xs" style={{ color: C.gold }}>{open ? "−" : "+"}</span>
+                    </button>
+                    {open && (
+                      <ul className="px-4 py-3 space-y-2 text-sm leading-relaxed list-disc" style={{ background: C.ink }}>
+                        {sec.items.map((item, i) => (
+                          <li key={i} style={{ color: C.chalk }}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-8 pt-4 text-xs" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>
+              <div>Alliance creator: <span style={{ color: C.chalk, fontWeight: 600 }}>PwnRangr</span></div>
+              <div className="mt-1">Contributors: Davidsstone, Deevel, Gavdjedi, Vastettler</div>
+            </div>
+          </section>
+        )}
+
+        {view === "300club" && (
+          <section className="max-w-2xl">
+            <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+              The 300 Club
+            </h2>
+            <p className="text-sm mb-4" style={{ color: C.slate }}>300+ points in a single game. Immortality, in decimals.</p>
+            <div className="space-y-2">
+              {DEMO_300.map((r, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                  <span className="text-2xl leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}>
+                    {fmt(r.pts)}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">{r.coach}</div>
+                    <div className="text-xs truncate" style={{ color: C.slate }}>{r.team} · {r.conf} · Wk {r.week}, {r.year}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs" style={{ color: C.slate }}>
+              Trophy Room, weekly Hi/Lo, playoff brackets, and the calendar all get pages like this — each one a feed from the sheet or from Sleeper.
+            </p>
           </section>
         )}
       </main>
