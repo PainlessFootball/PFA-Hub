@@ -304,6 +304,10 @@ const TIERS = [
   { key: "FLHS", name: "Florida High School", tier: 13, size: 16 },
 ];
 
+// Some historical records (300 Club, older exports) abbreviate conferences
+// slightly differently than the site's TIERS keys — map the ones that differ.
+const CONF_TO_TIER_KEY = { XII: "BIG XII", FHS: "FLHS" };
+
 const DEMO_NFL = [
   { coach: "Harvey28", team: "Tennessee Titans", place: 1, w: 11, l: 6, pts: 3137.0, cp: 285.48 },
   { coach: "DrewM1603", team: "Los Angeles Rams", place: 2, w: 12, l: 5, pts: 3092.2, cp: 266.84 },
@@ -333,26 +337,6 @@ const DEMO_NFL = [
   { coach: "Shubhay", team: "Houston Texans", place: 28, w: 4, l: 13, pts: 2129.05, cp: 39.22 },
   { coach: "booshay", team: "Tampa Bay Buccaneers", place: 29, w: 4, l: 13, pts: 2305.45, cp: 51.18 },
   { coach: "MVPMalik2", team: "Cleveland Browns", place: 30, w: 4, l: 13, pts: 2121.85, cp: 24.69 },
-];
-
-const DEMO_CAREER = [
-  { coach: "AZiv49", team: "San Francisco 49ers", cp: 1020.78, w: 50, l: 18, pct: 0.735, pts: 13423.1 },
-  { coach: "Wynnguy", team: "Brown Bears", cp: 968.43, w: 56, l: 12, pct: 0.824, pts: 16666.75 },
-  { coach: "Josssock", team: "New England Patriots", cp: 962.18, w: 47, l: 21, pct: 0.691, pts: 12802.65 },
-  { coach: "huibuh", team: "Oakland Raiders", cp: 946.61, w: 41, l: 27, pct: 0.603, pts: 12614.5 },
-  { coach: "RedPhoenix437", team: "Los Angeles Express", cp: 933.99, w: 45, l: 23, pct: 0.662, pts: 14315.0 },
-  { coach: "amkm324", team: "Green Bay Packers", cp: 933.29, w: 44, l: 24, pct: 0.647, pts: 13706.4 },
-  { coach: "FoggyBuckets", team: "New York Jets", cp: 930.99, w: 49, l: 19, pct: 0.721, pts: 13614.7 },
-  { coach: "mattbanks3x", team: "San Antonio Gunslingers", cp: 930.46, w: 46, l: 22, pct: 0.676, pts: 15080.85 },
-  { coach: "DrewM1603", team: "Los Angeles Rams", cp: 901.62, w: 41, l: 27, pct: 0.603, pts: 11384.3 },
-  { coach: "Landshark18", team: "Baltimore Ravens", cp: 893.38, w: 37, l: 28, pct: 0.569, pts: 11712.8 },
-  { coach: "ZiplocBaggins", team: "LSU Tigers", cp: 884.87, w: 46, l: 22, pct: 0.676, pts: 14605.2 },
-  { coach: "Tobistresenteam", team: "Minnesota Vikings", cp: 874.27, w: 41, l: 27, pct: 0.603, pts: 11699.2 },
-  { coach: "Calvins22", team: "Arizona Cardinals", cp: 869.74, w: 41, l: 27, pct: 0.603, pts: 12775.2 },
-  { coach: "WeReallyOutHere", team: "Los Angeles Chargers", cp: 860.38, w: 37, l: 31, pct: 0.544, pts: 11717.15 },
-  { coach: "samwow123", team: "South Carolina Gamecocks", cp: 850.75, w: 49, l: 19, pct: 0.721, pts: 16522.4 },
-  { coach: "Diego777", team: "Pittsburgh Steelers", cp: 847.38, w: 44, l: 24, pct: 0.647, pts: 13959.7 },
-  { coach: "Newkbomb", team: "Denver Gold", cp: 847.02, w: 46, l: 22, pct: 0.676, pts: 14940.95 },
 ];
 
 const RULES_SECTIONS = [
@@ -1262,6 +1246,56 @@ export default function App() {
     return list;
   }, [mode, leagueMap, standingsCache]);
 
+  const [coachSort, setCoachSort] = useState({ key: "cp", dir: "desc" });
+
+  // Every coach with career data on file, resolved to whichever team they
+  // currently hold (same rule as the profile popup) — never a mix-and-match
+  // of a different league's numbers.
+  const allCoachesTable = useMemo(() => {
+    return Object.entries(CAREER_STATS).map(([lowerName, entries]) => {
+      const dirEntry = coachDirectory.find((c) => c.name.toLowerCase() === lowerName);
+      const match = dirEntry ? entries.find((e) => e.tierKey === dirEntry.tierKey) : null;
+      const chosen = match || entries[0];
+      const s = chosen.stats;
+      const parseNum = (v) => {
+        const n = parseFloat(String(v).replace("%", ""));
+        return Number.isFinite(n) ? n : -Infinity;
+      };
+      const [wStr, lStr] = (s["Record"] || "").split("-");
+      return {
+        name: dirEntry ? dirEntry.name : lowerName,
+        team: chosen.team,
+        tierKey: chosen.tierKey,
+        cp: parseNum(s["Career CP"]),
+        wins: parseNum(wStr),
+        losses: parseNum(lStr),
+        winPct: parseNum(s["Win %"]),
+        totalPts: parseNum(s["Total Points"]),
+        record: s["Record"],
+      };
+    });
+  }, [coachDirectory]);
+
+  const sortedCoachesTable = useMemo(() => {
+    const arr = [...allCoachesTable];
+    const { key, dir } = coachSort;
+    arr.sort((a, b) => {
+      let av = a[key];
+      let bv = b[key];
+      if (typeof av === "string") {
+        av = av.toLowerCase();
+        bv = bv.toLowerCase();
+        return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      return dir === "asc" ? av - bv : bv - av;
+    });
+    return arr;
+  }, [allCoachesTable, coachSort]);
+
+  const toggleCoachSort = (key) => {
+    setCoachSort((prev) => (prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
+  };
+
   const findCoachAvatar = (name) => {
     const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
     return hit ? hit.avatar : null;
@@ -1446,7 +1480,7 @@ export default function App() {
           <nav className="mt-4 flex overflow-x-auto">
             <Tab id="home">Home</Tab>
             <Tab id="standings">Standings</Tab>
-            <Tab id="coaches">Top Coaches</Tab>
+            <Tab id="coaches">Coaches</Tab>
             <Tab id="directory">Directory</Tab>
             <Tab id="pyramid">Rules</Tab>
             <Tab id="300club">300 Club</Tab>
@@ -1961,44 +1995,73 @@ export default function App() {
 
         {view === "coaches" && (
           <section>
-            <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-              Career Coaching Points
-            </h2>
+            <div className="flex items-baseline justify-between mb-1 gap-2 flex-wrap">
+              <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                Coaches
+              </h2>
+              <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>{allCoachesTable.length} on file</span>
+            </div>
             <p className="text-sm mb-4" style={{ color: C.slate }}>
-              The all-time ladder. Coaching points are earned by team performance, weighted by tier, and accrue season over season — never spent, only built on. Your total is your qualification the next time a job opens up.
+              Every coach with career data on file, resolved to their current team. Coaching points are earned by team
+              performance, weighted by tier, and accrue season over season — never spent, only built on. Click any column to sort.
             </p>
             <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: C.panel, color: C.slate }}>
-                    {["#", "Coach", "Team", "CP", "W–L", "Win %", "Career PF"].map((h, i) => th(h, i))}
+                    {[
+                      { key: "name", label: "Coach", right: false },
+                      { key: "team", label: "Team", right: false },
+                      { key: "tierKey", label: "Tier", right: false },
+                      { key: "cp", label: "CP", right: true },
+                      { key: "wins", label: "W–L", right: true },
+                      { key: "winPct", label: "Win %", right: true },
+                      { key: "totalPts", label: "Career PF", right: true },
+                    ].map((col) => (
+                      <th
+                        key={col.key}
+                        onClick={() => toggleCoachSort(col.key)}
+                        className={`px-3 py-2 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none ${col.right ? "text-right" : "text-left"}`}
+                        style={{ fontWeight: 500, color: coachSort.key === col.key ? C.gold : C.slate }}
+                      >
+                        {col.label}{coachSort.key === col.key ? (coachSort.dir === "asc" ? " ▲" : " ▼") : ""}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {DEMO_CAREER.map((r, i) => (
-                    <tr key={r.coach} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
-                      <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{i + 1}</td>
+                  {sortedCoachesTable.map((r, i) => (
+                    <tr key={r.name + i} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
-                        <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
-                          {r.coach}
+                        <button type="button" onClick={() => openCoachProfile(r.name)} style={{ color: "inherit" }}>
+                          {r.name}
                         </button>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
-                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>{fmt(r.cp)}</td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <span style={{ color: C.turf }}>{r.w}</span>
-                        <span style={{ color: C.slate }}>–</span>
-                        <span style={{ color: C.ember }}>{r.l}</span>
+                      <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
+                        {r.cp === -Infinity ? "—" : fmt(r.cp)}
                       </td>
-                      <td className="px-3 py-2 text-right">{r.pct.toFixed(3)}</td>
-                      <td className="px-3 py-2 text-right">{fmt(r.pts)}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {r.record === "—" || !r.record ? (
+                          "—"
+                        ) : (
+                          <>
+                            <span style={{ color: C.turf }}>{r.wins}</span>
+                            <span style={{ color: C.slate }}>–</span>
+                            <span style={{ color: C.ember }}>{r.losses}</span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">{r.winPct === -Infinity ? "—" : `${r.winPct.toFixed(1)}%`}</td>
+                      <td className="px-3 py-2 text-right">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <p className="mt-3 text-xs" style={{ color: C.slate }}>
-              This table currently shows 2025 career data. Next step: it reads live from the Alliance sheet's published feed.
+              Static snapshot from the Admin tab export — refreshes whenever a new export is provided, not automatically.
             </p>
           </section>
         )}
@@ -2197,7 +2260,16 @@ export default function App() {
                       <button type="button" onClick={() => openCoachProfile(r.coach)} className="text-sm font-semibold truncate block" style={{ color: "inherit" }}>
                         {r.coach}
                       </button>
-                      <div className="text-xs truncate" style={{ color: C.slate }}>{r.team} · {r.conf} · Wk {r.week}, {r.year}</div>
+                      <div className="text-xs truncate" style={{ color: C.slate }}>
+                        <button
+                          type="button"
+                          onClick={() => openTeamProfile({ team: r.team, maxPts: undefined, playerIds: [] }, CONF_TO_TIER_KEY[r.conf] || r.conf)}
+                          style={{ color: "inherit" }}
+                        >
+                          {r.team}
+                        </button>{" "}
+                        · {r.conf} · Wk {r.week}, {r.year}
+                      </div>
                     </div>
                   </div>
                 ))}
