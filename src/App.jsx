@@ -804,6 +804,49 @@ function Avatar({ name, avatar, size = 36 }) {
   );
 }
 
+// ── Trophies: coach, award, league, year — empty until the real list is
+// provided, keyed by coach name (lowercased). One entry per win, so a coach
+// who won a league three times gets three entries and three icons, same
+// idea as wearing multiple rings. Only two categories for now (novelty
+// awards excluded per Lainey); anything else falls back to a plain star.
+//   "harvey28": [{ award: "League Champion", league: "NFL", year: 2023 }, ...]
+const COACH_TROPHIES = {};
+
+// Original, generic badge shapes — not a recreation of any real trophy —
+// just enough to visually distinguish the two award categories.
+function TrophyIcon({ award, size = 14 }) {
+  const isChampion = award === "League Champion";
+  const color = isChampion ? "#E8A33D" : "#8494AC";
+  return isChampion ? (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-label="League Champion">
+      <path d="M7 3h10v3a5 5 0 01-5 5 5 5 0 01-5-5V3z" fill={color} />
+      <path d="M4 4h3v2a3 3 0 01-3 3 2 2 0 01-2-2V6a2 2 0 012-2z" fill={color} opacity="0.7" />
+      <path d="M20 4h-3v2a3 3 0 003 3 2 2 0 002-2V6a2 2 0 00-2-2z" fill={color} opacity="0.7" />
+      <rect x="10.5" y="10" width="3" height="4" fill={color} />
+      <rect x="8" y="14" width="8" height="2" rx="0.5" fill={color} />
+      <rect x="9" y="16.5" width="6" height="2" rx="0.5" fill={color} />
+    </svg>
+  ) : (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-label="Coach of the Year">
+      <circle cx="12" cy="9" r="6" fill={color} />
+      <circle cx="12" cy="9" r="3" fill="#0B1220" opacity="0.25" />
+      <path d="M9 14.5L7 21l5-2.5 5 2.5-2-6.5" fill={color} />
+    </svg>
+  );
+}
+
+function TrophyBadges({ name, size = 14 }) {
+  const trophies = COACH_TROPHIES[(name || "").toLowerCase()];
+  if (!trophies || !trophies.length) return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 align-middle ml-1.5" title={trophies.map((t) => `${t.award} — ${t.league} ${t.year}`).join(", ")}>
+      {trophies.map((t, i) => (
+        <TrophyIcon key={i} award={t.award} size={size} />
+      ))}
+    </span>
+  );
+}
+
 // ── Coach Profile popup: current team + conference are always shown (from
 // the same Sleeper data as the directory); career stats show once CAREER_
 // STATS has an entry for this coach, otherwise a plain "not in yet" note.
@@ -831,7 +874,10 @@ function CoachProfileModal({ coach, onClose }) {
           <div className="flex items-center gap-3">
             <Avatar name={coach.name} avatar={coach.avatar} size={52} />
             <div>
-              <div className="text-lg font-semibold leading-tight">{coach.name}</div>
+              <div className="text-lg font-semibold leading-tight">
+                {coach.name}
+                <TrophyBadges name={coach.name} size={15} />
+              </div>
               <div className="text-xs" style={{ color: C.slate }}>{coach.team || "—"}</div>
               {coach.tierKey && (
                 <div className="text-xs uppercase tracking-wider mt-0.5" style={{ color: C.gold }}>
@@ -1653,6 +1699,7 @@ export default function App() {
                               style={{ color: m.name === coachName ? C.gold : C.chalk }}
                             >
                               {m.name}
+                              <TrophyBadges name={m.name} size={11} />
                             </button>
                             <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
                             {commish && (
@@ -1884,6 +1931,7 @@ export default function App() {
                             <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
                               <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
                                 {r.coach}
+                                <TrophyBadges name={r.coach} size={12} />
                               </button>
                               {isLast && (
                                 <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
@@ -2079,6 +2127,7 @@ export default function App() {
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
                         <button type="button" onClick={() => openCoachProfile(r.name)} style={{ color: "inherit" }}>
                           {r.name}
+                          <TrophyBadges name={r.name} size={12} />
                         </button>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
@@ -2147,7 +2196,10 @@ export default function App() {
                 >
                   <Avatar name={c.name} avatar={c.avatar} size={38} />
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{c.name}</div>
+                    <div className="text-sm font-semibold truncate">
+                      {c.name}
+                      <TrophyBadges name={c.name} size={12} />
+                    </div>
                     <div className="text-xs truncate" style={{ color: C.slate }}>{c.team}</div>
                     <div className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>{c.tierKey}</div>
                   </div>
@@ -2303,6 +2355,7 @@ export default function App() {
                     <div className="min-w-0 flex-1">
                       <button type="button" onClick={() => openCoachProfile(r.coach)} className="text-sm font-semibold truncate block" style={{ color: "inherit" }}>
                         {r.coach}
+                        <TrophyBadges name={r.coach} size={11} />
                       </button>
                       <div className="text-xs truncate" style={{ color: C.slate }}>
                         <button
@@ -2334,7 +2387,10 @@ export default function App() {
                       className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-sm text-left"
                       style={{ background: C.panel, border: `1px solid ${C.line}` }}
                     >
-                      <span className="truncate">{name}</span>
+                      <span className="truncate">
+                        {name}
+                        <TrophyBadges name={name} size={11} />
+                      </span>
                       <span className="shrink-0 ml-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>{count}</span>
                     </button>
                   ))}
