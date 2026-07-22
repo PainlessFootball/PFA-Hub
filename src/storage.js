@@ -100,3 +100,65 @@ export async function removeNewsItem(id) {
 // ── Coach name (always local to the device) ──
 export const getCoachName = () => localGet("pfa-coach-name") || "";
 export const setCoachNameStored = (n) => localSet("pfa-coach-name", n);
+
+// ── Applications (Apply-to-Team) ──
+export function watchApplications(cb) {
+  if (!firebaseReady) {
+    cb(localGet("pfa-applications") || []);
+    return () => {};
+  }
+  let unsub = () => {};
+  ensureDb().then(() => {
+    const q = fs.query(fs.collection(db, "applications"), fs.orderBy("ts"));
+    unsub = fs.onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  });
+  return () => unsub();
+}
+
+export async function submitApplication(app) {
+  if (!firebaseReady) {
+    const entry = { ...app, id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}` };
+    const a = (localGet("pfa-applications") || []).concat(entry);
+    localSet("pfa-applications", a);
+    return a;
+  }
+  await ensureDb();
+  await fs.addDoc(fs.collection(db, "applications"), app);
+  return null;
+}
+
+export async function removeApplication(id) {
+  if (!firebaseReady) {
+    const a = (localGet("pfa-applications") || []).filter((x) => x.id !== id);
+    localSet("pfa-applications", a);
+    return a;
+  }
+  await ensureDb();
+  await fs.deleteDoc(fs.doc(db, "applications", id));
+  return null;
+}
+
+// ── Promotion Window (global, commissioner-controlled on/off switch) ──
+export function watchPromotionWindow(cb) {
+  if (!firebaseReady) {
+    cb(Boolean(localGet("pfa-promotion-window")));
+    return () => {};
+  }
+  let unsub = () => {};
+  ensureDb().then(() => {
+    unsub = fs.onSnapshot(fs.doc(db, "settings", "promotionWindow"), (snap) => {
+      cb(snap.exists() ? Boolean(snap.data().open) : false);
+    });
+  });
+  return () => unsub();
+}
+
+export async function setPromotionWindow(isOpen) {
+  if (!firebaseReady) {
+    localSet("pfa-promotion-window", isOpen);
+    return isOpen;
+  }
+  await ensureDb();
+  await fs.setDoc(fs.doc(db, "settings", "promotionWindow"), { open: isOpen });
+  return null;
+}
