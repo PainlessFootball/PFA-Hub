@@ -1096,7 +1096,7 @@ export default function App() {
           </div>
           <nav className="mt-4 flex overflow-x-auto">
             <Tab id="home">Home</Tab>
-            <Tab id="standings">The Ladder</Tab>
+            <Tab id="standings">Standings</Tab>
             <Tab id="coaches">Top Coaches</Tab>
             <Tab id="directory">Directory</Tab>
             <Tab id="pyramid">The Pyramid</Tab>
