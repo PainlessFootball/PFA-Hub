@@ -2008,12 +2008,15 @@ export default function App() {
 
     if (tKey === "NFL") {
       const groups = ["AFC", "NFC"].map((confName) => {
-        const confRows = withDiv.filter((r) => nflConferenceFor(r.division) === confName);
+        // Rank within the conference first (seed 1-16), THEN split into
+        // divisions for display — so the # column reflects conference
+        // standing, not the whole 32-team league.
+        const confRows = byRecord(withDiv.filter((r) => nflConferenceFor(r.division) === confName)).map((r, i) => ({ ...r, place: i + 1 }));
         const byDiv = {};
         confRows.forEach((r) => (byDiv[r.division] = byDiv[r.division] || []).push(r));
         const divisions = Object.keys(byDiv)
           .sort((a, b) => a - b)
-          .map((d) => ({ name: NFL_DIVISIONS[d] || `Division ${d}`, rows: byRecord(byDiv[d]) }));
+          .map((d) => ({ name: NFL_DIVISIONS[d] || `Division ${d}`, rows: byDiv[d] }));
         return { name: confName, divisions };
       });
       return { type: "nested", groups };
@@ -2029,7 +2032,13 @@ export default function App() {
     withDiv.forEach((r) => (byDiv[r.division] = byDiv[r.division] || []).push(r));
     const groups = Object.keys(byDiv)
       .sort((a, b) => a - b)
-      .map((d) => ({ name: names[d] || `Group ${d}`, rows: byRecord(byDiv[d]) }));
+      .map((d) => {
+        let groupRows = byRecord(byDiv[d]);
+        // Tiers 8-12 (Sun Belt/SoCo/Ivy/SWAC/GLIAC): seed 1-8 within each
+        // conference, not the whole 16-team league.
+        if (TWO_CONF_NAMES[tKey]) groupRows = groupRows.map((r, i) => ({ ...r, place: i + 1 }));
+        return { name: names[d] || `Group ${d}`, rows: groupRows };
+      });
     return groups.length ? { type: "flat", groups } : null;
   };
 
