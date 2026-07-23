@@ -27,23 +27,7 @@ import {
 // Add earlier seasons here once their IDs are on hand (same shape, one object
 // per year) — once a couple of years are in here, a season picker can be
 // added to each league's page.
-// LEAGUE_HISTORY additions — Sleeper league IDs by season, 2023-2026
-// From Painless_Football_Alliance_-_league_IDs.pdf
-//
-// Your app already has LEAGUE_HISTORY[2026] — merge these in as the 2025,
-// 2024, and 2023 entries (and 2026, if it's useful to double check against
-// what you already have). I've kept the tier keys matching your nav/tier
-// naming; rename if your existing LEAGUE_HISTORY object uses different keys.
-//
-// One open question: "Pioneer" only had a single ID in the export
-// (919371831558131712), with no year column indicated — this is presumably
-// the folded league mentioned as having sat between GLIAC and FLHS before it
-// folded. I've guessed it belongs under 2023 (the oldest year in this table)
-// since that's the most likely last season it existed, but you should
-// confirm — it could be earlier than 2023 and just carried forward as a
-// reference ID.
-
-const LEAGUE_HISTORY_ADDITIONS = {
+const LEAGUE_HISTORY = {
   2026: {
     NFL: "1316582839847759872",
     USFL: "1316586636028448768",
@@ -52,9 +36,9 @@ const LEAGUE_HISTORY_ADDITIONS = {
     "BIG XII": "1317152669235703808",
     ACC: "1317191636379254784",
     TEN: "1317530523035242496",
-    "Sun Belt": "1317557888784306176",
-    SoCo: "1317559700799131648",
-    Ivy: "1317562012057735168",
+    SUN: "1317557888784306176",
+    SOCO: "1317559700799131648",
+    IVY: "1317562012057735168",
     SWAC: "1317574770207789056",
     GLIAC: "1317895570131546112",
     FLHS: "1317921468134232064",
@@ -67,9 +51,9 @@ const LEAGUE_HISTORY_ADDITIONS = {
     "BIG XII": "1184161478922457088",
     ACC: "1184163927158579200",
     TEN: "1184162494998659072",
-    "Sun Belt": "1184163547609038848",
-    SoCo: "1185042556622708736",
-    Ivy: "1185069556594888704",
+    SUN: "1184163547609038848",
+    SOCO: "1185042556622708736",
+    IVY: "1185069556594888704",
     SWAC: "1185069998871359488",
     GLIAC: "1185070363708993536",
     FLHS: "1185070724967948288",
@@ -82,9 +66,9 @@ const LEAGUE_HISTORY_ADDITIONS = {
     "BIG XII": "1054438496422801408",
     ACC: "1054445165114535936",
     TEN: "1054436923411935232",
-    "Sun Belt": "1054214327244279808",
-    SoCo: "1054447353786179584",
-    Ivy: "1054448671129014272",
+    SUN: "1054214327244279808",
+    SOCO: "1054447353786179584",
+    IVY: "1054448671129014272",
     SWAC: "1054449565149085696",
     GLIAC: "1054450442576519168",
     FLHS: "1054451264907468800",
@@ -97,17 +81,16 @@ const LEAGUE_HISTORY_ADDITIONS = {
     "BIG XII": "919396044612464640",
     ACC: "919395900932354048",
     TEN: "919395714210394112",
-    "Sun Belt": "919395393438310400",
-    SoCo: "919395035123122176",
-    Ivy: "919394484612435968",
+    SUN: "919395393438310400",
+    SOCO: "919395035123122176",
+    IVY: "919394484612435968",
     SWAC: "919392917653901312",
     GLIAC: "919392125446373376",
     FLHS: "919369950941241344",
-    // Pioneer: "919371831558131712" — folded league, year unconfirmed (see note above)
+    // Pioneer: "919371831558131712" — folded league, year unconfirmed
   },
+  // 2022: { ... },
 };
-
-export default LEAGUE_HISTORY_ADDITIONS;
 
 const CURRENT_SEASON = 2026;
 const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
@@ -1125,9 +1108,249 @@ function CoachProfileModal({ coach, onClose }) {
 // than an in-app player list, keeping room for team history, etc. later.
 // Draft picks are computed live from Sleeper's traded-picks data.
 
-// Roster links from the Admin tab (column AB), keyed by team name. Empty
-// until that export is provided — the popup just omits the link until then.
-const ROSTER_LINKS = {};
+// Roster links from the roster-link export, keyed by lowercased team name
+// (lookup below lowercases team.team before checking this map). Covers all
+// 13 tiers. A few open items:
+//  - "North Colorado Bears" (Big XII) and "THE Ohio State Buckeyes" (Big Ten)
+//    had links pointing into the wrong tier in the source sheet — omitted
+//    until the real roster numbers are confirmed.
+//  - Unfilled roster slots (open coaching jobs) have no entry, so the popup
+//    just omits the link for those, same as before.
+const ROSTER_LINKS = {
+  // ---- NFL (1316582839847759872) ----
+  "baltimore ravens": "https://sleeper.com/roster/1316582839847759872/12",
+  "new england patriots": "https://sleeper.com/roster/1316582839847759872/3",
+  "san francisco 49ers": "https://sleeper.com/roster/1316582839847759872/14",
+  "green bay packers": "https://sleeper.com/roster/1316582839847759872/6",
+  "los angeles rams": "https://sleeper.com/roster/1316582839847759872/32",
+  "tennessee titans": "https://sleeper.com/roster/1316582839847759872/28",
+  "cincinnati bengals": "https://sleeper.com/roster/1316582839847759872/7",
+  "detroit lions": "https://sleeper.com/roster/1316582839847759872/27",
+  "miami dolphins": "https://sleeper.com/roster/1316582839847759872/16",
+  "los angeles chargers": "https://sleeper.com/roster/1316582839847759872/18",
+  "arizona cardinals": "https://sleeper.com/roster/1316582839847759872/15",
+  "new york jets": "https://sleeper.com/roster/1316582839847759872/26",
+  "pittsburgh steelers": "https://sleeper.com/roster/1316582839847759872/10",
+  "indianapolis colts": "https://sleeper.com/roster/1316582839847759872/20",
+  "philadelphia eagles": "https://sleeper.com/roster/1316582839847759872/29",
+  "oakland raiders": "https://sleeper.com/roster/1316582839847759872/2",
+  "dallas cowboys": "https://sleeper.com/roster/1316582839847759872/9",
+  "jacksonville jaguars": "https://sleeper.com/roster/1316582839847759872/4",
+  "seattle seahawks": "https://sleeper.com/roster/1316582839847759872/11",
+  "new orleans saints": "https://sleeper.com/roster/1316582839847759872/17",
+  "buffalo bills": "https://sleeper.com/roster/1316582839847759872/24",
+  "minnesota vikings": "https://sleeper.com/roster/1316582839847759872/31",
+  "new york giants": "https://sleeper.com/roster/1316582839847759872/22",
+  "chicago bears": "https://sleeper.com/roster/1316582839847759872/5",
+  "atlanta falcons": "https://sleeper.com/roster/1316582839847759872/30",
+  "tampa bay buccaneers": "https://sleeper.com/roster/1316582839847759872/8",
+  "houston texans": "https://sleeper.com/roster/1316582839847759872/13",
+  "washington commanders": "https://sleeper.com/roster/1316582839847759872/1",
+  "carolina panthers": "https://sleeper.com/roster/1316582839847759872/21",
+  "cleveland browns": "https://sleeper.com/roster/1316582839847759872/19",
+  "kansas city chiefs": "https://sleeper.com/roster/1316582839847759872/25",
+  "denver broncos": "https://sleeper.com/roster/1316582839847759872/23",
+
+  // ---- USFL (1316586636028448768) — 2 slots unfilled in source (skipped) ----
+  "san antonio gunslingers": "https://sleeper.com/roster/1316586636028448768/20",
+  "pittsburgh maulers": "https://sleeper.com/roster/1316586636028448768/6",
+  "birmingham stallions": "https://sleeper.com/roster/1316586636028448768/14",
+  "denver gold": "https://sleeper.com/roster/1316586636028448768/17",
+  "los angeles express": "https://sleeper.com/roster/1316586636028448768/3",
+  "washington federals": "https://sleeper.com/roster/1316586636028448768/10",
+  "boston breakers": "https://sleeper.com/roster/1316586636028448768/1",
+  "new jersey generals": "https://sleeper.com/roster/1316586636028448768/19",
+  "michigan panthers": "https://sleeper.com/roster/1316586636028448768/12",
+  "philadelphia stars": "https://sleeper.com/roster/1316586636028448768/16",
+  "oklahoma outlaws": "https://sleeper.com/roster/1316586636028448768/7",
+  "detroit drive": "https://sleeper.com/roster/1316586636028448768/9",
+  "chicago blitz": "https://sleeper.com/roster/1316586636028448768/18",
+  "orlando renegades": "https://sleeper.com/roster/1316586636028448768/5",
+  "arizona wranglers": "https://sleeper.com/roster/1316586636028448768/11",
+  "tampa bay bandits": "https://sleeper.com/roster/1316586636028448768/2",
+  "houston gamblers": "https://sleeper.com/roster/1316586636028448768/8",
+  "oakland invaders": "https://sleeper.com/roster/1316586636028448768/13",
+
+  // ---- XFL (1316588494914613248) — 2 slots unfilled in source (skipped) ----
+  "dc defenders": "https://sleeper.com/roster/1316588494914613248/7",
+  "birmingham thunderbolts": "https://sleeper.com/roster/1316588494914613248/4",
+  "orlando rage": "https://sleeper.com/roster/1316588494914613248/17",
+  "seattle dragons": "https://sleeper.com/roster/1316588494914613248/15",
+  "tampa bay vipers": "https://sleeper.com/roster/1316588494914613248/9",
+  "boston brawlers": "https://sleeper.com/roster/1316588494914613248/6",
+  "brooklyn bolts": "https://sleeper.com/roster/1316588494914613248/12",
+  "los angeles xtreme": "https://sleeper.com/roster/1316588494914613248/8",
+  "memphis maniax": "https://sleeper.com/roster/1316588494914613248/5",
+  "los angeles wildcats": "https://sleeper.com/roster/1316588494914613248/18",
+  "dallas renegades": "https://sleeper.com/roster/1316588494914613248/2",
+  "omaha mammoths": "https://sleeper.com/roster/1316588494914613248/20",
+  "st. louis battlehawks": "https://sleeper.com/roster/1316588494914613248/14",
+  "atlanta legends": "https://sleeper.com/roster/1316588494914613248/19",
+  "new york guardians": "https://sleeper.com/roster/1316588494914613248/3",
+  "san francisco demons": "https://sleeper.com/roster/1316588494914613248/1",
+  "chicago enforcers": "https://sleeper.com/roster/1316588494914613248/11",
+  "new jersey hitmen": "https://sleeper.com/roster/1316588494914613248/16",
+
+  // ---- SEC (1316594738958192640) — all 16 present ----
+  "south carolina gamecocks": "https://sleeper.com/roster/1316594738958192640/8",
+  "ole miss rebels": "https://sleeper.com/roster/1316594738958192640/7",
+  "kentucky wildcats": "https://sleeper.com/roster/1316594738958192640/11",
+  "florida gators": "https://sleeper.com/roster/1316594738958192640/10",
+  "arkansas razorbacks": "https://sleeper.com/roster/1316594738958192640/3",
+  "texas a & m aggies": "https://sleeper.com/roster/1316594738958192640/6",
+  "oklahoma sooners": "https://sleeper.com/roster/1316594738958192640/12",
+  "miss state bulldogs": "https://sleeper.com/roster/1316594738958192640/2",
+  "georgia bulldogs": "https://sleeper.com/roster/1316594738958192640/16",
+  "missouri tigers": "https://sleeper.com/roster/1316594738958192640/13",
+  "alabama crimson tide": "https://sleeper.com/roster/1316594738958192640/15",
+  "tennessee volunteers": "https://sleeper.com/roster/1316594738958192640/4",
+  "vanderbilt commodores": "https://sleeper.com/roster/1316594738958192640/14",
+  "auburn tigers": "https://sleeper.com/roster/1316594738958192640/5",
+  "lsu tigers": "https://sleeper.com/roster/1316594738958192640/9",
+  "texas longhorns": "https://sleeper.com/roster/1316594738958192640/1",
+
+  // ---- BIG XII (1317152669235703808) ----
+  // NOTE: "North Colorado Bears" in the source sheet links into the XFL
+  // league instead (1316588494914613248/18, which is actually the Los
+  // Angeles Wildcats' slot) — a copy/paste error. Left out below; let me
+  // know the real roster number and I'll add it.
+  "iowa state cyclones": "https://sleeper.com/roster/1317152669235703808/15",
+  "south dakota state": "https://sleeper.com/roster/1317152669235703808/16",
+  "houston cougars": "https://sleeper.com/roster/1317152669235703808/6",
+  "cincinnati bearcats": "https://sleeper.com/roster/1317152669235703808/3",
+  "osu": "https://sleeper.com/roster/1317152669235703808/1",
+  "baylor bears": "https://sleeper.com/roster/1317152669235703808/4",
+  "arizona wildcats": "https://sleeper.com/roster/1317152669235703808/8",
+  "denver pioneers": "https://sleeper.com/roster/1317152669235703808/13",
+  "kansas jayhawks": "https://sleeper.com/roster/1317152669235703808/2",
+  "west virgnia mountaineers": "https://sleeper.com/roster/1317152669235703808/14",
+  "byu cougars": "https://sleeper.com/roster/1317152669235703808/12",
+  "kansas state wildcats": "https://sleeper.com/roster/1317152669235703808/5",
+  "tcu horned frogs": "https://sleeper.com/roster/1317152669235703808/9",
+  "ucf knights": "https://sleeper.com/roster/1317152669235703808/10",
+  "texas tech": "https://sleeper.com/roster/1317152669235703808/7",
+
+  // ---- ACC (1317191636379254784) — all 16 present ----
+  "virginia tech hokies": "https://sleeper.com/roster/1317191636379254784/2",
+  "duke blue devils": "https://sleeper.com/roster/1317191636379254784/16",
+  "louisville cardinals": "https://sleeper.com/roster/1317191636379254784/5",
+  "smu mustangs": "https://sleeper.com/roster/1317191636379254784/14",
+  "florida state seminoles": "https://sleeper.com/roster/1317191636379254784/13",
+  "north carolina tar heels": "https://sleeper.com/roster/1317191636379254784/11",
+  "syracuse orange": "https://sleeper.com/roster/1317191636379254784/15",
+  "wake forest": "https://sleeper.com/roster/1317191636379254784/9",
+  "clemson tigers": "https://sleeper.com/roster/1317191636379254784/8",
+  "notre dame fighting irish": "https://sleeper.com/roster/1317191636379254784/10",
+  "pittsburgh panthers": "https://sleeper.com/roster/1317191636379254784/1",
+  "virginia cavaliers": "https://sleeper.com/roster/1317191636379254784/6",
+  "boston college eagles": "https://sleeper.com/roster/1317191636379254784/3",
+  "miami hurricanes": "https://sleeper.com/roster/1317191636379254784/12",
+  "nc state wolfpack": "https://sleeper.com/roster/1317191636379254784/4",
+  "georgiatech yellowjackets": "https://sleeper.com/roster/1317191636379254784/7",
+
+  // ---- BIG TEN (1317530523035242496) — 4 slots unfilled in source (skipped) ----
+  // NOTE: "THE Ohio State Buckeyes" in the source sheet links into the FLHS
+  // league instead (1317921468134232064/4, an unfilled FLHS slot) — a
+  // copy/paste error. Left out below; let me know the real roster number
+  // and I'll add it.
+  "northwestern wildcats": "https://sleeper.com/roster/1317530523035242496/13",
+  "indiana hoosiers": "https://sleeper.com/roster/1317530523035242496/11",
+  "cal golden bears": "https://sleeper.com/roster/1317530523035242496/6",
+  "penn st. nittany lions": "https://sleeper.com/roster/1317530523035242496/15",
+  "michigan wolverines": "https://sleeper.com/roster/1317530523035242496/2",
+  "purdue boilermakes": "https://sleeper.com/roster/1317530523035242496/12",
+  "utah utes": "https://sleeper.com/roster/1317530523035242496/3",
+  "oregon ducks": "https://sleeper.com/roster/1317530523035242496/8",
+  "illinois fighting illini": "https://sleeper.com/roster/1317530523035242496/9",
+  "maryland terps": "https://sleeper.com/roster/1317530523035242496/10",
+  "rutgers scarlet knights": "https://sleeper.com/roster/1317530523035242496/14",
+  "usc trojans": "https://sleeper.com/roster/1317530523035242496/5",
+
+  // ---- SUN BELT (1317557888784306176) — corrected ID; 1 slot unfilled ----
+  "georgia state panthers": "https://sleeper.com/roster/1317557888784306176/7",
+  "little rock trojans": "https://sleeper.com/roster/1317557888784306176/8",
+  "app state mountaineers": "https://sleeper.com/roster/1317557888784306176/12",
+  "usm golden eagles": "https://sleeper.com/roster/1317557888784306176/3",
+  "south alabama jaguars": "https://sleeper.com/roster/1317557888784306176/10",
+  "arlington mavericks": "https://sleeper.com/roster/1317557888784306176/11",
+  "troy trojans": "https://sleeper.com/roster/1317557888784306176/2",
+  "georgia southern eagles": "https://sleeper.com/roster/1317557888784306176/13",
+  "ulm warhawks": "https://sleeper.com/roster/1317557888784306176/15",
+  "louisiana ragin' cajuns": "https://sleeper.com/roster/1317557888784306176/14",
+  "james madison dukes": "https://sleeper.com/roster/1317557888784306176/16",
+  "old dominion monarchs": "https://sleeper.com/roster/1317557888784306176/4",
+  "marshall thundering herd": "https://sleeper.com/roster/1317557888784306176/5",
+  "texas state bobcats": "https://sleeper.com/roster/1317557888784306176/9",
+  "carolina chanticleers": "https://sleeper.com/roster/1317557888784306176/1",
+
+  // ---- SOCO (1317559700799131648) — corrected ID; 2 slots unfilled ----
+  "austin peay governors": "https://sleeper.com/roster/1317559700799131648/4",
+  "west carolina catamounts": "https://sleeper.com/roster/1317559700799131648/8",
+  "belmont bruins": "https://sleeper.com/roster/1317559700799131648/14",
+  "mercer bears": "https://sleeper.com/roster/1317559700799131648/3",
+  "e tenn buccaneers": "https://sleeper.com/roster/1317559700799131648/5",
+  "tennessee st tigers": "https://sleeper.com/roster/1317559700799131648/7",
+  "the citadel bulldogs": "https://sleeper.com/roster/1317559700799131648/16",
+  "vmi keydets": "https://sleeper.com/roster/1317559700799131648/15",
+  "elon phoenix": "https://sleeper.com/roster/1317559700799131648/11",
+  "tennessee martin skyhawks": "https://sleeper.com/roster/1317559700799131648/9",
+  "samford bulldogs": "https://sleeper.com/roster/1317559700799131648/13",
+  "nicholls state colonels": "https://sleeper.com/roster/1317559700799131648/2",
+  "murray state racers": "https://sleeper.com/roster/1317559700799131648/6",
+  "tenn tech eagles": "https://sleeper.com/roster/1317559700799131648/12",
+
+  // ---- IVY (1317562012057735168) — corrected ID; 2 slots unfilled ----
+  "brown bears": "https://sleeper.com/roster/1317562012057735168/12",
+  "colgate raiders": "https://sleeper.com/roster/1317562012057735168/11",
+  "lehigh mountain hawks": "https://sleeper.com/roster/1317562012057735168/15",
+  "bucknell bison": "https://sleeper.com/roster/1317562012057735168/16",
+  "dartmouth big green": "https://sleeper.com/roster/1317562012057735168/3",
+  "penn quakers": "https://sleeper.com/roster/1317562012057735168/8",
+  "georgetown hoyas": "https://sleeper.com/roster/1317562012057735168/7",
+  "holy cross crusaders": "https://sleeper.com/roster/1317562012057735168/13",
+  "columbia lions": "https://sleeper.com/roster/1317562012057735168/14",
+  "cornell university bears": "https://sleeper.com/roster/1317562012057735168/6",
+  "harvard crimson": "https://sleeper.com/roster/1317562012057735168/2",
+  "mit engineers": "https://sleeper.com/roster/1317562012057735168/10",
+  "lafayette leopards": "https://sleeper.com/roster/1317562012057735168/4",
+  "fordham rams": "https://sleeper.com/roster/1317562012057735168/1",
+
+  // ---- SWAC (1317574770207789056) — corrected ID; 6 slots unfilled ----
+  // NOTE: "PFA VP" is an odd team name (roster 16) — kept as-is since it may
+  // be a real Sleeper display name, but worth a sanity check.
+  "pfa vp": "https://sleeper.com/roster/1317574770207789056/16",
+  "mississippi valley devils": "https://sleeper.com/roster/1317574770207789056/12",
+  "bethune-cookman wildcats": "https://sleeper.com/roster/1317574770207789056/10",
+  "grambling state tigers": "https://sleeper.com/roster/1317574770207789056/5",
+  "s.c. state bulldogs": "https://sleeper.com/roster/1317574770207789056/8",
+  "southernu jaguars": "https://sleeper.com/roster/1317574770207789056/2",
+  "alabama a&m bulldogs": "https://sleeper.com/roster/1317574770207789056/7",
+  "alcorn state braves": "https://sleeper.com/roster/1317574770207789056/9",
+  "pine bluff golden lions": "https://sleeper.com/roster/1317574770207789056/11",
+  "alabama state hornets": "https://sleeper.com/roster/1317574770207789056/3",
+
+  // ---- GLIAC (1317895570131546112) — corrected ID; 5 slots unfilled ----
+  "davenport panthers": "https://sleeper.com/roster/1317895570131546112/3",
+  "wayne state warriors": "https://sleeper.com/roster/1317895570131546112/13",
+  "n michigan wildcats": "https://sleeper.com/roster/1317895570131546112/9",
+  "jcu blue streaks": "https://sleeper.com/roster/1317895570131546112/8",
+  "northwood timberwolves": "https://sleeper.com/roster/1317895570131546112/5",
+  "ferris state bulldogs": "https://sleeper.com/roster/1317895570131546112/12",
+  "baldwin yellow jackets": "https://sleeper.com/roster/1317895570131546112/4",
+  "mount union raiders": "https://sleeper.com/roster/1317895570131546112/16",
+  "wilmington quakers": "https://sleeper.com/roster/1317895570131546112/10",
+  "lake superior lakers": "https://sleeper.com/roster/1317895570131546112/1",
+  "purdue nw pride": "https://sleeper.com/roster/1317895570131546112/14",
+
+  // ---- FLHS (1317921468134232064) — now complete (was broken/missing before) ----
+  "western wildcats": "https://sleeper.com/roster/1317921468134232064/7",
+  "west broward bobcats": "https://sleeper.com/roster/1317921468134232064/6",
+  "west boca raton bulls": "https://sleeper.com/roster/1317921468134232064/2",
+  "dr krop lightning": "https://sleeper.com/roster/1317921468134232064/15",
+  "coral glades jaguars": "https://sleeper.com/roster/1317921468134232064/9",
+  "stoneman douglas eagles": "https://sleeper.com/roster/1317921468134232064/5",
+  "miami senior stingrays": "https://sleeper.com/roster/1317921468134232064/8",
+};
 
 function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading }) {
   if (!team) return null;
