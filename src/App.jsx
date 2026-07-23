@@ -1631,6 +1631,102 @@ export default function App() {
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
   const bracket = mode === "live" ? computeBracket(tierKey) : null;
 
+  // Groups the current tier's standings to match its real Sleeper
+  // conference/division structure — NFL gets conference > division nesting,
+  // USFL/XFL/FLHS get their 4 divisions/districts, the 5 two-conference
+  // leagues get their 2 conferences. Leagues without a confirmed conference
+  // structure (SEC, Big 12, ACC, Big Ten) return null and keep the single
+  // flat table, same as before.
+  const groupStandings = (tKey, allRows) => {
+    if (!allRows || !allRows.length) return null;
+    const byRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
+    const withDiv = allRows.filter((r) => r.division);
+    if (!withDiv.length) return null;
+
+    if (tKey === "NFL") {
+      const groups = ["AFC", "NFC"].map((confName) => {
+        const confRows = withDiv.filter((r) => nflConferenceFor(r.division) === confName);
+        const byDiv = {};
+        confRows.forEach((r) => (byDiv[r.division] = byDiv[r.division] || []).push(r));
+        const divisions = Object.keys(byDiv)
+          .sort((a, b) => a - b)
+          .map((d) => ({ name: NFL_DIVISIONS[d] || `Division ${d}`, rows: byRecord(byDiv[d]) }));
+        return { name: confName, divisions };
+      });
+      return { type: "nested", groups };
+    }
+
+    let names = null;
+    if (tKey === "FLHS") names = FLHS_DISTRICTS;
+    else if (tKey === "USFL" || tKey === "XFL") names = USFL_XFL_DIVISIONS;
+    else if (TWO_CONF_NAMES[tKey]) names = TWO_CONF_NAMES[tKey];
+    if (!names) return null;
+
+    const byDiv = {};
+    withDiv.forEach((r) => (byDiv[r.division] = byDiv[r.division] || []).push(r));
+    const groups = Object.keys(byDiv)
+      .sort((a, b) => a - b)
+      .map((d) => ({ name: names[d] || `Group ${d}`, rows: byRecord(byDiv[d]) }));
+    return groups.length ? { type: "flat", groups } : null;
+  };
+
+  const standingsGroups = mode === "live" ? groupStandings(tierKey, rows) : null;
+  const overallLastRosterId = rows && rows.length ? rows[rows.length - 1].rosterId : null;
+
+  const renderStandingsRows = (tableRows) =>
+    tableRows.map((r, i) => {
+      const isLast = standingsGroups ? r.rosterId === overallLastRosterId : i >= tableRows.length - 1;
+      return (
+        <tr
+          key={r.coach + i}
+          style={{
+            background: isLast ? "rgba(212,96,76,0.10)" : i % 2 ? "rgba(255,255,255,0.02)" : "transparent",
+            borderTop: `1px solid ${C.line}`,
+          }}
+        >
+          <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{r.place}</td>
+          <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
+            <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
+              {r.coach}
+              <TrophyBadges name={r.coach} size={12} />
+            </button>
+            {isLast && (
+              <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
+                hot seat
+              </span>
+            )}
+          </td>
+          <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+            <button type="button" onClick={() => openTeamProfile(r, tierKey)} style={{ color: "inherit" }}>
+              {r.team}
+            </button>
+          </td>
+          <td className="px-3 py-2 text-right whitespace-nowrap">
+            <span style={{ color: C.turf }}>{r.w}</span>
+            <span style={{ color: C.slate }}>–</span>
+            <span style={{ color: C.ember }}>{r.l}</span>
+          </td>
+          <td className="px-3 py-2 text-right">{fmt(r.pts)}</td>
+          <td className="px-3 py-2 text-right" style={{ color: C.gold }}>
+            {mode === "live" ? fmt(r.maxPts) : fmt(r.cp)}
+          </td>
+        </tr>
+      );
+    });
+
+  const StandingsTable = ({ tableRows }) => (
+    <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
+      <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ background: C.panel, color: C.slate }}>
+            {["#", "Coach", "Team", "W–L", "PF", mode === "live" ? "Max PF" : "CP"].map((h, i) => th(h, i))}
+          </tr>
+        </thead>
+        <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{renderStandingsRows(tableRows)}</tbody>
+      </table>
+    </div>
+  );
+
   const hotSeatFor = (tKey) => {
     if (mode === "live") {
       const id = leagueMap[tKey];
@@ -2289,56 +2385,34 @@ export default function App() {
               )}
 
               {rows ? (
-                <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
-                  <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: C.panel, color: C.slate }}>
-                        {["#", "Coach", "Team", "W–L", "PF", mode === "live" ? "Max PF" : "CP"].map((h, i) => th(h, i))}
-                      </tr>
-                    </thead>
-                    <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                      {rows.map((r, i) => {
-                        const isLast = i >= rows.length - 1;
-                        return (
-                          <tr
-                            key={r.coach + i}
-                            style={{
-                              background: isLast ? "rgba(212,96,76,0.10)" : i % 2 ? "rgba(255,255,255,0.02)" : "transparent",
-                              borderTop: `1px solid ${C.line}`,
-                            }}
-                          >
-                            <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{r.place}</td>
-                            <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
-                              <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
-                                {r.coach}
-                                <TrophyBadges name={r.coach} size={12} />
-                              </button>
-                              {isLast && (
-                                <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
-                                  hot seat
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
-                              <button type="button" onClick={() => openTeamProfile(r, tierKey)} style={{ color: "inherit" }}>
-                                {r.team}
-                              </button>
-                            </td>
-                            <td className="px-3 py-2 text-right whitespace-nowrap">
-                              <span style={{ color: C.turf }}>{r.w}</span>
-                              <span style={{ color: C.slate }}>–</span>
-                              <span style={{ color: C.ember }}>{r.l}</span>
-                            </td>
-                            <td className="px-3 py-2 text-right">{fmt(r.pts)}</td>
-                            <td className="px-3 py-2 text-right" style={{ color: C.gold }}>
-                              {mode === "live" ? fmt(r.maxPts) : fmt(r.cp)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                standingsGroups && standingsGroups.type === "nested" ? (
+                  <div className="space-y-6">
+                    {standingsGroups.groups.map((conf) => (
+                      <div key={conf.name}>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{conf.name}</div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {conf.divisions.map((div) => (
+                            <div key={div.name}>
+                              <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>{div.name}</div>
+                              <StandingsTable tableRows={div.rows} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : standingsGroups && standingsGroups.type === "flat" ? (
+                  <div className={`grid gap-4 ${standingsGroups.groups.length > 1 ? "md:grid-cols-2" : ""}`}>
+                    {standingsGroups.groups.map((g) => (
+                      <div key={g.name}>
+                        <div className="text-sm font-semibold mb-1.5" style={{ color: C.gold }}>{g.name}</div>
+                        <StandingsTable tableRows={g.rows} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <StandingsTable tableRows={rows} />
+                )
               ) : tierLoading ? (
                 <div className="py-16 text-center text-sm" style={{ color: C.slate }}>Loading {tier.key} from Sleeper…</div>
               ) : (
