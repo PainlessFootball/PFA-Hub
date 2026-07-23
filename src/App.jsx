@@ -1061,128 +1061,210 @@ function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading }) {
   );
 }
 
-// ── Bracket components: a real tournament-tree layout (rounds as columns),
-// using TEAM names rather than coach names. Later rounds show "Winner of
-// Match N" placeholders until the actual games are played — this only
-// builds the seeding/shape, not live progression.
-function BracketSlot({ seed, entry }) {
-  if (typeof entry === "string") {
-    return <div className="truncate" style={{ color: C.slate }}>{entry}</div>;
-  }
+// ── Visual bracket system: real connected tournament-tree diagrams (SVG),
+// using each coach's real Sleeper avatar next to the team name to save
+// room — there's no real "team logo" data source, so this is the closest
+// legitimate visual identifier available rather than a fabricated logo.
+// Later rounds show "Winner of Match N" placeholders until real games are
+// played; this only builds the seeding/shape, not live progression.
+const BOX_W = 168;
+const BOX_H = 40;
+
+function BracketBox({ x, y, entry, seed }) {
+  const [broken, setBroken] = useState(false);
+  const isPlaceholder = typeof entry === "string";
+  const name = isPlaceholder ? entry : entry ? entry.team : "—";
+  const avatar = !isPlaceholder && entry ? entry.avatar : null;
+  const initial = (!isPlaceholder && entry ? entry.coach : name || "?").trim().charAt(0).toUpperCase() || "?";
+  const label = name.length > 20 ? name.slice(0, 19) + "…" : name;
+
   return (
-    <div className="truncate">
-      {seed && <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seed}</span>}{" "}
-      {entry ? entry.team : "—"}
-      {entry && entry.divisionName && <span style={{ color: C.gold }}> · {entry.divisionName}</span>}
-    </div>
+    <g>
+      <rect x={x} y={y} width={BOX_W} height={BOX_H} rx="4" fill={C.panel} stroke={C.line} />
+      {!isPlaceholder && (
+        avatar && !broken ? (
+          <image
+            href={`https://sleepercdn.com/avatars/thumbs/${avatar}`}
+            x={x + 5} y={y + (BOX_H - 28) / 2} width={28} height={28}
+            clipPath="inset(0% round 14px)"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <>
+            <circle cx={x + 19} cy={y + BOX_H / 2} r={14} fill={C.panelHi} stroke={C.line} />
+            <text x={x + 19} y={y + BOX_H / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill={C.gold}>{initial}</text>
+          </>
+        )
+      )}
+      {seed && (
+        <text x={x + (isPlaceholder ? 8 : 40)} y={y + BOX_H / 2 - 3} fontSize="9" fill={C.slate} fontFamily="'IBM Plex Mono', monospace">
+          #{seed}
+        </text>
+      )}
+      <text
+        x={x + (isPlaceholder ? 8 : 40)}
+        y={y + BOX_H / 2 + (seed ? 11 : 4)}
+        fontSize="10.5"
+        fill={isPlaceholder ? C.slate : C.chalk}
+        fontFamily="'Barlow', sans-serif"
+        fontStyle={isPlaceholder ? "italic" : "normal"}
+      >
+        {label}
+      </text>
+    </g>
   );
 }
 
-function BracketMatch({ seedA, teamA, seedB, teamB }) {
-  return (
-    <div className="px-2.5 py-2 rounded-sm text-xs mb-3" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-      <BracketSlot seed={seedA} entry={teamA} />
-      <div className="text-center" style={{ color: C.slate, fontSize: "0.6rem", letterSpacing: "0.1em" }}>VS</div>
-      <BracketSlot seed={seedB} entry={teamB} />
-    </div>
-  );
+// Right-angle "elbow" connector between two box edges.
+function elbowPath(x1, y1, x2, y2) {
+  const midX = (x1 + x2) / 2;
+  return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
 }
 
-function BracketColumns({ seeds }) {
+function Connector({ d }) {
+  return <path d={d} fill="none" stroke={C.line} strokeWidth="1.5" />;
+}
+
+// Simple left-to-right single-elimination tree: Round 1 -> (Semifinal) ->
+// Final. Used for top8/conference-division sub-brackets and division-only.
+function TreeBracket({ seeds }) {
   const size = seeds.length <= 4 ? 4 : 8;
   const pairs = size === 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1;
-  const r1 = pairs.map(([a, b]) => ({ seedA: a, teamA: seeds[a - 1], seedB: b, teamB: seeds[b - 1] }));
+  const colGap = 70;
+  const rowGap = 26;
+  const r1X = 0;
+  const r2X = r1X + BOX_W + colGap;
+  const r3X = r2X + BOX_W + colGap;
+  const r1Ys = pairs.map((_, i) => i * (BOX_H * 2 + rowGap * 2));
+  const r2Ys = [];
+  for (let i = 0; i < r1Ys.length; i += 2) {
+    r2Ys.push((r1Ys[i] + r1Ys[i + 1]) / 2);
+  }
+  const r3Y = r2Ys.length > 1 ? (r2Ys[0] + r2Ys[r2Ys.length - 1]) / 2 : r2Ys[0];
+  const width = size === 4 ? r2X + BOX_W : r3X + BOX_W;
+  const height = r1Ys[r1Ys.length - 1] + BOX_H;
 
-  if (size === 4) {
-    return (
-      <div className="flex gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Round 1</div>
-          {r1.map((m, i) => <BracketMatch key={i} {...m} />)}
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
-          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Final</div>
-          <BracketMatch teamA="Winner, Match 1" teamB="Winner, Match 2" />
-        </div>
-      </div>
-    );
+  const lines = [];
+  pairs.forEach(([a, b], i) => {
+    const y = r1Ys[i];
+    lines.push(<Connector key={`r1-${i}`} d={elbowPath(r1X + BOX_W, y + BOX_H / 2, r2X, r2Ys[Math.floor(i / 2)] + BOX_H / 2)} />);
+    // both matches in a pair feed the same r2 slot — draw both halves
+  });
+  if (size === 8) {
+    r2Ys.forEach((y, i) => {
+      lines.push(<Connector key={`r2-${i}`} d={elbowPath(r2X + BOX_W, y + BOX_H / 2, r3X, r3Y + BOX_H / 2)} />);
+    });
   }
 
   return (
-    <div className="flex gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Round 1</div>
-        {r1.map((m, i) => <BracketMatch key={i} {...m} />)}
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-around">
-        <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Semifinal</div>
-        <BracketMatch teamA="Winner, Match 1" teamB="Winner, Match 2" />
-        <BracketMatch teamA="Winner, Match 3" teamB="Winner, Match 4" />
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
-        <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Final</div>
-        <BracketMatch teamA="Semifinal 1 winner" teamB="Semifinal 2 winner" />
-      </div>
-    </div>
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.75}px`, height: "auto" }}>
+      {lines}
+      {pairs.map(([a, b], i) => (
+        <g key={i}>
+          <BracketBox x={r1X} y={r1Ys[i]} seed={a} entry={seeds[a - 1]} />
+          <BracketBox x={r1X} y={r1Ys[i] + BOX_H + rowGap} seed={b} entry={seeds[b - 1]} />
+        </g>
+      ))}
+      {r2Ys.map((y, i) => (
+        <BracketBox key={i} x={r2X} y={y} entry={size === 4 ? "Winner, Match " + (i * 2 + 1) : `Winner, Match ${i + 1}`} />
+      ))}
+      {size === 8 && <BracketBox x={r3X} y={r3Y} entry="Semifinal winner" />}
+    </svg>
   );
 }
 
-// ── Two-conference "everybody plays for placement" bracket (Sun Belt, SoCo,
-// Ivy, SWAC, GLIAC). Round 1 winners AND losers both continue: winners meet
-// in a conference final, losers meet in their own conference placement
-// semi. The two conference finalists then cross over to decide 1st/2nd
-// (and so on down to the bottom), same shape as a real conference
-// championship structure — just applied to both the winner and loser side.
-function PlacementGroup({ east, west, eastName, westName, labels, fired }) {
+// Mirrored two-conference "everybody plays for placement" bracket (Sun
+// Belt, SoCo, Ivy, SWAC, GLIAC): East reads left-to-right, West reads
+// right-to-left. Each conference plays 2 Round-1 games (1v4, 2v3) —
+// winners meet in that conference's final, losers meet in that
+// conference's placement semi. The two conferences then cross over at
+// center for 4 placement games cascading down the page.
+function MirroredPlacementBracket({ east, west, eastName, westName, labels, fired }) {
+  const colGap = 46;
+  const eR1X = 0;
+  const eFinalX = eR1X + BOX_W + colGap;
+  const centerX = eFinalX + BOX_W + colGap;
+  const wFinalX = centerX + BOX_W + colGap;
+  const wR1X = wFinalX + BOX_W + colGap;
+  const width = wR1X + BOX_W;
+
+  const withinGameGap = 8;
+  const gameGap = 70;
+  const placementGap = 100;
+  const s1Y = 0;
+  const s4Y = s1Y + BOX_H + withinGameGap;
+  const s2Y = s4Y + BOX_H + gameGap;
+  const s3Y = s2Y + BOX_H + withinGameGap;
+  const g1Mid = (s1Y + s4Y) / 2 + BOX_H / 2;
+  const g2Mid = (s2Y + s3Y) / 2 + BOX_H / 2;
+  const finalY = (g1Mid + g2Mid) / 2 - BOX_H / 2;
+  const thirdY = finalY + BOX_H + placementGap;
+  const loserSemiY = thirdY + BOX_H + placementGap;
+  const seventhY = loserSemiY + BOX_H + placementGap;
+  const height = seventhY + BOX_H;
+
+  // A game's two seeds join at a single point, which then sends one line to
+  // the conference final (winner path) and one to the placement semi
+  // (loser path) — the same visual idea as a standard bracket "elbow", just
+  // with two destinations since we don't yet know who wins. destX is the
+  // actual x to connect into (differs for East, which reads left-to-right,
+  // vs West, which reads right-to-left).
+  const gameConnectors = (seedTopY, seedBotY, joinX, joinMid, destX) => (
+    <>
+      <Connector d={`M ${joinX} ${seedTopY + BOX_H / 2} L ${joinX} ${seedBotY + BOX_H / 2}`} />
+      <Connector d={elbowPath(joinX, joinMid, destX, finalY + BOX_H / 2)} />
+      <Connector d={elbowPath(joinX, joinMid, destX, loserSemiY + BOX_H / 2)} />
+    </>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div>
-          <div className="text-xs uppercase mb-1.5" style={{ color: C.gold }}>{eastName} · Week 15</div>
-          <BracketMatch seedA={1} teamA={east[0]} seedB={4} teamB={east[3]} />
-          <BracketMatch seedA={2} teamA={east[1]} seedB={3} teamB={east[2]} />
-        </div>
-        <div>
-          <div className="text-xs uppercase mb-1.5" style={{ color: C.gold }}>{westName} · Week 15</div>
-          <BracketMatch seedA={1} teamA={west[0]} seedB={4} teamB={west[3]} />
-          <BracketMatch seedA={2} teamA={west[1]} seedB={3} teamB={west[2]} />
-        </div>
+    <div className="space-y-1 overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.68}px`, height: "auto" }}>
+        {/* East: two Round 1 games, each joining then branching to final (win) and loser-semi (lose) */}
+        {gameConnectors(s1Y, s4Y, eR1X + BOX_W, g1Mid, eFinalX)}
+        {gameConnectors(s2Y, s3Y, eR1X + BOX_W, g2Mid, eFinalX)}
+        {/* West mirrored — R1 boxes' output edge is their LEFT side, connecting back to West's final on their left */}
+        {gameConnectors(s1Y, s4Y, wR1X, g1Mid, wFinalX + BOX_W)}
+        {gameConnectors(s2Y, s3Y, wR1X, g2Mid, wFinalX + BOX_W)}
+        {/* Finals -> Championship / 3rd place */}
+        <Connector d={elbowPath(eFinalX + BOX_W, finalY + BOX_H / 2, centerX, finalY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX, finalY + BOX_H / 2, centerX + BOX_W, finalY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, finalY + BOX_H, eFinalX + BOX_W / 2, thirdY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, thirdY + BOX_H / 2, centerX, thirdY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, finalY + BOX_H, wFinalX + BOX_W / 2, thirdY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, thirdY + BOX_H / 2, centerX + BOX_W, thirdY + BOX_H / 2)} />
+        {/* Placement semis -> 5th / 7th place */}
+        <Connector d={elbowPath(eFinalX + BOX_W, loserSemiY + BOX_H / 2, centerX, loserSemiY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX, loserSemiY + BOX_H / 2, centerX + BOX_W, loserSemiY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, loserSemiY + BOX_H, eFinalX + BOX_W / 2, seventhY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, seventhY + BOX_H / 2, centerX, seventhY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, loserSemiY + BOX_H, wFinalX + BOX_W / 2, seventhY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, seventhY + BOX_H / 2, centerX + BOX_W, seventhY + BOX_H / 2)} />
+
+        <BracketBox x={eR1X} y={s1Y} seed={1} entry={east[0]} />
+        <BracketBox x={eR1X} y={s4Y} seed={4} entry={east[3]} />
+        <BracketBox x={eR1X} y={s2Y} seed={2} entry={east[1]} />
+        <BracketBox x={eR1X} y={s3Y} seed={3} entry={east[2]} />
+        <BracketBox x={eFinalX} y={finalY} entry="Winner, East final" />
+        <BracketBox x={eFinalX} y={loserSemiY} entry="Loser, East semi" />
+
+        <BracketBox x={wR1X} y={s1Y} seed={1} entry={west[0]} />
+        <BracketBox x={wR1X} y={s4Y} seed={4} entry={west[3]} />
+        <BracketBox x={wR1X} y={s2Y} seed={2} entry={west[1]} />
+        <BracketBox x={wR1X} y={s3Y} seed={3} entry={west[2]} />
+        <BracketBox x={wFinalX} y={finalY} entry="Winner, West final" />
+        <BracketBox x={wFinalX} y={loserSemiY} entry="Loser, West semi" />
+
+        <BracketBox x={centerX} y={finalY} entry={labels[0]} />
+        <BracketBox x={centerX} y={thirdY} entry={labels[1]} />
+        <BracketBox x={centerX} y={loserSemiY} entry={labels[2]} />
+        <BracketBox x={centerX} y={seventhY} entry={labels[3]} />
+      </svg>
+      <div className="flex justify-between text-xs uppercase" style={{ color: C.slate }}>
+        <span>{eastName}</span>
+        <span>{westName}</span>
       </div>
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div>
-          <div className="text-xs uppercase mb-1.5" style={{ color: C.turf }}>{eastName} · Week 16</div>
-          <BracketMatch teamA="Winner, Game 1" teamB="Winner, Game 2" />
-          <BracketMatch teamA="Loser, Game 1" teamB="Loser, Game 2" />
-        </div>
-        <div>
-          <div className="text-xs uppercase mb-1.5" style={{ color: C.turf }}>{westName} · Week 16</div>
-          <BracketMatch teamA="Winner, Game 1" teamB="Winner, Game 2" />
-          <BracketMatch teamA="Loser, Game 1" teamB="Loser, Game 2" />
-        </div>
-      </div>
-      <div>
-        <div className="text-xs uppercase mb-2" style={{ color: C.gold }}>Week 17 · Final Placements</div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <div className="text-xs mb-1" style={{ color: C.chalk }}>{labels[0]}</div>
-            <BracketMatch teamA={`${eastName} finalist`} teamB={`${westName} finalist`} />
-          </div>
-          <div>
-            <div className="text-xs mb-1" style={{ color: C.chalk }}>{labels[1]}</div>
-            <BracketMatch teamA={`${eastName} finalist (runner-up)`} teamB={`${westName} finalist (runner-up)`} />
-          </div>
-          <div>
-            <div className="text-xs mb-1" style={{ color: C.chalk }}>{labels[2]}</div>
-            <BracketMatch teamA={`${eastName} placement winner`} teamB={`${westName} placement winner`} />
-          </div>
-          <div>
-            <div className="text-xs mb-1" style={{ color: fired ? C.ember : C.chalk }}>
-              {labels[3]}{fired ? " — loser is fired" : ""}
-            </div>
-            <BracketMatch teamA={`${eastName} placement (runner-up)`} teamB={`${westName} placement (runner-up)`} />
-          </div>
-        </div>
-      </div>
+      {fired && <p className="text-xs" style={{ color: C.ember }}>{labels[3]} loser is fired.</p>}
     </div>
   );
 }
@@ -2301,44 +2383,61 @@ export default function App() {
 
                   {bracket.format === "division-playin" ? (
                     <div className="space-y-4 overflow-x-auto">
-                      <div className="flex gap-3" style={{ minWidth: "42rem" }}>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs uppercase mb-2" style={{ color: C.turf }}>Bye · Week 14</div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {bracket.seeds.slice(0, 6).map((t, i) => (
-                              <div key={i} className="px-2.5 py-2 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                                <BracketSlot seed={i + 1} entry={t} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs uppercase mb-2" style={{ color: C.gold }}>Play-In · Week 14</div>
-                          <BracketMatch seedA={7} teamA={bracket.seeds[6]} seedB={10} teamB={bracket.seeds[9]} />
-                          <BracketMatch seedA={8} teamA={bracket.seeds[7]} seedB={9} teamB={bracket.seeds[8]} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Round of 8 · Week 15</div>
-                          <BracketMatch seedA={1} teamA={bracket.seeds[0]} teamB="Winner, #8 vs #9" />
-                          <BracketMatch seedA={4} teamA={bracket.seeds[3]} seedB={5} teamB={bracket.seeds[4]} />
-                          <BracketMatch seedA={3} teamA={bracket.seeds[2]} seedB={6} teamB={bracket.seeds[5]} />
-                          <BracketMatch seedA={2} teamA={bracket.seeds[1]} teamB="Winner, #7 vs #10" />
-                        </div>
-                        <div className="flex-1 min-w-0 flex flex-col justify-around">
-                          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Semifinal</div>
-                          <BracketMatch teamA="Winner, Match 1" teamB="Winner, Match 2" />
-                          <BracketMatch teamA="Winner, Match 3" teamB="Winner, Match 4" />
-                        </div>
-                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Final</div>
-                          <BracketMatch teamA="Semifinal 1 winner" teamB="Semifinal 2 winner" />
-                        </div>
+                      {(() => {
+                        const colGap = 60;
+                        const playInX = 0;
+                        const r8X = playInX + BOX_W + colGap;
+                        const semiX = r8X + BOX_W + colGap;
+                        const finalX = semiX + BOX_W + colGap;
+                        const width = finalX + BOX_W;
+                        const rowH = BOX_H + 8;
+                        const groupGap = 46;
+                        const r8Ys = [0, 2 * rowH + groupGap, 4 * rowH + 2 * groupGap, 6 * rowH + 3 * groupGap];
+                        const r8Mids = r8Ys.map((y) => y + rowH / 2 + BOX_H / 2);
+                        const semiYs = [(r8Mids[0] + r8Mids[1]) / 2 - BOX_H / 2, (r8Mids[2] + r8Mids[3]) / 2 - BOX_H / 2];
+                        const finalY = (semiYs[0] + semiYs[1]) / 2;
+                        const height = r8Ys[3] + rowH + BOX_H;
+                        return (
+                          <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.75}px`, height: "auto" }}>
+                            <Connector d={`M ${playInX + BOX_W} ${0 + BOX_H / 2} L ${playInX + BOX_W} ${rowH + BOX_H / 2}`} />
+                            <Connector d={elbowPath(playInX + BOX_W, rowH / 2 + BOX_H / 2, r8X, r8Mids[0])} />
+                            <Connector d={`M ${playInX + BOX_W} ${r8Ys[3] + BOX_H / 2} L ${playInX + BOX_W} ${r8Ys[3] + rowH + BOX_H / 2}`} />
+                            <Connector d={elbowPath(playInX + BOX_W, r8Ys[3] + rowH / 2 + BOX_H / 2, r8X, r8Mids[3])} />
+                            <BracketBox x={playInX} y={0} seed={7} entry={bracket.seeds[6]} />
+                            <BracketBox x={playInX} y={rowH} seed={10} entry={bracket.seeds[9]} />
+                            <BracketBox x={playInX} y={r8Ys[3]} seed={8} entry={bracket.seeds[7]} />
+                            <BracketBox x={playInX} y={r8Ys[3] + rowH} seed={9} entry={bracket.seeds[8]} />
+
+                            <Connector d={elbowPath(r8X + BOX_W, r8Mids[0], semiX, semiYs[0] + BOX_H / 2)} />
+                            <Connector d={elbowPath(r8X + BOX_W, r8Mids[1], semiX, semiYs[0] + BOX_H / 2)} />
+                            <Connector d={elbowPath(r8X + BOX_W, r8Mids[2], semiX, semiYs[1] + BOX_H / 2)} />
+                            <Connector d={elbowPath(r8X + BOX_W, r8Mids[3], semiX, semiYs[1] + BOX_H / 2)} />
+                            <BracketBox x={r8X} y={r8Ys[0]} seed={1} entry={bracket.seeds[0]} />
+                            <BracketBox x={r8X} y={r8Ys[0] + rowH} entry="Winner, #8 vs #9" />
+                            <BracketBox x={r8X} y={r8Ys[1]} seed={4} entry={bracket.seeds[3]} />
+                            <BracketBox x={r8X} y={r8Ys[1] + rowH} seed={5} entry={bracket.seeds[4]} />
+                            <BracketBox x={r8X} y={r8Ys[2]} seed={3} entry={bracket.seeds[2]} />
+                            <BracketBox x={r8X} y={r8Ys[2] + rowH} seed={6} entry={bracket.seeds[5]} />
+                            <BracketBox x={r8X} y={r8Ys[3]} seed={2} entry={bracket.seeds[1]} />
+                            <BracketBox x={r8X} y={r8Ys[3] + rowH} entry="Winner, #7 vs #10" />
+
+                            <Connector d={elbowPath(semiX + BOX_W, semiYs[0] + BOX_H / 2, finalX, finalY + BOX_H / 2)} />
+                            <Connector d={elbowPath(semiX + BOX_W, semiYs[1] + BOX_H / 2, finalX, finalY + BOX_H / 2)} />
+                            <BracketBox x={semiX} y={semiYs[0]} entry="Winner, Quarterfinal A" />
+                            <BracketBox x={semiX} y={semiYs[1]} entry="Winner, Quarterfinal B" />
+                            <BracketBox x={finalX} y={finalY} entry="League Champion" />
+                          </svg>
+                        );
+                      })()}
+                      <div className="flex gap-8 text-xs uppercase" style={{ color: C.slate }}>
+                        <span>Play-In · Wk 14</span>
+                        <span style={{ marginLeft: "5.5rem" }}>Round of 8 · Wk 15</span>
                       </div>
                       {bracket.consolation && bracket.consolation.length > 0 && (
                         <div>
                           <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
                           <div style={{ minWidth: "30rem" }}>
-                            <BracketColumns seeds={bracket.consolation} />
+                            <TreeBracket seeds={bracket.consolation} />
                           </div>
                         </div>
                       )}
@@ -2347,7 +2446,7 @@ export default function App() {
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs — ranks 1–8</div>
-                        <PlacementGroup
+                        <MirroredPlacementBracket
                           east={bracket.playoffGroup.east}
                           west={bracket.playoffGroup.west}
                           eastName={bracket.eastName}
@@ -2357,7 +2456,7 @@ export default function App() {
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
-                        <PlacementGroup
+                        <MirroredPlacementBracket
                           east={bracket.consolationGroup.east}
                           west={bracket.consolationGroup.west}
                           eastName={bracket.eastName}
@@ -2373,7 +2472,7 @@ export default function App() {
                         <div key={b.name} className="overflow-x-auto">
                           <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
                           <div style={{ minWidth: b.seeds.length <= 4 ? "20rem" : "30rem" }}>
-                            <BracketColumns seeds={b.seeds} />
+                            <TreeBracket seeds={b.seeds} />
                           </div>
                         </div>
                       ))}
