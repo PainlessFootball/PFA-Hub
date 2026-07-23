@@ -52,11 +52,6 @@ const LEAGUE_HISTORY = {
 const CURRENT_SEASON = 2026;
 const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
 
-// Link to the Alliance's separate playoff-bracket spreadsheet (shared by all
-// tiers for now). If per-league tab links are wanted later, add each tier's
-// `#gid=...` fragment here instead of the bare sheet URL.
-const PLAYOFF_BRACKET_URL =
-  "https://docs.google.com/spreadsheets/d/1DatK9-R9w230r-DpPuFBCvMI0xhQaqn8mKj7DzQuOU8/edit?usp=sharing";
 const SLEEPER = "https://api.sleeper.app/v1";
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -1210,7 +1205,7 @@ function MirroredPlacementBracket({ east, west, eastName, westName, labels, fire
   const thirdY = finalY + BOX_H + placementGap;
   const loserSemiY = thirdY + BOX_H + placementGap;
   const seventhY = loserSemiY + BOX_H + placementGap;
-  const height = seventhY + BOX_H;
+  const height = seventhY + BOX_H + (fired ? 24 : 0);
 
   // A game's two seeds join at a single point, which then sends one line to
   // the conference final (winner path) and one to the placement semi
@@ -1272,8 +1267,12 @@ function MirroredPlacementBracket({ east, west, eastName, westName, labels, fire
         <BracketBox x={centerX} y={thirdY} entry={labels[1]} />
         <BracketBox x={centerX} y={loserSemiY} entry={labels[2]} />
         <BracketBox x={centerX} y={seventhY} entry={labels[3]} highlight={fired ? "fired" : undefined} />
+        {fired && (
+          <text x={centerX + BOX_W / 2} y={seventhY + BOX_H + 16} textAnchor="middle" fontSize="10" fontWeight="700" fill={C.ember}>
+            Toilet Bowl · Loser is FIRED
+          </text>
+        )}
       </svg>
-      {fired && <p className="text-xs" style={{ color: C.ember }}>{labels[3]} loser is fired.</p>}
     </div>
   );
 }
@@ -1407,12 +1406,16 @@ function NFLBracket({ east, west, eastName, westName, rankLabels, fired }) {
         {rankLabels.map((label, i) => (
           <BracketBox key={label} x={centerX} y={crossY[i]} entry={label} highlight={fired && i === rankLabels.length - 1 ? "fired" : undefined} />
         ))}
+        {fired && (
+          <text x={centerX + BOX_W / 2} y={crossY[rankLabels.length - 1] + BOX_H + 16} textAnchor="middle" fontSize="10" fontWeight="700" fill={C.ember}>
+            Toilet Bowl · Loser is FIRED
+          </text>
+        )}
       </svg>
       <div className="flex justify-between text-xs uppercase mt-1" style={{ color: C.slate }}>
         <span>{eastName}</span>
         <span>{westName}</span>
       </div>
-      {fired && <p className="text-xs mt-1" style={{ color: C.ember }}>{rankLabels[rankLabels.length - 1]} loser is fired.</p>}
     </div>
   );
 }
@@ -2033,9 +2036,51 @@ export default function App() {
   const standingsGroups = mode === "live" ? groupStandings(tierKey, rows) : null;
   const overallLastRosterId = rows && rows.length ? rows[rows.length - 1].rosterId : null;
 
+  // Colors the standings "#" column to show who's actually clinched a
+  // playoff spot and how: green for a spot that's automatic regardless of
+  // overall record (a division/conference winner), gold for a spot earned
+  // by ranking rather than a guarantee. Only applies to tiers with a
+  // confirmed format — everything else keeps the plain slate numbering.
+  const seedColors = useMemo(() => {
+    const colors = {};
+    if (mode !== "live" || !rows || !rows.length) return colors;
+    const byRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
+    const format = PLAYOFF_FORMAT[tierKey];
+    const active = rows.filter((r) => r.coach !== "—");
+
+    if (format === "top8-cascade") {
+      byRecord(active).forEach((r, i) => {
+        if (i === 0) colors[r.rosterId] = "green";
+        else if (i < 8) colors[r.rosterId] = "gold";
+      });
+    } else if (format === "conference-top4") {
+      const withDiv = active.filter((r) => r.division);
+      const divisions = [...new Set(withDiv.map((r) => r.division))];
+      divisions.forEach((d) => {
+        byRecord(withDiv.filter((r) => r.division === d)).forEach((r, i) => {
+          if (i === 0) colors[r.rosterId] = "green";
+          else if (i < 4) colors[r.rosterId] = "gold";
+        });
+      });
+    } else if (format === "division-only") {
+      const withDiv = active.filter((r) => r.division);
+      const byDivision = {};
+      withDiv.forEach((r) => (byDivision[r.division] = byDivision[r.division] || []).push(r));
+      const divisionWinners = Object.values(byDivision).map((teams) => byRecord(teams)[0]);
+      divisionWinners.forEach((r) => (colors[r.rosterId] = "green"));
+      const winnerIds = new Set(divisionWinners.map((r) => r.rosterId));
+      byRecord(withDiv.filter((r) => !winnerIds.has(r.rosterId)))
+        .slice(0, 4)
+        .forEach((r) => (colors[r.rosterId] = "gold"));
+    }
+    return colors;
+  }, [mode, rows, tierKey]);
+
   const renderStandingsRows = (tableRows) =>
     tableRows.map((r, i) => {
       const isLast = standingsGroups ? r.rosterId === overallLastRosterId : i >= tableRows.length - 1;
+      const seedColor = seedColors[r.rosterId];
+      const placeColor = seedColor === "green" ? C.turf : seedColor === "gold" ? C.gold : C.slate;
       return (
         <tr
           key={r.coach + i}
@@ -2044,7 +2089,7 @@ export default function App() {
             borderTop: `1px solid ${C.line}`,
           }}
         >
-          <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{r.place}</td>
+          <td className="px-3 py-2" style={{ color: placeColor, fontWeight: seedColor ? 700 : 400 }}>{r.place}</td>
           <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
             <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
               {r.coach}
@@ -2687,7 +2732,7 @@ export default function App() {
                           <span
                             className="text-xs"
                             style={{ fontFamily: "'IBM Plex Mono', monospace", color: active ? C.ink : C.gold }}
-                            title="Conference Strength — higher means tougher competition relative to its comparison pool"
+                            title="Conference Strength - higher means tougher competition"
                           >
                             {conferenceStrength[t.key].score >= 0 ? "+" : ""}
                             {conferenceStrength[t.key].score.toFixed(1)}
@@ -2700,9 +2745,7 @@ export default function App() {
                 })}
               </div>
               <div className="hidden lg:block mt-3 text-xs leading-relaxed" style={{ color: C.slate }}>
-                Tier 1 pays the most coaching points. Finish last anywhere and you're fired. The number next to each tier is its
-                Conference Strength score — positive means tougher than its comparison pool, negative means easier. NFL stands
-                alone with nothing to compare against, so it isn't scored. Expect scores near zero until games are actually played.
+                Tier 1 earns the most coaching points. Finish last anywhere and you're fired.
               </div>
             </aside>
 
@@ -2711,38 +2754,8 @@ export default function App() {
                 <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
                   {tier.name}
                 </h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
-                  <a
-                    href={PLAYOFF_BRACKET_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs uppercase tracking-wider"
-                    style={{ color: C.gold }}
-                  >
-                    Playoff bracket ↗
-                  </a>
-                </div>
+                <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
               </div>
-
-              {conferenceStrength[tierKey] ? (
-                <div className="mb-4 text-xs" style={{ color: C.slate }}>
-                  Conference Strength:{" "}
-                  <span style={{ color: C.gold, fontWeight: 600 }}>
-                    {conferenceStrength[tierKey].score >= 0 ? "+" : ""}
-                    {conferenceStrength[tierKey].score.toFixed(1)}
-                  </span>{" "}
-                  against its {conferenceStrength[tierKey].poolSize}-league comparison pool. Positive means this tier's currently
-                  playing tougher; negative means easier. Expect it to sit near zero until real games are on the board.
-                </div>
-              ) : (
-                tierKey === "NFL" && (
-                  <div className="mb-4 text-xs" style={{ color: C.slate }}>
-                    NFL is the only league in its tier — nothing to compare it against, so it doesn't get a Conference Strength
-                    score.
-                  </div>
-                )
-              )}
 
               {rows ? (
                 standingsGroups && standingsGroups.type === "nested" ? (
