@@ -1360,7 +1360,7 @@ export default function App() {
 
     if (format === "conference-division") {
       const active = rows.filter((r) => r.coach !== "—" && r.division);
-      const conferences = ["AFC", "NFC"].map((confName) => {
+      const conferences = ["AFC", "NFC"].flatMap((confName) => {
         const confRows = active.filter((r) => nflConferenceFor(r.division) === confName);
         const byDivision = {};
         confRows.forEach((r) => {
@@ -1369,8 +1369,14 @@ export default function App() {
         const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
         const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) }));
         const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
-        const wildcards = sortByRecord(confRows.filter((r) => !winnerRosterIds.has(r.rosterId))).slice(0, 4);
-        return { name: confName, seeds: [...winnersSeeded, ...wildcards] };
+        const nonWinners = sortByRecord(confRows.filter((r) => !winnerRosterIds.has(r.rosterId)));
+        const wildcards = nonWinners.slice(0, 4);
+        const wildcardRosterIds = new Set(wildcards.map((r) => r.rosterId));
+        const consolation = nonWinners.filter((r) => !wildcardRosterIds.has(r.rosterId)).slice(0, 8);
+        return [
+          { name: `${confName} Playoffs`, seeds: [...winnersSeeded, ...wildcards] },
+          { name: `${confName} Consolation`, seeds: consolation },
+        ];
       });
       return { format, brackets: conferences };
     }
@@ -1399,10 +1405,14 @@ export default function App() {
       const active = rows.filter((r) => r.coach !== "—" && r.division);
       const divisions = [...new Set(active.map((r) => r.division))].sort((a, b) => a - b);
       const names = TWO_CONF_NAMES[tKey] || {};
-      const brackets = divisions.map((divNum) => ({
-        name: names[divNum] || `Conference ${divNum}`,
-        seeds: sortByRecord(active.filter((r) => r.division === divNum)).slice(0, 4),
-      }));
+      const brackets = divisions.flatMap((divNum) => {
+        const confRows = sortByRecord(active.filter((r) => r.division === divNum));
+        const name = names[divNum] || `Conference ${divNum}`;
+        return [
+          { name: `${name} Playoffs`, seeds: confRows.slice(0, 4) },
+          { name: `${name} Consolation`, seeds: confRows.slice(4, 8) },
+        ];
+      });
       return { format, brackets };
     }
 
@@ -1417,9 +1427,11 @@ export default function App() {
       const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
       const remaining = sortByRecord(active.filter((r) => !winnerRosterIds.has(r.rosterId)));
       const wildcards = remaining.slice(0, 6); // seeds 5-10
+      const consolation = remaining.slice(6, 14);
       return {
         format,
         seeds: [...winnersSeeded, ...wildcards], // index 0-9 = seed 1-10
+        consolation,
       };
     }
 
@@ -2257,6 +2269,14 @@ export default function App() {
                           <BracketMatch teamA="Semifinal 1 winner" teamB="Semifinal 2 winner" />
                         </div>
                       </div>
+                      {bracket.consolation && bracket.consolation.length > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
+                          <div style={{ minWidth: "30rem" }}>
+                            <BracketColumns seeds={bracket.consolation} />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className={`grid gap-6 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
