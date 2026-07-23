@@ -1269,6 +1269,145 @@ function MirroredPlacementBracket({ east, west, eastName, westName, labels, fire
   );
 }
 
+// Full NFL-style bracket: 8 seeds per conference means 3 real rounds
+// (Wild Card, Divisional, Conference Championship) instead of SWAC's 2, and
+// because Round 1 has 4 games instead of 2, the losers' side becomes its
+// own genuine mini-tournament (not a single flat placement game) before
+// crossing conferences. Every round has exactly 4 games per conference —
+// nothing is eliminated, everyone keeps playing toward a final rank.
+function NFLBracket({ east, west, eastName, westName, rankLabels, fired }) {
+  const pairs = BRACKET_PAIRS_R1; // [[1,8],[4,5],[3,6],[2,7]]
+  const colGap = 44;
+  const eR1X = 0;
+  const eR2X = eR1X + BOX_W + colGap;
+  const eR3X = eR2X + BOX_W + colGap;
+  const centerX = eR3X + BOX_W + colGap;
+  const wR3X = centerX + BOX_W + colGap;
+  const wR2X = wR3X + BOX_W + colGap;
+  const wR1X = wR2X + BOX_W + colGap;
+  const width = wR1X + BOX_W;
+
+  const gap = 8, gameGap = 40, semiGap = 80, gap3 = 90, bigGap = 140, dropGap = 70;
+
+  // R1 (Week 14): 8 boxes in game order — seed1,8 (Ga) / seed4,5 (Gb) / seed3,6 (Gc) / seed2,7 (Gd)
+  const y0 = 0, y1 = y0 + BOX_H + gap;
+  const y2 = y1 + BOX_H + gameGap, y3 = y2 + BOX_H + gap;
+  const y4 = y3 + BOX_H + semiGap, y5 = y4 + BOX_H + gap;
+  const y6 = y5 + BOX_H + gameGap, y7 = y6 + BOX_H + gap;
+  const r1Ys = [y0, y1, y2, y3, y4, y5, y6, y7];
+  const gaMid = (y0 + y1) / 2 + BOX_H / 2;
+  const gbMid = (y2 + y3) / 2 + BOX_H / 2;
+  const gcMid = (y4 + y5) / 2 + BOX_H / 2;
+  const gdMid = (y6 + y7) / 2 + BOX_H / 2;
+
+  // R2 winners' path (Week 15): SemiA from Ga+Gb winners, SemiB from Gc+Gd winners
+  const semiAY = (gaMid + gbMid) / 2 - BOX_H / 2;
+  const semiBY = (gcMid + gdMid) / 2 - BOX_H / 2;
+  // R3 winners' path (Week 16): Conference Championship (from Semi winners) + the
+  // "conference runner-up" game (Semi losers), which is what actually feeds 3rd place
+  const semiMidUpper = (semiAY + semiBY) / 2 + BOX_H / 2;
+  const confChampY = semiMidUpper - BOX_H - gap3;
+  const confMidY = semiMidUpper + gap3;
+
+  // R2 losers' path (Week 15): the 4 Round-1 losers form their OWN 2 games —
+  // positioned in a separate lower section since they share the same R1 boxes
+  const lowerStart = Math.max(y7, confMidY) + bigGap;
+  const lSemiAY = lowerStart;
+  const lSemiBY = lSemiAY + BOX_H + gameGap;
+  const semiMidLower = (lSemiAY + lSemiBY) / 2 + BOX_H / 2;
+  const confLowerWY = semiMidLower - BOX_H - gap3;
+  const confLowerLY = semiMidLower + gap3;
+
+  const height = confLowerLY + BOX_H + dropGap + BOX_H;
+
+  // Each R3 box's winner crosses conferences directly; its loser drops down
+  // slightly then crosses too — same "direct + drop" idea as the SWAC bracket,
+  // just done 4 times (Championship/3rd, 5th/7th, 9th/11th, 13th/15th).
+  const crossY = [
+    confChampY, confChampY + BOX_H + dropGap,
+    confMidY, confMidY + BOX_H + dropGap,
+    confLowerWY, confLowerWY + BOX_H + dropGap,
+    confLowerLY, confLowerLY + BOX_H + dropGap,
+  ];
+
+  const seedBoxesFor = (teamRows, x) =>
+    pairs.flatMap(([a, b], i) => [
+      <BracketBox key={`${x}-${a}`} x={x} y={r1Ys[i * 2]} seed={a} entry={teamRows[a - 1]} />,
+      <BracketBox key={`${x}-${b}`} x={x} y={r1Ys[i * 2 + 1]} seed={b} entry={teamRows[b - 1]} />,
+    ]);
+
+  // A Round-1 game's two seeds join at one point, then branch to its two
+  // eventual destinations — the winner's slot and the loser's slot.
+  const r1Connectors = (topY, botY, joinX, destWinX, destWinY, destLoseX, destLoseY) => {
+    const mid = (topY + botY) / 2 + BOX_H / 2;
+    return (
+      <>
+        <Connector d={`M ${joinX} ${topY + BOX_H / 2} L ${joinX} ${botY + BOX_H / 2}`} />
+        <Connector d={elbowPath(joinX, mid, destWinX, destWinY + BOX_H / 2)} />
+        <Connector d={elbowPath(joinX, mid, destLoseX, destLoseY + BOX_H / 2)} />
+      </>
+    );
+  };
+  // A single box (R2 or R3 slot) branches to its two next destinations.
+  const boxConnectors = (srcX, srcY, destAX, destAY, destBX, destBY) => (
+    <>
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destAX, destAY + BOX_H / 2)} />
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destBX, destBY + BOX_H / 2)} />
+    </>
+  );
+
+  const oneSide = (teamRows, r1X, r2X, r3X, mirrored) => {
+    const r1Out = mirrored ? r1X : r1X + BOX_W;
+    const r2In = mirrored ? r2X + BOX_W : r2X;
+    const r2Out = mirrored ? r2X : r2X + BOX_W;
+    const r3In = mirrored ? r3X + BOX_W : r3X;
+    const r3Out = mirrored ? r3X : r3X + BOX_W;
+    const centerIn = mirrored ? centerX + BOX_W : centerX;
+    return (
+      <>
+        {r1Connectors(y0, y1, r1Out, r2In, semiAY, r2In, lSemiAY)}
+        {r1Connectors(y2, y3, r1Out, r2In, semiAY, r2In, lSemiAY)}
+        {r1Connectors(y4, y5, r1Out, r2In, semiBY, r2In, lSemiBY)}
+        {r1Connectors(y6, y7, r1Out, r2In, semiBY, r2In, lSemiBY)}
+        {boxConnectors(r2Out, semiAY, r3In, confChampY, r3In, confMidY)}
+        {boxConnectors(r2Out, semiBY, r3In, confChampY, r3In, confMidY)}
+        {boxConnectors(r2Out, lSemiAY, r3In, confLowerWY, r3In, confLowerLY)}
+        {boxConnectors(r2Out, lSemiBY, r3In, confLowerWY, r3In, confLowerLY)}
+        {boxConnectors(r3Out, confChampY, centerIn, crossY[0], centerIn, crossY[1])}
+        {boxConnectors(r3Out, confMidY, centerIn, crossY[2], centerIn, crossY[3])}
+        {boxConnectors(r3Out, confLowerWY, centerIn, crossY[4], centerIn, crossY[5])}
+        {boxConnectors(r3Out, confLowerLY, centerIn, crossY[6], centerIn, crossY[7])}
+        {seedBoxesFor(teamRows, r1X)}
+        <BracketBox x={r2X} y={semiAY} entry="Winner, Game 1" />
+        <BracketBox x={r2X} y={semiBY} entry="Winner, Game 3" />
+        <BracketBox x={r2X} y={lSemiAY} entry="Loser, Game 1" />
+        <BracketBox x={r2X} y={lSemiBY} entry="Loser, Game 3" />
+        <BracketBox x={r3X} y={confChampY} entry="Conference Champion" />
+        <BracketBox x={r3X} y={confMidY} entry="Conference Runner-up" />
+        <BracketBox x={r3X} y={confLowerWY} entry="Winner, Placement Semi" />
+        <BracketBox x={r3X} y={confLowerLY} entry="Loser, Placement Semi" />
+      </>
+    );
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.6}px`, height: "auto" }}>
+        {oneSide(east, eR1X, eR2X, eR3X, false)}
+        {oneSide(west, wR1X, wR2X, wR3X, true)}
+        {rankLabels.map((label, i) => (
+          <BracketBox key={label} x={centerX} y={crossY[i]} entry={label} />
+        ))}
+      </svg>
+      <div className="flex justify-between text-xs uppercase mt-1" style={{ color: C.slate }}>
+        <span>{eastName}</span>
+        <span>{westName}</span>
+      </div>
+      {fired && <p className="text-xs mt-1" style={{ color: C.ember }}>{rankLabels[rankLabels.length - 1]} loser is fired.</p>}
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
@@ -1502,8 +1641,8 @@ export default function App() {
 
     if (format === "conference-division") {
       const active = rows.filter((r) => r.coach !== "—" && r.division);
-      const playoffBrackets = [];
-      const consolationBrackets = [];
+      const confSeeds = {};
+      const confConsolation = {};
       ["AFC", "NFC"].forEach((confName) => {
         const confRows = active.filter((r) => nflConferenceFor(r.division) === confName);
         const byDivision = {};
@@ -1517,10 +1656,16 @@ export default function App() {
         const wildcards = nonWinners.slice(0, 4);
         const wildcardRosterIds = new Set(wildcards.map((r) => r.rosterId));
         const consolation = nonWinners.filter((r) => !wildcardRosterIds.has(r.rosterId)).slice(0, 8);
-        playoffBrackets.push({ name: `${confName} Playoffs`, seeds: [...winnersSeeded, ...wildcards] });
-        consolationBrackets.push({ name: `${confName} Consolation`, seeds: consolation });
+        confSeeds[confName] = [...winnersSeeded, ...wildcards];
+        confConsolation[confName] = consolation;
       });
-      return { format, playoffBrackets, consolationBrackets };
+      return {
+        format,
+        eastName: "NFC",
+        westName: "AFC",
+        playoffGroup: { east: confSeeds.NFC, west: confSeeds.AFC },
+        consolationGroup: { east: confConsolation.NFC, west: confConsolation.AFC },
+      };
     }
 
     if (format === "division-only") {
@@ -2544,29 +2689,24 @@ export default function App() {
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs</div>
-                        <div className="grid gap-6 sm:grid-cols-2">
-                          {bracket.playoffBrackets.map((b) => (
-                            <div key={b.name} className="overflow-x-auto">
-                              <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>{b.name}</div>
-                              <div style={{ minWidth: "30rem" }}>
-                                <TreeBracket seeds={b.seeds} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <NFLBracket
+                          east={bracket.playoffGroup.east}
+                          west={bracket.playoffGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"]}
+                        />
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
-                        <div className="grid gap-6 sm:grid-cols-2">
-                          {bracket.consolationBrackets.map((b) => (
-                            <div key={b.name} className="overflow-x-auto">
-                              <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>{b.name}</div>
-                              <div style={{ minWidth: "30rem" }}>
-                                <TreeBracket seeds={b.seeds} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <NFLBracket
+                          east={bracket.consolationGroup.east}
+                          west={bracket.consolationGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          rankLabels={["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"]}
+                          fired
+                        />
                       </div>
                     </div>
                   ) : (
