@@ -329,9 +329,9 @@ const USFL_XFL_DIVISIONS = { 1: "North", 2: "South", 3: "East", 4: "West" };
 const TWO_CONF_NAMES = {
   SUN: { 1: "East", 2: "West" },
   SOCO: { 1: "North", 2: "South" },
-  IVY: { 1: "Ivy League", 2: "Patriot Conference" },
+  IVY: { 1: "Ivy", 2: "Patriot" },
   SWAC: { 1: "East", 2: "West" },
-  GLIAC: { 1: "Great Lakes", 2: "Ohio Athletic" },
+  GLIAC: { 1: "GLIAC", 2: "Ohio Valley" },
 };
 
 // Looks up a division's real name for any tier that has one on file.
@@ -1219,6 +1219,10 @@ function MirroredPlacementBracket({ east, west, eastName, westName, labels, fire
 
   return (
     <div className="space-y-1 overflow-x-auto">
+      <div className="flex justify-between text-xs uppercase mb-1" style={{ color: C.slate }}>
+        <span>{eastName}</span>
+        <span>{westName}</span>
+      </div>
       <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.68}px`, height: "auto" }}>
         {/* East: two Round 1 games, each joining then branching to final (win) and loser-semi (lose) */}
         {gameConnectors(s1Y, s4Y, eR1X + BOX_W, g1Mid, eFinalX)}
@@ -1260,10 +1264,6 @@ function MirroredPlacementBracket({ east, west, eastName, westName, labels, fire
         <BracketBox x={centerX} y={loserSemiY} entry={labels[2]} />
         <BracketBox x={centerX} y={seventhY} entry={labels[3]} />
       </svg>
-      <div className="flex justify-between text-xs uppercase" style={{ color: C.slate }}>
-        <span>{eastName}</span>
-        <span>{westName}</span>
-      </div>
       {fired && <p className="text-xs" style={{ color: C.ember }}>{labels[3]} loser is fired.</p>}
     </div>
   );
