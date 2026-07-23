@@ -1127,6 +1127,66 @@ function BracketColumns({ seeds }) {
   );
 }
 
+// ── Two-conference "everybody plays for placement" bracket (Sun Belt, SoCo,
+// Ivy, SWAC, GLIAC). Round 1 winners AND losers both continue: winners meet
+// in a conference final, losers meet in their own conference placement
+// semi. The two conference finalists then cross over to decide 1st/2nd
+// (and so on down to the bottom), same shape as a real conference
+// championship structure — just applied to both the winner and loser side.
+function PlacementGroup({ east, west, eastName, westName, labels, fired }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <div className="text-xs uppercase mb-1.5" style={{ color: C.gold }}>{eastName} · Week 15</div>
+          <BracketMatch seedA={1} teamA={east[0]} seedB={4} teamB={east[3]} />
+          <BracketMatch seedA={2} teamA={east[1]} seedB={3} teamB={east[2]} />
+        </div>
+        <div>
+          <div className="text-xs uppercase mb-1.5" style={{ color: C.gold }}>{westName} · Week 15</div>
+          <BracketMatch seedA={1} teamA={west[0]} seedB={4} teamB={west[3]} />
+          <BracketMatch seedA={2} teamA={west[1]} seedB={3} teamB={west[2]} />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <div className="text-xs uppercase mb-1.5" style={{ color: C.turf }}>{eastName} · Week 16</div>
+          <BracketMatch teamA="Winner, Game 1" teamB="Winner, Game 2" />
+          <BracketMatch teamA="Loser, Game 1" teamB="Loser, Game 2" />
+        </div>
+        <div>
+          <div className="text-xs uppercase mb-1.5" style={{ color: C.turf }}>{westName} · Week 16</div>
+          <BracketMatch teamA="Winner, Game 1" teamB="Winner, Game 2" />
+          <BracketMatch teamA="Loser, Game 1" teamB="Loser, Game 2" />
+        </div>
+      </div>
+      <div>
+        <div className="text-xs uppercase mb-2" style={{ color: C.gold }}>Week 17 · Final Placements</div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <div className="text-xs mb-1" style={{ color: C.chalk }}>{labels[0]}</div>
+            <BracketMatch teamA={`${eastName} finalist`} teamB={`${westName} finalist`} />
+          </div>
+          <div>
+            <div className="text-xs mb-1" style={{ color: C.chalk }}>{labels[1]}</div>
+            <BracketMatch teamA={`${eastName} finalist (runner-up)`} teamB={`${westName} finalist (runner-up)`} />
+          </div>
+          <div>
+            <div className="text-xs mb-1" style={{ color: C.chalk }}>{labels[2]}</div>
+            <BracketMatch teamA={`${eastName} placement winner`} teamB={`${westName} placement winner`} />
+          </div>
+          <div>
+            <div className="text-xs mb-1" style={{ color: fired ? C.ember : C.chalk }}>
+              {labels[3]}{fired ? " — loser is fired" : ""}
+            </div>
+            <BracketMatch teamA={`${eastName} placement (runner-up)`} teamB={`${westName} placement (runner-up)`} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
@@ -1405,15 +1465,20 @@ export default function App() {
       const active = rows.filter((r) => r.coach !== "—" && r.division);
       const divisions = [...new Set(active.map((r) => r.division))].sort((a, b) => a - b);
       const names = TWO_CONF_NAMES[tKey] || {};
-      const brackets = divisions.flatMap((divNum) => {
-        const confRows = sortByRecord(active.filter((r) => r.division === divNum));
-        const name = names[divNum] || `Conference ${divNum}`;
-        return [
-          { name: `${name} Playoffs`, seeds: confRows.slice(0, 4) },
-          { name: `${name} Consolation`, seeds: confRows.slice(4, 8) },
-        ];
-      });
-      return { format, brackets };
+      const [confA, confB] = divisions;
+      const eastName = names[confA] || `Conference ${confA}`;
+      const westName = names[confB] || `Conference ${confB}`;
+      const eastAll = sortByRecord(active.filter((r) => r.division === confA));
+      const westAll = sortByRecord(active.filter((r) => r.division === confB));
+      return {
+        format,
+        eastName,
+        westName,
+        // Playoff group = each conference's top 4 (produces final ranks 1-8).
+        // Consolation group = each conference's next 4 (produces ranks 9-16).
+        playoffGroup: { east: eastAll.slice(0, 4), west: westAll.slice(0, 4) },
+        consolationGroup: { east: eastAll.slice(4, 8), west: westAll.slice(4, 8) },
+      };
     }
 
     if (format === "division-playin") {
@@ -2277,6 +2342,30 @@ export default function App() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  ) : bracket.format === "conference-top4" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs — ranks 1–8</div>
+                        <PlacementGroup
+                          east={bracket.playoffGroup.east}
+                          west={bracket.playoffGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          labels={["Championship", "3rd Place", "5th Place", "7th Place"]}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
+                        <PlacementGroup
+                          east={bracket.consolationGroup.east}
+                          west={bracket.consolationGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          labels={["9th Place", "11th Place", "13th Place", "15th Place"]}
+                          fired
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className={`grid gap-6 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
