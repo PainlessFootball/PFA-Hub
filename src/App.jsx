@@ -372,18 +372,22 @@ const DRAFT_PICKS_16 = [16, 15, 9, 10, 11, 12, 13, 14, 3, 4, 5, 6, 7, 8, 2, 1];
 const DRAFT_PICKS_20 = [20, 19, 11, 12, 13, 14, 15, 16, 17, 18, 3, 4, 5, 6, 7, 8, 9, 10, 2, 1];
 const DRAFT_PICKS_32 = [32, 31, 29, 30, 25, 26, 27, 28, 17, 18, 19, 20, 21, 22, 23, 24, 9, 10, 11, 12, 13, 14, 15, 16, 3, 4, 5, 6, 7, 8, 2, 1];
 
-// Builds a short "which placement game sets which draft pick" caption.
-// Each rankLabel represents one game deciding two consecutive final ranks
-// (its winner and its loser), starting at startRank (1 for the
-// Championship group, or wherever the Consolation group's ranks begin).
-function draftPickCaption(rankLabels, pickTable, startRank) {
-  return rankLabels
-    .map((label, i) => {
-      const winPick = pickTable[startRank - 1 + i * 2];
-      const losePick = pickTable[startRank - 1 + i * 2 + 1];
-      return `${label} → ${winPick}${losePick ? "/" + losePick : ""}`;
-    })
-    .join("  ·  ");
+// Builds the "which placement game sets which draft pick (and CP, for
+// 16-team leagues)" data — one row per rankLabel, each representing a game
+// that decides two consecutive final ranks (its winner and its loser).
+function placementInfoRows(rankLabels, pickTable, startRank, tKeyForCP) {
+  return rankLabels.map((label, i) => {
+    const winRank = startRank + i * 2;
+    const loseRank = winRank + 1;
+    const winPick = pickTable[winRank - 1];
+    const losePick = pickTable[loseRank - 1];
+    const row = { label, winPick, losePick };
+    if (tKeyForCP) {
+      row.winCP = cpForPlace16(tKeyForCP, winRank);
+      row.loseCP = cpForPlace16(tKeyForCP, loseRank);
+    }
+    return row;
+  });
 }
 
 // Coaching points by final place, for the 10 sixteen-team leagues. Places
@@ -409,14 +413,28 @@ const cpForPlace16 = (tKey, place) =>
 // "ineligible for promotion").
 const promotionEligible16 = (place) => place <= 11;
 
-function cpCaption(rankLabels, tKey, startRank) {
-  return rankLabels
-    .map((label, i) => {
-      const winRank = startRank + i * 2;
-      const loseRank = winRank + 1;
-      return `${label} → ${cpForPlace16(tKey, winRank)}/${cpForPlace16(tKey, loseRank)} CP`;
-    })
-    .join("  ·  ");
+// Compact reference panel meant to sit beside a bracket rather than as a
+// paragraph underneath it.
+function PlacementInfoPanel({ rows, note }) {
+  return (
+    <div className="shrink-0 rounded-sm p-3 text-xs" style={{ background: C.panel, border: `1px solid ${C.line}`, minWidth: "11rem" }}>
+      <div className="uppercase tracking-wider mb-2" style={{ color: C.slate, fontSize: "0.65rem", letterSpacing: "0.08em" }}>
+        Draft Order{rows[0].winCP !== undefined ? " & CP" : ""}
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div style={{ color: C.chalk }}>{r.label}</div>
+            <div style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
+              {r.winPick}{r.winCP !== undefined ? ` · ${r.winCP} CP` : ""}
+              {r.losePick ? ` / ${r.losePick}${r.loseCP !== undefined ? ` · ${r.loseCP} CP` : ""}` : ""}
+            </div>
+          </div>
+        ))}
+      </div>
+      {note && <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>{note}</div>}
+    </div>
+  );
 }
 
 const DEMO_NFL = [
@@ -2828,7 +2846,9 @@ export default function App() {
                 })}
               </div>
               <div className="hidden lg:block mt-3 text-xs leading-relaxed" style={{ color: C.slate }}>
-                Tier 1 earns the most coaching points. Finish last anywhere and you're fired.
+                Tier 1 earns the most coaching points. Finish last anywhere and you're fired. Final playoff bracket placement
+                sets both next season's draft order and each team's coaching points for the season — see the breakdown next
+                to each league's bracket.
               </div>
             </aside>
 
@@ -2915,25 +2935,29 @@ export default function App() {
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–10</div>
-                        <USFLXFLBracket
-                          seeds={bracket.seeds}
-                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"]}
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"], DRAFT_PICKS_20, 1)}
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <USFLXFLBracket
+                              seeds={bracket.seeds}
+                              rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"]}
+                            />
+                          </div>
+                          <PlacementInfoPanel rows={placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"], DRAFT_PICKS_20, 1)} />
+                        </div>
                       </div>
                       {bracket.consolation && bracket.consolation.length > 0 && (
                         <div>
                           <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 11–20</div>
-                          <USFLXFLBracket
-                            seeds={bracket.consolation}
-                            rankLabels={["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"]}
-                            fired
-                          />
-                          <p className="text-xs mt-2" style={{ color: C.slate }}>
-                            Draft order: {draftPickCaption(["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"], DRAFT_PICKS_20, 11)}
-                          </p>
+                          <div className="flex flex-wrap gap-4 items-start">
+                            <div className="flex-1 min-w-0">
+                              <USFLXFLBracket
+                                seeds={bracket.consolation}
+                                rankLabels={["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"]}
+                                fired
+                              />
+                            </div>
+                            <PlacementInfoPanel rows={placementInfoRows(["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"], DRAFT_PICKS_20, 11)} />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2941,96 +2965,102 @@ export default function App() {
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs — ranks 1–8</div>
-                        <MirroredPlacementBracket
-                          east={bracket.playoffGroup.east}
-                          west={bracket.playoffGroup.west}
-                          eastName={bracket.eastName}
-                          westName={bracket.westName}
-                          labels={["Championship", "3rd Place", "5th Place", "7th Place"]}
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1)}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: C.slate }}>
-                          {cpCaption(["Championship", "3rd Place", "5th Place", "7th Place"], tierKey, 1)}
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <MirroredPlacementBracket
+                              east={bracket.playoffGroup.east}
+                              west={bracket.playoffGroup.west}
+                              eastName={bracket.eastName}
+                              westName={bracket.westName}
+                              labels={["Championship", "3rd Place", "5th Place", "7th Place"]}
+                            />
+                          </div>
+                          <PlacementInfoPanel rows={placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1, tierKey)} />
+                        </div>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
-                        <MirroredPlacementBracket
-                          east={bracket.consolationGroup.east}
-                          west={bracket.consolationGroup.west}
-                          eastName={bracket.eastName}
-                          westName={bracket.westName}
-                          labels={["9th Place", "11th Place", "13th Place", "15th Place"]}
-                          fired
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9)}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: C.slate }}>
-                          {cpCaption(["9th Place", "11th Place", "13th Place", "15th Place"], tierKey, 9)} — ranks 12-16 ineligible for promotion.
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <MirroredPlacementBracket
+                              east={bracket.consolationGroup.east}
+                              west={bracket.consolationGroup.west}
+                              eastName={bracket.eastName}
+                              westName={bracket.westName}
+                              labels={["9th Place", "11th Place", "13th Place", "15th Place"]}
+                              fired
+                            />
+                          </div>
+                          <PlacementInfoPanel
+                            rows={placementInfoRows(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9, tierKey)}
+                            note="Ranks 12-16 ineligible for promotion."
+                          />
+                        </div>
                       </div>
                     </div>
                   ) : bracket.format === "conference-division" ? (
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs</div>
-                        <NFLBracket
-                          east={bracket.playoffGroup.east}
-                          west={bracket.playoffGroup.west}
-                          eastName={bracket.eastName}
-                          westName={bracket.westName}
-                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"]}
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_32, 1)}
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <NFLBracket
+                              east={bracket.playoffGroup.east}
+                              west={bracket.playoffGroup.west}
+                              eastName={bracket.eastName}
+                              westName={bracket.westName}
+                              rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"]}
+                            />
+                          </div>
+                          <PlacementInfoPanel rows={placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_32, 1)} />
+                        </div>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
-                        <NFLBracket
-                          east={bracket.consolationGroup.east}
-                          west={bracket.consolationGroup.west}
-                          eastName={bracket.eastName}
-                          westName={bracket.westName}
-                          rankLabels={["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"]}
-                          fired
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"], DRAFT_PICKS_32, 17)}
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <NFLBracket
+                              east={bracket.consolationGroup.east}
+                              west={bracket.consolationGroup.west}
+                              eastName={bracket.eastName}
+                              westName={bracket.westName}
+                              rankLabels={["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"]}
+                              fired
+                            />
+                          </div>
+                          <PlacementInfoPanel rows={placementInfoRows(["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"], DRAFT_PICKS_32, 17)} />
+                        </div>
                       </div>
                     </div>
                   ) : bracket.format === "top8-cascade" || bracket.format === "division-only" ? (
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–8</div>
-                        <SingleBracket8
-                          seeds={bracket.playoffSeeds}
-                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place"]}
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1)}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: C.slate }}>
-                          {cpCaption(["Championship", "3rd Place", "5th Place", "7th Place"], tierKey, 1)}
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <SingleBracket8
+                              seeds={bracket.playoffSeeds}
+                              rankLabels={["Championship", "3rd Place", "5th Place", "7th Place"]}
+                            />
+                          </div>
+                          <PlacementInfoPanel rows={placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1, tierKey)} />
+                        </div>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
-                        <SingleBracket8
-                          seeds={bracket.consolationSeeds}
-                          rankLabels={["9th Place", "11th Place", "13th Place", "15th Place"]}
-                          fired
-                        />
-                        <p className="text-xs mt-2" style={{ color: C.slate }}>
-                          Draft order: {draftPickCaption(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9)}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: C.slate }}>
-                          {cpCaption(["9th Place", "11th Place", "13th Place", "15th Place"], tierKey, 9)} — ranks 12-16 ineligible for promotion.
-                        </p>
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <SingleBracket8
+                              seeds={bracket.consolationSeeds}
+                              rankLabels={["9th Place", "11th Place", "13th Place", "15th Place"]}
+                              fired
+                            />
+                          </div>
+                          <PlacementInfoPanel
+                            rows={placementInfoRows(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9, tierKey)}
+                            note="Ranks 12-16 ineligible for promotion."
+                          />
+                        </div>
                       </div>
                     </div>
                   ) : null}
