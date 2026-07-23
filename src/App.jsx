@@ -386,6 +386,40 @@ function draftPickCaption(rankLabels, pickTable, startRank) {
     .join("  ·  ");
 }
 
+// Coaching points by final place, for the 10 sixteen-team leagues. Places
+// 1-8 (the Championship group) step down by 5 each; there's then an extra
+// -10 jump into rank 9 (top of Consolation) before resuming a -5 step to
+// rank 10 — confirmed against both the SEC and FLHS tables exactly, so
+// this isn't a straight linear scale across 1-10. Places 11-16 are
+// identical, fixed values in every 16-team league regardless of which one
+// it is. FLHS's base (90) is confirmed directly and doesn't fit a clean
+// -5-per-league step from SEC's confirmed 140 over 10 leagues (that lands
+// FLHS at 95) — treated here as a deliberate larger final drop since it's
+// the one high-school-tier league, not just a typo. Worth confirming.
+const CP_OFFSETS_1_10 = [0, 5, 10, 15, 20, 25, 30, 35, 45, 50]; // subtracted from each league's champion CP
+const CP_TAIL_16 = [20, 10, 0, -5, -10, -15]; // ranks 11-16
+const CHAMPION_CP_16 = {
+  SEC: 140, "BIG XII": 135, ACC: 130, TEN: 125, SUN: 120,
+  SOCO: 115, IVY: 110, SWAC: 105, GLIAC: 100, FLHS: 90,
+};
+const cpForPlace16 = (tKey, place) =>
+  place <= 10 ? CHAMPION_CP_16[tKey] - CP_OFFSETS_1_10[place - 1] : CP_TAIL_16[place - 11];
+
+// Last 5 places in a 16-team league are ineligible for promotion, per the
+// Rules doc — confirmed again by both CP tables (ranks 12-16 both show
+// "ineligible for promotion").
+const promotionEligible16 = (place) => place <= 11;
+
+function cpCaption(rankLabels, tKey, startRank) {
+  return rankLabels
+    .map((label, i) => {
+      const winRank = startRank + i * 2;
+      const loseRank = winRank + 1;
+      return `${label} → ${cpForPlace16(tKey, winRank)}/${cpForPlace16(tKey, loseRank)} CP`;
+    })
+    .join("  ·  ");
+}
+
 const DEMO_NFL = [
   { coach: "Harvey28", team: "Tennessee Titans", place: 1, w: 11, l: 6, pts: 3137.0, cp: 285.48 },
   { coach: "DrewM1603", team: "Los Angeles Rams", place: 2, w: 12, l: 5, pts: 3092.2, cp: 266.84 },
@@ -2918,6 +2952,9 @@ export default function App() {
                         <p className="text-xs mt-2" style={{ color: C.slate }}>
                           Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1)}
                         </p>
+                        <p className="text-xs mt-1" style={{ color: C.slate }}>
+                          {cpCaption(["Championship", "3rd Place", "5th Place", "7th Place"], tierKey, 1)}
+                        </p>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
@@ -2931,6 +2968,9 @@ export default function App() {
                         />
                         <p className="text-xs mt-2" style={{ color: C.slate }}>
                           Draft order: {draftPickCaption(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9)}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: C.slate }}>
+                          {cpCaption(["9th Place", "11th Place", "13th Place", "15th Place"], tierKey, 9)} — ranks 12-16 ineligible for promotion.
                         </p>
                       </div>
                     </div>
@@ -2975,6 +3015,9 @@ export default function App() {
                         <p className="text-xs mt-2" style={{ color: C.slate }}>
                           Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1)}
                         </p>
+                        <p className="text-xs mt-1" style={{ color: C.slate }}>
+                          {cpCaption(["Championship", "3rd Place", "5th Place", "7th Place"], tierKey, 1)}
+                        </p>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
@@ -2985,6 +3028,9 @@ export default function App() {
                         />
                         <p className="text-xs mt-2" style={{ color: C.slate }}>
                           Draft order: {draftPickCaption(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9)}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: C.slate }}>
+                          {cpCaption(["9th Place", "11th Place", "13th Place", "15th Place"], tierKey, 9)} — ranks 12-16 ineligible for promotion.
                         </p>
                       </div>
                     </div>
