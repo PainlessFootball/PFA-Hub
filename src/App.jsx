@@ -364,6 +364,28 @@ const PLAYOFF_FORMAT = {
 const BRACKET_PAIRS_R1 = [[1, 8], [4, 5], [3, 6], [2, 7]];
 const BRACKET_PAIRS_R1_4 = [[1, 4], [2, 3]];
 
+// Final-standing rank -> draft pick number, confirmed directly from the
+// playoff PDFs for each league size (worst record picks first, but the
+// middle of the order isn't strictly linear — these are the real mappings,
+// not a guess). Index 0 = rank 1 (Championship winner).
+const DRAFT_PICKS_16 = [16, 15, 9, 10, 11, 12, 13, 14, 3, 4, 5, 6, 7, 8, 2, 1];
+const DRAFT_PICKS_20 = [20, 19, 11, 12, 13, 14, 15, 16, 17, 18, 3, 4, 5, 6, 7, 8, 9, 10, 2, 1];
+const DRAFT_PICKS_32 = [32, 31, 29, 30, 25, 26, 27, 28, 17, 18, 19, 20, 21, 22, 23, 24, 9, 10, 11, 12, 13, 14, 15, 16, 3, 4, 5, 6, 7, 8, 2, 1];
+
+// Builds a short "which placement game sets which draft pick" caption.
+// Each rankLabel represents one game deciding two consecutive final ranks
+// (its winner and its loser), starting at startRank (1 for the
+// Championship group, or wherever the Consolation group's ranks begin).
+function draftPickCaption(rankLabels, pickTable, startRank) {
+  return rankLabels
+    .map((label, i) => {
+      const winPick = pickTable[startRank - 1 + i * 2];
+      const losePick = pickTable[startRank - 1 + i * 2 + 1];
+      return `${label} → ${winPick}${losePick ? "/" + losePick : ""}`;
+    })
+    .join("  ·  ");
+}
+
 const DEMO_NFL = [
   { coach: "Harvey28", team: "Tennessee Titans", place: 1, w: 11, l: 6, pts: 3137.0, cp: 285.48 },
   { coach: "DrewM1603", team: "Los Angeles Rams", place: 2, w: 12, l: 5, pts: 3092.2, cp: 266.84 },
@@ -1899,10 +1921,8 @@ export default function App() {
       const wildcards = remaining.slice(0, 4);
       return {
         format,
-        brackets: [
-          { name: "Playoffs", seeds: [...winnersSeeded, ...wildcards] },
-          { name: "Consolation", seeds: remaining.slice(4, 12) },
-        ],
+        playoffSeeds: [...winnersSeeded, ...wildcards],
+        consolationSeeds: remaining.slice(4, 12),
       };
     }
 
@@ -2866,6 +2886,9 @@ export default function App() {
                           seeds={bracket.seeds}
                           rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"]}
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"], DRAFT_PICKS_20, 1)}
+                        </p>
                       </div>
                       {bracket.consolation && bracket.consolation.length > 0 && (
                         <div>
@@ -2875,6 +2898,9 @@ export default function App() {
                             rankLabels={["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"]}
                             fired
                           />
+                          <p className="text-xs mt-2" style={{ color: C.slate }}>
+                            Draft order: {draftPickCaption(["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"], DRAFT_PICKS_20, 11)}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -2889,6 +2915,9 @@ export default function App() {
                           westName={bracket.westName}
                           labels={["Championship", "3rd Place", "5th Place", "7th Place"]}
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1)}
+                        </p>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
@@ -2900,6 +2929,9 @@ export default function App() {
                           labels={["9th Place", "11th Place", "13th Place", "15th Place"]}
                           fired
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9)}
+                        </p>
                       </div>
                     </div>
                   ) : bracket.format === "conference-division" ? (
@@ -2913,6 +2945,9 @@ export default function App() {
                           westName={bracket.westName}
                           rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"]}
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_32, 1)}
+                        </p>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
@@ -2924,9 +2959,12 @@ export default function App() {
                           rankLabels={["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"]}
                           fired
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"], DRAFT_PICKS_32, 17)}
+                        </p>
                       </div>
                     </div>
-                  ) : bracket.format === "top8-cascade" ? (
+                  ) : bracket.format === "top8-cascade" || bracket.format === "division-only" ? (
                     <div className="space-y-8">
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–8</div>
@@ -2934,6 +2972,9 @@ export default function App() {
                           seeds={bracket.playoffSeeds}
                           rankLabels={["Championship", "3rd Place", "5th Place", "7th Place"]}
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1)}
+                        </p>
                       </div>
                       <div>
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
@@ -2942,20 +2983,12 @@ export default function App() {
                           rankLabels={["9th Place", "11th Place", "13th Place", "15th Place"]}
                           fired
                         />
+                        <p className="text-xs mt-2" style={{ color: C.slate }}>
+                          Draft order: {draftPickCaption(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9)}
+                        </p>
                       </div>
                     </div>
-                  ) : (
-                    <div className={`grid gap-6 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
-                      {bracket.brackets.map((b) => (
-                        <div key={b.name} className="overflow-x-auto">
-                          <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
-                          <div style={{ minWidth: b.seeds.length <= 4 ? "20rem" : "30rem" }}>
-                            <TreeBracket seeds={b.seeds} finalLabel={b.name === "Playoffs" ? "Championship" : "Top of Consolation"} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               )}
 
