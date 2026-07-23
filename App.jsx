@@ -52,11 +52,6 @@ const LEAGUE_HISTORY = {
 const CURRENT_SEASON = 2026;
 const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
 
-// Link to the Alliance's separate playoff-bracket spreadsheet (shared by all
-// tiers for now). If per-league tab links are wanted later, add each tier's
-// `#gid=...` fragment here instead of the bare sheet URL.
-const PLAYOFF_BRACKET_URL =
-  "https://docs.google.com/spreadsheets/d/1DatK9-R9w230r-DpPuFBCvMI0xhQaqn8mKj7DzQuOU8/edit?usp=sharing";
 const SLEEPER = "https://api.sleeper.app/v1";
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -304,6 +299,71 @@ const TIERS = [
   { key: "FLHS", name: "Florida High School", tier: 13, size: 16 },
 ];
 
+// Some historical records (300 Club, older exports) abbreviate conferences
+// slightly differently than the site's TIERS keys — map the ones that differ.
+const CONF_TO_TIER_KEY = { XII: "BIG XII", FHS: "FLHS" };
+
+// NFL division numbers as configured in Sleeper -> real conference/division
+// names. Confirmed directly by Lainey.
+const NFL_DIVISIONS = {
+  1: "AFC East", 2: "AFC West", 3: "AFC North", 4: "AFC South",
+  5: "NFC East", 6: "NFC West", 7: "NFC North", 8: "NFC South",
+};
+const nflConferenceFor = (divisionNum) => (divisionNum && divisionNum <= 4 ? "AFC" : "NFC");
+
+// FLHS's 4 districts (no conference split) -> Sleeper division numbers.
+// Confirmed directly by Lainey.
+const FLHS_DISTRICTS = { 1: "District 13", 2: "District 14", 3: "District 15", 4: "District 16" };
+
+// USFL/XFL's 4 divisions (both leagues use the same names). Confirmed
+// directly by Lainey.
+const USFL_XFL_DIVISIONS = { 1: "North", 2: "South", 3: "East", 4: "West" };
+
+// Real conference names for the 5 two-conference leagues (Sleeper division
+// number -> name). Confirmed directly by Lainey.
+const TWO_CONF_NAMES = {
+  SUN: { 1: "East", 2: "West" },
+  SOCO: { 1: "North", 2: "South" },
+  IVY: { 1: "Ivy", 2: "Patriot" },
+  SWAC: { 1: "East", 2: "West" },
+  GLIAC: { 1: "GLIAC", 2: "Ohio Valley" },
+};
+
+// Looks up a division's real name for any tier that has one on file.
+const divisionNameFor = (tKey, divNum) => {
+  if (tKey === "NFL") return NFL_DIVISIONS[divNum];
+  if (tKey === "FLHS") return FLHS_DISTRICTS[divNum];
+  if (tKey === "USFL" || tKey === "XFL") return USFL_XFL_DIVISIONS[divNum];
+  return null;
+};
+
+// Playoff format per tier, per the Rules doc. "top8-cascade": straight
+// top-8 by record, no conferences, but everyone plays through Week 17 —
+// same "winners and losers both keep playing" idea as the others, just
+// without a play-in or division wrinkle — SEC/Big 12/ACC/Big Ten.
+// "conference-division": NFL-style, 4 division winners + 4 wildcards per
+// conference. "division-only": same idea as conference-division but a
+// single group (no conference split) — FLHS's 4 districts.
+// "conference-top4": top 4 teams from each of 2 conferences, no
+// guaranteed division winners — Sun Belt/SoCo/Ivy/SWAC/GLIAC. "division-
+// playin": USFL/XFL's unusual 10-team field — 4 division winners (seeds
+// 1-4) get a bye, seeds 5-10 are wildcards, and a Week 14 play-in (7v10,
+// 8v9 — one week earlier than every other tier's Week 15 start) trims it
+// to 8 before the main bracket begins.
+const PLAYOFF_FORMAT = {
+  NFL: "conference-division",
+  SEC: "top8-cascade", "BIG XII": "top8-cascade", ACC: "top8-cascade", TEN: "top8-cascade",
+  FLHS: "division-only",
+  SUN: "conference-top4", SOCO: "conference-top4", IVY: "conference-top4",
+  SWAC: "conference-top4", GLIAC: "conference-top4",
+  USFL: "division-playin", XFL: "division-playin",
+};
+
+// Standard fixed single-elimination bracket pairings.
+// 8-seed: round 1 = (1v8, 4v5, 3v6, 2v7). 4-seed: round 1 = (1v4, 2v3).
+const BRACKET_PAIRS_R1 = [[1, 8], [4, 5], [3, 6], [2, 7]];
+const BRACKET_PAIRS_R1_4 = [[1, 4], [2, 3]];
+
 const DEMO_NFL = [
   { coach: "Harvey28", team: "Tennessee Titans", place: 1, w: 11, l: 6, pts: 3137.0, cp: 285.48 },
   { coach: "DrewM1603", team: "Los Angeles Rams", place: 2, w: 12, l: 5, pts: 3092.2, cp: 266.84 },
@@ -333,26 +393,6 @@ const DEMO_NFL = [
   { coach: "Shubhay", team: "Houston Texans", place: 28, w: 4, l: 13, pts: 2129.05, cp: 39.22 },
   { coach: "booshay", team: "Tampa Bay Buccaneers", place: 29, w: 4, l: 13, pts: 2305.45, cp: 51.18 },
   { coach: "MVPMalik2", team: "Cleveland Browns", place: 30, w: 4, l: 13, pts: 2121.85, cp: 24.69 },
-];
-
-const DEMO_CAREER = [
-  { coach: "AZiv49", team: "San Francisco 49ers", cp: 1020.78, w: 50, l: 18, pct: 0.735, pts: 13423.1 },
-  { coach: "Wynnguy", team: "Brown Bears", cp: 968.43, w: 56, l: 12, pct: 0.824, pts: 16666.75 },
-  { coach: "Josssock", team: "New England Patriots", cp: 962.18, w: 47, l: 21, pct: 0.691, pts: 12802.65 },
-  { coach: "huibuh", team: "Oakland Raiders", cp: 946.61, w: 41, l: 27, pct: 0.603, pts: 12614.5 },
-  { coach: "RedPhoenix437", team: "Los Angeles Express", cp: 933.99, w: 45, l: 23, pct: 0.662, pts: 14315.0 },
-  { coach: "amkm324", team: "Green Bay Packers", cp: 933.29, w: 44, l: 24, pct: 0.647, pts: 13706.4 },
-  { coach: "FoggyBuckets", team: "New York Jets", cp: 930.99, w: 49, l: 19, pct: 0.721, pts: 13614.7 },
-  { coach: "mattbanks3x", team: "San Antonio Gunslingers", cp: 930.46, w: 46, l: 22, pct: 0.676, pts: 15080.85 },
-  { coach: "DrewM1603", team: "Los Angeles Rams", cp: 901.62, w: 41, l: 27, pct: 0.603, pts: 11384.3 },
-  { coach: "Landshark18", team: "Baltimore Ravens", cp: 893.38, w: 37, l: 28, pct: 0.569, pts: 11712.8 },
-  { coach: "ZiplocBaggins", team: "LSU Tigers", cp: 884.87, w: 46, l: 22, pct: 0.676, pts: 14605.2 },
-  { coach: "Tobistresenteam", team: "Minnesota Vikings", cp: 874.27, w: 41, l: 27, pct: 0.603, pts: 11699.2 },
-  { coach: "Calvins22", team: "Arizona Cardinals", cp: 869.74, w: 41, l: 27, pct: 0.603, pts: 12775.2 },
-  { coach: "WeReallyOutHere", team: "Los Angeles Chargers", cp: 860.38, w: 37, l: 31, pct: 0.544, pts: 11717.15 },
-  { coach: "samwow123", team: "South Carolina Gamecocks", cp: 850.75, w: 49, l: 19, pct: 0.721, pts: 16522.4 },
-  { coach: "Diego777", team: "Pittsburgh Steelers", cp: 847.38, w: 44, l: 24, pct: 0.647, pts: 13959.7 },
-  { coach: "Newkbomb", team: "Denver Gold", cp: 847.02, w: 46, l: 22, pct: 0.676, pts: 14940.95 },
 ];
 
 const RULES_SECTIONS = [
@@ -398,6 +438,43 @@ const RULES_SECTIONS = [
     ],
   },
   {
+    id: "x-points",
+    title: "X Points",
+    intro: "X Points are performance bonuses that feed into your Coaching Points. They can go negative too — beware a losing streak or the worst-manager tag.",
+    rows: [
+      { value: "3", label: "League weekly high score" },
+      { value: "-3", label: "League weekly low score" },
+      { value: "5", label: "Alliance weekly high score" },
+      { value: "-5", label: "Alliance weekly low score" },
+      { value: "3", label: "League weekly best manager" },
+      { value: "-3", label: "League weekly worst manager" },
+      { value: "1", label: "Per game, 4-7 wins in a row" },
+      { value: "2", label: "Per game, 8-11 wins in a row" },
+      { value: "3", label: "Per game, 12+ wins in a row" },
+      { value: "5", label: "Per game, 16+ wins in a row" },
+      { value: "-1", label: "Per game, 4-7 losses in a row in a single season" },
+      { value: "-2", label: "Per game, 8-11 losses in a row in a single season" },
+      { value: "-3", label: "Per game, 12-15 losses in a row in a single season" },
+      { value: "-5", label: "Per game, 16+ losses in a row in a single season" },
+      { value: "1", label: "Every win over 10 in a regular season" },
+      { value: "-1", label: "Every loss over 10 in a regular season" },
+      { value: "5", label: "Most points in conference in regular season" },
+      { value: "-5", label: "Least points in conference in regular season" },
+      { value: "15", label: "Most points in Alliance in regular season" },
+      { value: "-15", label: "Least points in Alliance in regular season" },
+      { value: "5", label: "Division/district winner" },
+      { value: "7", label: "8-team conference winner" },
+      { value: "10", label: "16-team conference winner" },
+      { value: "5, 7, 9…", label: "Consecutive division/district champion" },
+      { value: "7, 9, 11…", label: "Consecutive 8-team conference winner" },
+      { value: "10, 13, 16…", label: "Consecutive 16-team conference champion" },
+      { value: "25, 35, 45…", label: "Consecutive league champion" },
+      { value: "3", label: "Playoff win" },
+      { value: "50", label: "Undefeated season (including playoffs)" },
+      { value: "10", label: "Breaking an Alliance record" },
+    ],
+  },
+  {
     id: "fired",
     title: "What Gets You Fired",
     items: [
@@ -409,10 +486,27 @@ const RULES_SECTIONS = [
     ],
   },
   {
+    id: "penalties",
+    title: "Penalties",
+    intro: "Penalties for recurring infractions will increase, and may also include FAAB or draft pick deductions on top of the coaching-score hit.",
+    rows: [
+      { value: "-1", label: "Not tagging the next player in a draft" },
+      { value: "-2", label: "Delay of game" },
+      { value: "-5", label: "Unsportsmanlike conduct" },
+      { value: "-5", label: "Uniform violation (team name or logo), enforced each week" },
+      { value: "-10", label: "Mishandling a player transaction, accidental or otherwise (first offense)" },
+      { value: "-15", label: "Mishandling a player transaction, accidental or otherwise (second offense)" },
+      { value: "-25", label: "Deliberate tanking or incomplete lineup" },
+      { value: "-25", label: "Repick/replace a player during draft" },
+      { value: "-50", label: "Backing out of a trade (even if a mistake)" },
+      { value: "-100", label: "Accepting a new team and backing out" },
+      { value: "-X", label: "Rules infractions can be any amount proportional to the infraction" },
+    ],
+  },
+  {
     id: "penalties-playoffs",
-    title: "Penalties & Playoffs",
+    title: "Playoffs",
     items: [
-      "Coaches may be assigned penalties to their coaching score, draft picks, or FAAB budget commensurate with the infraction — see the Coaches Scoring System tab for the full list.",
       "Playoffs are run via spreadsheet (see the pinned link in your league chat). Tiebreakers: W-L, then Points For, then Pts/Max.",
       "NFL: each conference sends its four division winners and four wildcard teams from any division in that conference — one division could send every team.",
       "Leagues without conferences (SEC, Big 12, ACC, Big Ten) send their top 8 teams.",
@@ -436,10 +530,10 @@ const RULES_SECTIONS = [
     title: "Coach Types & Contracts",
     items: [
       "Orphan Teams: managed by the Alliance until a replacement is found, then offered to the best-qualified coach during the offseason coaching-change period.",
-      "Interim Coaches: step in when a coach unexpectedly \"retires\" mid-season. Their mission is to keep the team and league competitive and leave behind a team someone else will want next season. No trade privileges, but add/drop and waivers are allowed.",
+      "Interim Coaches: step in when a coach unexpectedly \"retires\" mid-season. A coach taking over an inactive team after the NFL season has already begun is specifically called an Interim Coach. Their mission is to keep the team and league competitive and leave behind a team someone else will want next season. No trade privileges, but add/drop and waivers are allowed.",
       "One Year Contract: offered to veteran coaches taking a team before the season starts, instead of adding a rookie coach. Full trade and add/drop privileges, plus a small coaching-point bonus based on the team's final performance.",
       "Playoff Contract: keeps the job as long as the team stays in the playoffs — offered to temporary coaches who excel, or as an incentive for legacy coaches to stay on top or step aside. Full trade and add/drop privileges.",
-      "Legacy Teams: \"permanent\" positions meant to add stability to lower-tier leagues, decided case by case (popular teams/conferences are in demand). Full trade privileges, but no coaching bonuses accrue toward promotion — it's a separate project, purely for team pride and league competition. Coaching stats for promotion are only ever determined by a coach's actual Team of Record.",
+      "Legacy Teams: \"permanent\" positions meant to add stability to lower-tier leagues, decided case by case (popular teams/conferences are in demand). Full trade privileges, but no coaching bonuses accrue toward promotion — it's a separate project, purely for team pride and league competition. Coaching stats for promotion are only ever determined by a coach's actual Team of Record. As leagues fill and stabilize, even legacy coaches will eventually have to retire and pass the torch to another coach.",
     ],
   },
   {
@@ -463,12 +557,176 @@ const RULES_SECTIONS = [
   },
 ];
 
-const DEMO_300 = [
+const CLUB_300 = [
   { coach: "Harvey28", team: "Carolina Chanticleers", conf: "SUN", pts: 388.1, week: 15, year: 2022 },
   { coach: "mchostetler1", team: "Florida Gators", conf: "SEC", pts: 384.85, week: 2, year: 2024 },
+  { coach: "ChicagoOnTop", team: "Los Angeles Xtreme", conf: "XFL", pts: 362.05, week: 4, year: 2023 },
+  { coach: "Sb428", team: "Bethune-Cookman Wildcats", conf: "SWAC", pts: 361.6, week: 9, year: 2024 },
+  { coach: "samwow123", team: "Austin Peay Governors", conf: "SOCO", pts: 361.05, week: 4, year: 2022 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 352.0, week: 7, year: 2025 },
+  { coach: "RifeLife520", team: "Oklahoma Sooners", conf: "SEC", pts: 348.35, week: 8, year: 2023 },
+  { coach: "DrunkFootball", team: "South Dakota State", conf: "XII", pts: 347.2, week: 4, year: 2025 },
+  { coach: "FoggyBuckets", team: "Pittsburgh Maulers", conf: "USFL", pts: 344.8, week: 1, year: 2023 },
+  { coach: "OlaveGarden18", team: "Morgan State Bears", conf: "SWAC", pts: 344.35, week: 12, year: 2024 },
   { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 342.45, week: 2, year: 2022 },
+  { coach: "DirtyByrd30", team: "Jackston State Tigers", conf: "SWAC", pts: 342.1, week: 4, year: 2025 },
+  { coach: "CrazyKirt", team: "UCLA Bruins", conf: "TEN", pts: 339.95, week: 12, year: 2024 },
+  { coach: "PwnRangr", team: "West Carolina Catamounts", conf: "SOCO", pts: 339.1, week: 7, year: 2025 },
+  { coach: "RedPhoenix437", team: "Los Angeles Express", conf: "USFL", pts: 338.05, week: 7, year: 2025 },
+  { coach: "Wynnguy", team: "Brown Bears", conf: "IVY", pts: 336.25, week: 8, year: 2023 },
+  { coach: "RifeLife520", team: "App State Mountaineers", conf: "IVY", pts: 335.9, week: 13, year: 2024 },
+  { coach: "vvJuice", team: "WI Parkside Rangers", conf: "GLIAC", pts: 333.25, week: 3, year: 2023 },
+  { coach: "Broncos8804", team: "Coral Springs Colts", conf: "FLHS", pts: 332.8, week: 12, year: 2025 },
+  { coach: "ahdi", team: "Chattanooga Mocs", conf: "SOCO", pts: 330.95, week: 17, year: 2024 },
+  { coach: "CrazyKirt", team: "UCLA Bruins", conf: "TEN", pts: 329.85, week: 13, year: 2024 },
+  { coach: "Edixon2", team: "Baldwin Yellow Jackets", conf: "GLIAC", pts: 328.9, week: 8, year: 2023 },
+  { coach: "mattbanks3x", team: "San Antonio Gunslingers", conf: "USFL", pts: 328.65, week: 15, year: 2025 },
+  { coach: "cre8t1v3", team: "Citadel Bulldogs", conf: "SOCO", pts: 328.15, week: 4, year: 2023 },
+  { coach: "PwnRangr", team: "Louisville Cardinals", conf: "ACC", pts: 328.0, week: 14, year: 2024 },
+  { coach: "ColBow", team: "Cypress Bay Lightning", conf: "FLHS", pts: 327.45, week: 4, year: 2023 },
+  { coach: "JuugKing", team: "Georgia State Panthers", conf: "SUN", pts: 327.4, week: 15, year: 2025 },
+  { coach: "zeheros", team: "Georgia Tech Yellowjackets", conf: "ACC", pts: 326.6, week: 14, year: 2022 },
+  { coach: "Roedshow502", team: "Little Rock Trojans", conf: "SUN", pts: 326.6, week: 9, year: 2024 },
+  { coach: "mattbanks3x", team: "San Antonio Gunslingers", conf: "USFL", pts: 325.75, week: 3, year: 2023 },
+  { coach: "MambasDisciples", team: "PVAM Panthers", conf: "SWAC", pts: 325.6, week: 17, year: 2023 },
+  { coach: "Noga2003", team: "Memphis Showboats", conf: "USFL", pts: 325.4, week: 16, year: 2024 },
+  { coach: "MrCoolBuns", team: "Seattle Dragons", conf: "XFL", pts: 324.2, week: 5, year: 2024 },
+  { coach: "crb2121", team: "South Alabama Jaguars", conf: "SUN", pts: 324.2, week: 7, year: 2025 },
+  { coach: "Dylan3380", team: "Florida State Seminoles", conf: "ACC", pts: 323.05, week: 4, year: 2025 },
+  { coach: "MambasDisciples", team: "PVAM Panthers", conf: "SWAC", pts: 323.0, week: 12, year: 2023 },
+  { coach: "koala530", team: "Boca Raton Wolverines", conf: "FLHS", pts: 322.85, week: 4, year: 2025 },
+  { coach: "Sb428", team: "Bethune-Cookman Wildcats", conf: "SWAC", pts: 322.8, week: 4, year: 2023 },
+  { coach: "dark-sarcasm9", team: "Old Dominion Monarchs", conf: "SUN", pts: 321.95, week: 4, year: 2022 },
+  { coach: "Dylan3380", team: "Florida State Seminoles", conf: "SUN", pts: 321.8, week: 10, year: 2024 },
+  { coach: "z1856z", team: "DC Defenders", conf: "XFL", pts: 321.5, week: 12, year: 2025 },
+  { coach: "Motty", team: "Tampa Bay Bandits", conf: "XFL", pts: 320.85, week: 14, year: 2022 },
+  { coach: "Jaquise", team: "Austin Peay Governors", conf: "SOCO", pts: 320.85, week: 5, year: 2024 },
+  { coach: "Broncos8804", team: "Coral Springs Colts", conf: "FLHS", pts: 320.65, week: 2, year: 2025 },
+  { coach: "WillStephensSr", team: "Alabama State Hornets", conf: "SWAC", pts: 320.45, week: 8, year: 2023 },
+  { coach: "TheWOAT100", team: "Wayne State Warriors", conf: "GLIAC", pts: 319.7, week: 8, year: 2023 },
+  { coach: "Wynnguy", team: "Brown Bears", conf: "IVY", pts: 318.55, week: 12, year: 2022 },
+  { coach: "NunYaBizNezz", team: "Lake Superior Lakers", conf: "GLIAC", pts: 318.0, week: 9, year: 2023 },
+  { coach: "srcav", team: "Purdue Boilermakers", conf: "TEN", pts: 318.0, week: 15, year: 2025 },
+  { coach: "GarrettBFF", team: "Atlanta Legends", conf: "XFL", pts: 317.85, week: 10, year: 2024 },
+  { coach: "JuugKing", team: "Georgia State Panthers", conf: "SUN", pts: 317.45, week: 2, year: 2024 },
+  { coach: "MambasDisciples", team: "PVAM Panthers", conf: "SWAC", pts: 317.25, week: 8, year: 2023 },
+  { coach: "Landshark18", team: "Baltimore Ravens", conf: "NFL", pts: 316.65, week: 3, year: 2023 },
+  { coach: "DLeggett", team: "West Virginia Cavaliers", conf: "XII", pts: 316.5, week: 8, year: 2022 },
+  { coach: "FoggyBuckets", team: "Alabama State Hornets", conf: "SWAC", pts: 316.35, week: 15, year: 2022 },
+  { coach: "TimeforTua", team: "Northwood Timberwolves", conf: "GLIAC", pts: 316.2, week: 15, year: 2024 },
+  { coach: "SVerfin", team: "Butler Bulldogs", conf: "PION", pts: 315.9, week: 15, year: 2022 },
+  { coach: "spicyftbaltakes", team: "TCU Horned Frogs", conf: "XII", pts: 315.15, week: 16, year: 2022 },
   { coach: "evanthomas536", team: "Southern U Jaguars", conf: "SWAC", pts: 314.65, week: 2, year: 2022 },
+  { coach: "BBlew52", team: "Georgia Bulldogs", conf: "SEC", pts: 314.2, week: 13, year: 2025 },
+  { coach: "Harold2576", team: "Davenport Panthers", conf: "GLIAC", pts: 313.65, week: 13, year: 2024 },
+  { coach: "runhaags", team: "Arkansas State Red Wolves", conf: "SUN", pts: 313.5, week: 17, year: 2024 },
+  { coach: "acubes21", team: "Belmont Bruins", conf: "USFL", pts: 313.3, week: 16, year: 2024 },
+  { coach: "Goobravich", team: "Northern Colorado Bears", conf: "XII", pts: 312.95, week: 5, year: 2024 },
+  { coach: "Dilly314", team: "Georgetown Hoyas", conf: "IVY", pts: 312.75, week: 17, year: 2024 },
+  { coach: "StokesCity", team: "Western Wildcats", conf: "FLHS", pts: 312.5, week: 15, year: 2024 },
+  { coach: "TuaLegitTuaQuit99", team: "Capitol Comets", conf: "GLIAC", pts: 312.45, week: 11, year: 2024 },
+  { coach: "Calvins22", team: "Tennessee Volunteers", conf: "SEC", pts: 312.4, week: 12, year: 2024 },
+  { coach: "Vikesfan", team: "St Louis Battlehawks", conf: "XFL", pts: 312.3, week: 2, year: 2022 },
+  { coach: "zradams17", team: "Kentucky Wildcats", conf: "SEC", pts: 312.2, week: 3, year: 2022 },
+  { coach: "MrCoolBuns", team: "Seattle Dragons", conf: "XFL", pts: 312.2, week: 7, year: 2022 },
+  { coach: "PwnRangr", team: "Miami Beach Hi-Tides", conf: "FLHS", pts: 312.2, week: 17, year: 2023 },
+  { coach: "CrazyKirt", team: "UCLA Bruins", conf: "TEN", pts: 312.15, week: 16, year: 2023 },
+  { coach: "PwnRangr", team: "Kentucky Wildcats", conf: "SEC", pts: 311.9, week: 12, year: 2025 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 311.65, week: 2, year: 2022 },
+  { coach: "zero00", team: "New Jersey Generals", conf: "USFL", pts: 311.6, week: 12, year: 2025 },
+  { coach: "g8trb8", team: "Denver Broncos", conf: "NFL", pts: 311.2, week: 16, year: 2024 },
+  { coach: "StokesCity", team: "Western Wildcats", conf: "FLHS", pts: 310.8, week: 7, year: 2025 },
+  { coach: "amkm324", team: "Louisville Cardinals", conf: "SEC", pts: 310.65, week: 11, year: 2022 },
+  { coach: "JJBInc", team: "Palmetto Panthers", conf: "FLHS", pts: 310.35, week: 12, year: 2022 },
+  { coach: "cspeece", team: "JMU Dukes", conf: "GLIAC", pts: 310.0, week: 10, year: 2025 },
+  { coach: "samwow123", team: "South Carolina Gamecocks", conf: "SEC", pts: 309.65, week: 11, year: 2025 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 309.6, week: 2, year: 2025 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 309.3, week: 15, year: 2025 },
+  { coach: "Fin3", team: "Alabama Crimson Tide", conf: "SEC", pts: 309.25, week: 13, year: 2024 },
+  { coach: "db091391", team: "Boston College Eagles", conf: "ACC", pts: 308.9, week: 6, year: 2024 },
+  { coach: "PwnRangr", team: "Kentucky Wildcats", conf: "SEC", pts: 308.8, week: 11, year: 2023 },
+  { coach: "fantasyTren", team: "Mercer Bears", conf: "SOCO", pts: 308.8, week: 12, year: 2025 },
+  { coach: "MambasDisciples", team: "PVAM Panthers", conf: "SWAC", pts: 308.6, week: 15, year: 2023 },
+  { coach: "teej1007", team: "JMU Dukes", conf: "SUN", pts: 308.4, week: 10, year: 2025 },
+  { coach: "Jay21177", team: "Washington Huskies", conf: "TEN", pts: 308.35, week: 2, year: 2024 },
+  { coach: "TylerWT003", team: "Virginia Tech Hokies", conf: "ACC", pts: 308.35, week: 4, year: 2025 },
+  { coach: "CrazyKirt", team: "UCLA Bruins", conf: "SOCO", pts: 308.3, week: 17, year: 2024 },
+  { coach: "samwow123", team: "South Carolina Gamecocks", conf: "SEC", pts: 308.25, week: 10, year: 2024 },
+  { coach: "TheColburnator01", team: "Bucknell Bison", conf: "IVY", pts: 308.2, week: 11, year: 2023 },
+  { coach: "treetwig", team: "Little Rock Trojans", conf: "SUN", pts: 307.9, week: 9, year: 2023 },
+  { coach: "spicyftbaltakes", team: "TCU Horned Frogs", conf: "XII", pts: 307.85, week: 6, year: 2022 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 307.85, week: 13, year: 2024 },
+  { coach: "CrazyKirt", team: "UCLA Bruins", conf: "TEN", pts: 307.75, week: 10, year: 2024 },
+  { coach: "FoggyBuckets", team: "Alabama State Hornets", conf: "SWAC", pts: 307.7, week: 3, year: 2023 },
+  { coach: "ZiplocBaggins", team: "Baylor Bears", conf: "XII", pts: 307.6, week: 15, year: 2022 },
+  { coach: "Brandonaut", team: "Syracuse Orange", conf: "ACC", pts: 307.15, week: 2, year: 2022 },
+  { coach: "ColBow", team: "Cypress Bay Lightning", conf: "FLHS", pts: 306.95, week: 9, year: 2022 },
+  { coach: "Wynnguy", team: "Brown Bears", conf: "IVY", pts: 306.8, week: 4, year: 2025 },
+  { coach: "treetwig", team: "AK Pine Bluff Lions", conf: "SWAC", pts: 306.65, week: 15, year: 2023 },
+  { coach: "catinthehat2", team: "St Francis Red Flash", conf: "PION", pts: 306.4, week: 6, year: 2023 },
+  { coach: "WillStephensSr", team: "Alabama State Hornets", conf: "SWAC", pts: 306.35, week: 2, year: 2022 },
+  { coach: "heavyd1017", team: "Mississippi State", conf: "SEC", pts: 306.35, week: 5, year: 2022 },
+  { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 306.25, week: 6, year: 2023 },
+  { coach: "Wynnguy", team: "Brown Bears", conf: "IVY", pts: 305.95, week: 15, year: 2025 },
+  { coach: "SpacebarRacecar", team: "Citadel Bulldogs", conf: "SOCO", pts: 305.75, week: 3, year: 2022 },
+  { coach: "Firephool", team: "Oklahoma State Cowboys", conf: "XII", pts: 305.6, week: 14, year: 2022 },
+  { coach: "2neufbettix", team: "New York Guardians", conf: "XFL", pts: 305.6, week: 5, year: 2024 },
+  { coach: "KShooter15", team: "Ferris State Bulldogs", conf: "GLIAC", pts: 305.15, week: 8, year: 2022 },
+  { coach: "Brandonaut", team: "Syracuse Orange", conf: "ACC", pts: 305.0, week: 10, year: 2024 },
+  { coach: "Harvey28", team: "Carolina Chanticleers", conf: "SUN", pts: 304.9, week: 8, year: 2023 },
+  { coach: "RifeLife520", team: "Oklahoma Sooners", conf: "SEC", pts: 304.8, week: 9, year: 2022 },
+  { coach: "babba10101", team: "Penn Quakers", conf: "IVY", pts: 304.8, week: 15, year: 2022 },
+  { coach: "MambasDisciples", team: "PVAM Panthers", conf: "SWAC", pts: 304.65, week: 8, year: 2024 },
+  { coach: "ravenger", team: "Kansas City Chiefs", conf: "NFL", pts: 304.1, week: 6, year: 2023 },
+  { coach: "SpacebarRacecar", team: "Citadel Bulldogs", conf: "SOCO", pts: 304.0, week: 9, year: 2022 },
+  { coach: "Jaquise", team: "Austin Peay Governors", conf: "SOCO", pts: 303.9, week: 11, year: 2024 },
+  { coach: "z1856z", team: "Mississippi Valley Delta Devils", conf: "SWAC", pts: 303.9, week: 12, year: 2025 },
+  { coach: "alexfinnis", team: "Missouri Tigers", conf: "SEC", pts: 303.8, week: 9, year: 2024 },
+  { coach: "Coopdaddy510", team: "Arizona Wildcats", conf: "XII", pts: 303.65, week: 15, year: 2022 },
+  { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 303.65, week: 8, year: 2024 },
+  { coach: "TheColburnator01", team: "Bucknell Bison", conf: "IVY", pts: 303.5, week: 8, year: 2024 },
+  { coach: "wdh76", team: "Iowa State Cyclones", conf: "XII", pts: 303.05, week: 6, year: 2023 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 302.95, week: 6, year: 2025 },
+  { coach: "TylerWT003", team: "Virginia Tech Hokies", conf: "ACC", pts: 302.6, week: 3, year: 2025 },
+  { coach: "TylerWT003", team: "Virginia Tech Hokies", conf: "ACC", pts: 302.6, week: 7, year: 2025 },
+  { coach: "PwnRangr", team: "Miami Beach Hi-Tides", conf: "FLHS", pts: 302.3, week: 6, year: 2025 },
+  { coach: "Newkbomb", team: "Orlando Rage", conf: "XFL", pts: 302.25, week: 2, year: 2025 },
+  { coach: "RFlores29", team: "Muskingum Fighting Muskies", conf: "GLIAC", pts: 302.0, week: 17, year: 2024 },
+  { coach: "AZiv49", team: "Clemson Tigers", conf: "ACC", pts: 301.95, week: 8, year: 2025 },
+  { coach: "Firephool", team: "OSU Cowboys", conf: "XII", pts: 301.9, week: 15, year: 2025 },
+  { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 301.8, week: 1, year: 2023 },
+  { coach: "cschaller", team: "Notre Dame Fighting Irish", conf: "ACC", pts: 301.8, week: 6, year: 2023 },
+  { coach: "JJBInc", team: "Lake Superior Lakers", conf: "GLIAC", pts: 301.7, week: 17, year: 2024 },
+  { coach: "glang727", team: "Grambling State Tigers", conf: "SWAC", pts: 301.6, week: 16, year: 2023 },
+  { coach: "TheColburnator01", team: "Bucknell Bison", conf: "IVY", pts: 301.45, week: 5, year: 2023 },
+  { coach: "Jorgeortiz11", team: "JCU Blue Streaks", conf: "GLIAC", pts: 300.95, week: 15, year: 2025 },
+  { coach: "JuugKing", team: "Georgia State Panthers", conf: "SUN", pts: 300.9, week: 5, year: 2023 },
+  { coach: "MrCoolBuns", team: "Seattle Dragons", conf: "XFL", pts: 300.75, week: 10, year: 2023 },
+  { coach: "NunYaBizNezz", team: "Palmetto Panthers", conf: "FLHS", pts: 300.65, week: 1, year: 2023 },
+  { coach: "babba10101", team: "Penn Quakers", conf: "IVY", pts: 300.6, week: 8, year: 2025 },
+  { coach: "MambasDisciples", team: "PVAM Panthers", conf: "SWAC", pts: 300.55, week: 14, year: 2023 },
+  { coach: "cspeese22", team: "Ohio Northern Polar Bears", conf: "GLIAC", pts: 300.45, week: 16, year: 2023 },
+  { coach: "samwow123", team: "Austin Peay Governors", conf: "SOCO", pts: 300.35, week: 15, year: 2022 },
+  { coach: "Vastettler", team: "Muskingum Fighting Muskies", conf: "GLIAC", pts: 300.35, week: 2, year: 2023 },
+  { coach: "TomJohnMike", team: "Duke Blue Devils", conf: "ACC", pts: 300.35, week: 9, year: 2025 },
+  { coach: "hockeydoug", team: "Houston Cougars", conf: "XII", pts: 300.25, week: 17, year: 2024 },
+  { coach: "jaquise", team: "Austin Peay Governors", conf: "SOCO", pts: 300.1, week: 6, year: 2022 },
+  { coach: "finnbar3", team: "Detroit Drive", conf: "USFL", pts: 300.05, week: 3, year: 2023 },
 ];
+
+// Leaderboards derived directly from CLUB_300 itself, so they can never
+// drift out of sync with the list players actually see.
+function tally(arr, keyFn) {
+  const counts = {};
+  arr.forEach((item) => {
+    const k = keyFn(item);
+    counts[k] = (counts[k] || 0) + 1;
+  });
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+}
+const CLUB_300_TOP_COACHES = tally(CLUB_300, (r) => r.coach).slice(0, 10);
+const CLUB_300_TOP_TEAMS = tally(CLUB_300, (r) => r.team).slice(0, 8);
+const CLUB_300_BY_CONF = tally(CLUB_300, (r) => r.conf);
 
 const SEED_NEWS = [
   {
@@ -602,6 +860,49 @@ function Avatar({ name, avatar, size = 36 }) {
   );
 }
 
+// ── Trophies: coach, award, league, year — empty until the real list is
+// provided, keyed by coach name (lowercased). One entry per win, so a coach
+// who won a league three times gets three entries and three icons, same
+// idea as wearing multiple rings. Only two categories for now (novelty
+// awards excluded per Lainey); anything else falls back to a plain star.
+//   "harvey28": [{ award: "League Champion", league: "NFL", year: 2023 }, ...]
+const COACH_TROPHIES = {};
+
+// Original, generic badge shapes — not a recreation of any real trophy —
+// just enough to visually distinguish the two award categories.
+function TrophyIcon({ award, size = 14 }) {
+  const isChampion = award === "League Champion";
+  const color = isChampion ? "#E8A33D" : "#8494AC";
+  return isChampion ? (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-label="League Champion">
+      <path d="M7 3h10v3a5 5 0 01-5 5 5 5 0 01-5-5V3z" fill={color} />
+      <path d="M4 4h3v2a3 3 0 01-3 3 2 2 0 01-2-2V6a2 2 0 012-2z" fill={color} opacity="0.7" />
+      <path d="M20 4h-3v2a3 3 0 003 3 2 2 0 002-2V6a2 2 0 00-2-2z" fill={color} opacity="0.7" />
+      <rect x="10.5" y="10" width="3" height="4" fill={color} />
+      <rect x="8" y="14" width="8" height="2" rx="0.5" fill={color} />
+      <rect x="9" y="16.5" width="6" height="2" rx="0.5" fill={color} />
+    </svg>
+  ) : (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-label="Coach of the Year">
+      <circle cx="12" cy="9" r="6" fill={color} />
+      <circle cx="12" cy="9" r="3" fill="#0B1220" opacity="0.25" />
+      <path d="M9 14.5L7 21l5-2.5 5 2.5-2-6.5" fill={color} />
+    </svg>
+  );
+}
+
+function TrophyBadges({ name, size = 14 }) {
+  const trophies = COACH_TROPHIES[(name || "").toLowerCase()];
+  if (!trophies || !trophies.length) return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 align-middle ml-1.5" title={trophies.map((t) => `${t.award} — ${t.league} ${t.year}`).join(", ")}>
+      {trophies.map((t, i) => (
+        <TrophyIcon key={i} award={t.award} size={size} />
+      ))}
+    </span>
+  );
+}
+
 // ── Coach Profile popup: current team + conference are always shown (from
 // the same Sleeper data as the directory); career stats show once CAREER_
 // STATS has an entry for this coach, otherwise a plain "not in yet" note.
@@ -629,7 +930,10 @@ function CoachProfileModal({ coach, onClose }) {
           <div className="flex items-center gap-3">
             <Avatar name={coach.name} avatar={coach.avatar} size={52} />
             <div>
-              <div className="text-lg font-semibold leading-tight">{coach.name}</div>
+              <div className="text-lg font-semibold leading-tight">
+                {coach.name}
+                <TrophyBadges name={coach.name} size={15} />
+              </div>
               <div className="text-xs" style={{ color: C.slate }}>{coach.team || "—"}</div>
               {coach.tierKey && (
                 <div className="text-xs uppercase tracking-wider mt-0.5" style={{ color: C.gold }}>
@@ -663,27 +967,18 @@ function CoachProfileModal({ coach, onClose }) {
 }
 
 // ── Team Profile popup: Max Total Points comes straight from the same
-// standings data already on the page. Roster resolves player IDs against
-// Sleeper's players dictionary (fetched lazily — see ensurePlayersLoaded).
-const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
+// standings data already on the page. Roster is a link out to the real
+// Sleeper roster page (once ROSTER_LINKS has an entry — see below) rather
+// than an in-app player list, keeping room for team history, etc. later.
+// Draft picks are computed live from Sleeper's traded-picks data.
 
-function TeamProfileModal({ team, onClose, playersDict, playersLoading }) {
+// Roster links from the Admin tab (column AB), keyed by team name. Empty
+// until that export is provided — the popup just omits the link until then.
+const ROSTER_LINKS = {};
+
+function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading }) {
   if (!team) return null;
-
-  const players = (team.playerIds || []).map((pid) => {
-    const p = playersDict ? playersDict[pid] : null;
-    return {
-      id: pid,
-      name: p ? p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() : pid,
-      position: p ? p.position || "—" : "—",
-      nflTeam: p ? p.team || "FA" : "",
-    };
-  });
-  players.sort((a, b) => {
-    const ia = POSITION_ORDER.indexOf(a.position);
-    const ib = POSITION_ORDER.indexOf(b.position);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
+  const rosterLink = ROSTER_LINKS[(team.team || "").toLowerCase()];
 
   return (
     <div
@@ -708,35 +1003,627 @@ function TeamProfileModal({ team, onClose, playersDict, playersLoading }) {
           </button>
         </div>
 
-        <div className="px-2.5 py-2 rounded-sm mb-4" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
-          <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Max Total Points</div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>
-            {typeof team.maxPts === "number" ? fmt(team.maxPts) : "—"}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="px-2.5 py-2 rounded-sm" style={{ background: C.ink, border: `1px solid ${C.line}` }}>
+            <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Max Total Points</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, fontWeight: 600 }}>
+              {typeof team.maxPts === "number" ? fmt(team.maxPts) : "—"}
+            </div>
           </div>
+          <a
+            href={rosterLink || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-2 rounded-sm flex flex-col justify-center"
+            style={{
+              background: C.ink,
+              border: `1px solid ${C.line}`,
+              opacity: rosterLink ? 1 : 0.5,
+              pointerEvents: rosterLink ? "auto" : "none",
+            }}
+          >
+            <div className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>Roster</div>
+            <div style={{ color: C.gold, fontWeight: 600 }}>{rosterLink ? "View on Sleeper ↗" : "Link not set"}</div>
+          </a>
         </div>
 
-        <div className="text-xs uppercase tracking-wider mb-2" style={{ color: C.slate }}>Roster</div>
-        {playersLoading ? (
-          <div className="text-xs" style={{ color: C.slate }}>Loading roster…</div>
-        ) : players.length === 0 ? (
-          <div className="text-xs" style={{ color: C.slate }}>No roster data available.</div>
+        <div className="text-xs uppercase tracking-wider mb-2" style={{ color: C.slate }}>Draft Picks</div>
+        {!team.rosterId || !team.leagueId ? (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>Not available for this team.</div>
+        ) : draftPicksLoading ? (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>Loading draft picks…</div>
+        ) : !draftPicks || draftPicks.length === 0 ? (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>No picks on file.</div>
         ) : (
-          <div className="space-y-1">
-            {players.map((p) => (
-              <div key={p.id} className="flex items-center justify-between text-sm px-2 py-1 rounded-sm" style={{ background: C.ink }}>
-                <span className="truncate">{p.name}</span>
-                <span className="text-xs shrink-0 ml-2" style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {p.position}{p.nflTeam ? ` · ${p.nflTeam}` : ""}
-                </span>
-              </div>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {draftPicks.map((p, i) => (
+              <span
+                key={i}
+                className="text-xs px-2 py-1 rounded-sm"
+                style={{ background: C.ink, border: `1px solid ${C.line}`, fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                {p.season} R{p.round}{p.viaTrade ? " *" : ""}
+              </span>
             ))}
           </div>
         )}
+        {draftPicks && draftPicks.some((p) => p.viaTrade) && (
+          <div className="text-xs mb-4" style={{ color: C.slate }}>* acquired via trade</div>
+        )}
 
-        <div className="mt-4 text-xs" style={{ color: C.slate }}>
-          Draft picks aren't shown yet — still deciding the right shape for that with Lainey.
+        <div className="pt-3 text-xs" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>
+          Team history — coming soon.
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Visual bracket system: real connected tournament-tree diagrams (SVG),
+// using each coach's real Sleeper avatar next to the team name to save
+// room — there's no real "team logo" data source, so this is the closest
+// legitimate visual identifier available rather than a fabricated logo.
+// Later rounds show "Winner of Match N" placeholders until real games are
+// played; this only builds the seeding/shape, not live progression.
+const BOX_W = 168;
+const BOX_H = 40;
+
+function BracketBox({ x, y, entry, seed, highlight }) {
+  const [broken, setBroken] = useState(false);
+  const isPlaceholder = typeof entry === "string";
+  const name = isPlaceholder ? entry : entry ? entry.team : "—";
+  const avatar = !isPlaceholder && entry ? entry.avatar : null;
+  const initial = (!isPlaceholder && entry ? entry.coach : name || "?").trim().charAt(0).toUpperCase() || "?";
+  const label = name.length > 20 ? name.slice(0, 19) + "…" : name;
+
+  // Championship games auto-highlight gold; the fired/last-place game is
+  // flagged explicitly by whichever parent bracket knows it's the last one.
+  const mode = highlight || (entry === "Championship" ? "champion" : null);
+  const boxStroke = mode === "champion" ? C.gold : mode === "fired" ? C.ember : C.line;
+  const boxFill = mode === "champion" ? "rgba(232,163,61,0.14)" : mode === "fired" ? "rgba(212,96,76,0.14)" : C.panel;
+
+  return (
+    <g>
+      <rect x={x} y={y} width={BOX_W} height={BOX_H} rx="4" fill={boxFill} stroke={boxStroke} strokeWidth={mode ? "2" : "1"} />
+      {!isPlaceholder && (
+        avatar && !broken ? (
+          <image
+            href={`https://sleepercdn.com/avatars/thumbs/${avatar}`}
+            x={x + 5} y={y + (BOX_H - 28) / 2} width={28} height={28}
+            clipPath="inset(0% round 14px)"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <>
+            <circle cx={x + 19} cy={y + BOX_H / 2} r={14} fill={C.panelHi} stroke={C.line} />
+            <text x={x + 19} y={y + BOX_H / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill={C.gold}>{initial}</text>
+          </>
+        )
+      )}
+      {seed && (
+        <text x={x + (isPlaceholder ? 8 : 40)} y={y + BOX_H / 2 - 3} fontSize="9" fill={C.slate} fontFamily="'IBM Plex Mono', monospace">
+          #{seed}
+        </text>
+      )}
+      <text
+        x={x + (isPlaceholder ? 8 : 40)}
+        y={y + BOX_H / 2 + (seed ? 11 : 4)}
+        fontSize="10.5"
+        fill={isPlaceholder ? (mode ? boxStroke : C.slate) : C.chalk}
+        fontFamily="'Barlow', sans-serif"
+        fontStyle={isPlaceholder ? "italic" : "normal"}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+// Right-angle "elbow" connector between two box edges.
+function elbowPath(x1, y1, x2, y2) {
+  const midX = (x1 + x2) / 2;
+  return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+}
+
+function Connector({ d }) {
+  return <path d={d} fill="none" stroke={C.line} strokeWidth="1.5" />;
+}
+
+// Simple left-to-right single-elimination tree: Round 1 -> (Semifinal) ->
+// Final. Used for top8/conference-division sub-brackets and division-only.
+function TreeBracket({ seeds, finalLabel = "Championship" }) {
+  const size = seeds.length <= 4 ? 4 : 8;
+  const pairs = size === 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1;
+  const colGap = 70;
+  const rowGap = 26;
+  const r1X = 0;
+  const r2X = r1X + BOX_W + colGap;
+  const r3X = r2X + BOX_W + colGap;
+  const r1Ys = pairs.map((_, i) => i * (BOX_H * 2 + rowGap * 2));
+  const r2Ys = [];
+  for (let i = 0; i < r1Ys.length; i += 2) {
+    r2Ys.push((r1Ys[i] + r1Ys[i + 1]) / 2);
+  }
+  const r3Y = r2Ys.length > 1 ? (r2Ys[0] + r2Ys[r2Ys.length - 1]) / 2 : r2Ys[0];
+  const width = size === 4 ? r2X + BOX_W : r3X + BOX_W;
+  const height = r1Ys[r1Ys.length - 1] + BOX_H;
+
+  const lines = [];
+  pairs.forEach(([a, b], i) => {
+    const y = r1Ys[i];
+    lines.push(<Connector key={`r1-${i}`} d={elbowPath(r1X + BOX_W, y + BOX_H / 2, r2X, r2Ys[Math.floor(i / 2)] + BOX_H / 2)} />);
+    // both matches in a pair feed the same r2 slot — draw both halves
+  });
+  if (size === 8) {
+    r2Ys.forEach((y, i) => {
+      lines.push(<Connector key={`r2-${i}`} d={elbowPath(r2X + BOX_W, y + BOX_H / 2, r3X, r3Y + BOX_H / 2)} />);
+    });
+  }
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.75}px`, height: "auto" }}>
+      {lines}
+      {pairs.map(([a, b], i) => (
+        <g key={i}>
+          <BracketBox x={r1X} y={r1Ys[i]} seed={a} entry={seeds[a - 1]} />
+          <BracketBox x={r1X} y={r1Ys[i] + BOX_H + rowGap} seed={b} entry={seeds[b - 1]} />
+        </g>
+      ))}
+      {r2Ys.map((y, i) => (
+        <BracketBox key={i} x={r2X} y={y} entry={size === 4 ? (r2Ys.length === 1 ? finalLabel : "Winner, Match " + (i * 2 + 1)) : `Winner, Match ${i + 1}`} />
+      ))}
+      {size === 8 && <BracketBox x={r3X} y={r3Y} entry={finalLabel} />}
+    </svg>
+  );
+}
+
+// Mirrored two-conference "everybody plays for placement" bracket (Sun
+// Belt, SoCo, Ivy, SWAC, GLIAC): East reads left-to-right, West reads
+// right-to-left. Each conference plays 2 Round-1 games (1v4, 2v3) —
+// winners meet in that conference's final, losers meet in that
+// conference's placement semi. The two conferences then cross over at
+// center for 4 placement games cascading down the page.
+function MirroredPlacementBracket({ east, west, eastName, westName, labels, fired }) {
+  const colGap = 46;
+  const eR1X = 0;
+  const eFinalX = eR1X + BOX_W + colGap;
+  const centerX = eFinalX + BOX_W + colGap;
+  const wFinalX = centerX + BOX_W + colGap;
+  const wR1X = wFinalX + BOX_W + colGap;
+  const width = wR1X + BOX_W;
+
+  const withinGameGap = 8;
+  const gameGap = 70;
+  const placementGap = 100;
+  const s1Y = 0;
+  const s4Y = s1Y + BOX_H + withinGameGap;
+  const s2Y = s4Y + BOX_H + gameGap;
+  const s3Y = s2Y + BOX_H + withinGameGap;
+  const g1Mid = (s1Y + s4Y) / 2 + BOX_H / 2;
+  const g2Mid = (s2Y + s3Y) / 2 + BOX_H / 2;
+  const finalY = (g1Mid + g2Mid) / 2 - BOX_H / 2;
+  const thirdY = finalY + BOX_H + placementGap;
+  const loserSemiY = thirdY + BOX_H + placementGap;
+  const seventhY = loserSemiY + BOX_H + placementGap;
+  const height = seventhY + BOX_H + (fired ? 24 : 0);
+
+  // A game's two seeds join at a single point, which then sends one line to
+  // the conference final (winner path) and one to the placement semi
+  // (loser path) — the same visual idea as a standard bracket "elbow", just
+  // with two destinations since we don't yet know who wins. destX is the
+  // actual x to connect into (differs for East, which reads left-to-right,
+  // vs West, which reads right-to-left).
+  const gameConnectors = (seedTopY, seedBotY, joinX, joinMid, destX) => (
+    <>
+      <Connector d={`M ${joinX} ${seedTopY + BOX_H / 2} L ${joinX} ${seedBotY + BOX_H / 2}`} />
+      <Connector d={elbowPath(joinX, joinMid, destX, finalY + BOX_H / 2)} />
+      <Connector d={elbowPath(joinX, joinMid, destX, loserSemiY + BOX_H / 2)} />
+    </>
+  );
+
+  return (
+    <div className="space-y-1 overflow-x-auto">
+      <div className="flex justify-between text-xs uppercase mb-1" style={{ color: C.slate }}>
+        <span>{eastName}</span>
+        <span>{westName}</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.68}px`, height: "auto" }}>
+        {/* East: two Round 1 games, each joining then branching to final (win) and loser-semi (lose) */}
+        {gameConnectors(s1Y, s4Y, eR1X + BOX_W, g1Mid, eFinalX)}
+        {gameConnectors(s2Y, s3Y, eR1X + BOX_W, g2Mid, eFinalX)}
+        {/* West mirrored — R1 boxes' output edge is their LEFT side, connecting back to West's final on their left */}
+        {gameConnectors(s1Y, s4Y, wR1X, g1Mid, wFinalX + BOX_W)}
+        {gameConnectors(s2Y, s3Y, wR1X, g2Mid, wFinalX + BOX_W)}
+        {/* Finals -> Championship / 3rd place */}
+        <Connector d={elbowPath(eFinalX + BOX_W, finalY + BOX_H / 2, centerX, finalY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX, finalY + BOX_H / 2, centerX + BOX_W, finalY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, finalY + BOX_H, eFinalX + BOX_W / 2, thirdY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, thirdY + BOX_H / 2, centerX, thirdY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, finalY + BOX_H, wFinalX + BOX_W / 2, thirdY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, thirdY + BOX_H / 2, centerX + BOX_W, thirdY + BOX_H / 2)} />
+        {/* Placement semis -> 5th / 7th place */}
+        <Connector d={elbowPath(eFinalX + BOX_W, loserSemiY + BOX_H / 2, centerX, loserSemiY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX, loserSemiY + BOX_H / 2, centerX + BOX_W, loserSemiY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, loserSemiY + BOX_H, eFinalX + BOX_W / 2, seventhY + BOX_H / 2)} />
+        <Connector d={elbowPath(eFinalX + BOX_W / 2, seventhY + BOX_H / 2, centerX, seventhY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, loserSemiY + BOX_H, wFinalX + BOX_W / 2, seventhY + BOX_H / 2)} />
+        <Connector d={elbowPath(wFinalX + BOX_W / 2, seventhY + BOX_H / 2, centerX + BOX_W, seventhY + BOX_H / 2)} />
+
+        <BracketBox x={eR1X} y={s1Y} seed={1} entry={east[0]} />
+        <BracketBox x={eR1X} y={s4Y} seed={4} entry={east[3]} />
+        <BracketBox x={eR1X} y={s2Y} seed={2} entry={east[1]} />
+        <BracketBox x={eR1X} y={s3Y} seed={3} entry={east[2]} />
+        <BracketBox x={eFinalX} y={finalY} entry="Winner, East final" />
+        <BracketBox x={eFinalX} y={loserSemiY} entry="Loser, East semi" />
+
+        <BracketBox x={wR1X} y={s1Y} seed={1} entry={west[0]} />
+        <BracketBox x={wR1X} y={s4Y} seed={4} entry={west[3]} />
+        <BracketBox x={wR1X} y={s2Y} seed={2} entry={west[1]} />
+        <BracketBox x={wR1X} y={s3Y} seed={3} entry={west[2]} />
+        <BracketBox x={wFinalX} y={finalY} entry="Winner, West final" />
+        <BracketBox x={wFinalX} y={loserSemiY} entry="Loser, West semi" />
+
+        <BracketBox x={centerX} y={finalY} entry={labels[0]} />
+        <BracketBox x={centerX} y={thirdY} entry={labels[1]} />
+        <BracketBox x={centerX} y={loserSemiY} entry={labels[2]} />
+        <BracketBox x={centerX} y={seventhY} entry={labels[3]} highlight={fired ? "fired" : undefined} />
+        {fired && (
+          <text x={centerX + BOX_W / 2} y={seventhY + BOX_H + 16} textAnchor="middle" fontSize="10" fontWeight="700" fill={C.ember}>
+            Toilet Bowl · Loser is FIRED
+          </text>
+        )}
+      </svg>
+    </div>
+  );
+}
+
+// Full NFL-style bracket: 8 seeds per conference means 3 real rounds
+// (Wild Card, Divisional, Conference Championship) instead of SWAC's 2, and
+// because Round 1 has 4 games instead of 2, the losers' side becomes its
+// own genuine mini-tournament (not a single flat placement game) before
+// crossing conferences. Every round has exactly 4 games per conference —
+// nothing is eliminated, everyone keeps playing toward a final rank.
+function NFLBracket({ east, west, eastName, westName, rankLabels, fired }) {
+  const pairs = BRACKET_PAIRS_R1; // [[1,8],[4,5],[3,6],[2,7]]
+  const colGap = 44;
+  const eR1X = 0;
+  const eR2X = eR1X + BOX_W + colGap;
+  const eR3X = eR2X + BOX_W + colGap;
+  const centerX = eR3X + BOX_W + colGap;
+  const wR3X = centerX + BOX_W + colGap;
+  const wR2X = wR3X + BOX_W + colGap;
+  const wR1X = wR2X + BOX_W + colGap;
+  const width = wR1X + BOX_W;
+
+  const gap = 8, gameGap = 40, semiGap = 80, gap3 = 90, bigGap = 140, dropGap = 70;
+
+  // R1 (Week 14): 8 boxes in game order — seed1,8 (Ga) / seed4,5 (Gb) / seed3,6 (Gc) / seed2,7 (Gd)
+  const y0 = 0, y1 = y0 + BOX_H + gap;
+  const y2 = y1 + BOX_H + gameGap, y3 = y2 + BOX_H + gap;
+  const y4 = y3 + BOX_H + semiGap, y5 = y4 + BOX_H + gap;
+  const y6 = y5 + BOX_H + gameGap, y7 = y6 + BOX_H + gap;
+  const r1Ys = [y0, y1, y2, y3, y4, y5, y6, y7];
+  const gaMid = (y0 + y1) / 2 + BOX_H / 2;
+  const gbMid = (y2 + y3) / 2 + BOX_H / 2;
+  const gcMid = (y4 + y5) / 2 + BOX_H / 2;
+  const gdMid = (y6 + y7) / 2 + BOX_H / 2;
+
+  // R2 winners' path (Week 15): SemiA from Ga+Gb winners, SemiB from Gc+Gd winners
+  const semiAY = (gaMid + gbMid) / 2 - BOX_H / 2;
+  const semiBY = (gcMid + gdMid) / 2 - BOX_H / 2;
+  // R3 winners' path (Week 16): Conference Championship (from Semi winners) + the
+  // "conference runner-up" game (Semi losers), which is what actually feeds 3rd place
+  const semiMidUpper = (semiAY + semiBY) / 2 + BOX_H / 2;
+  const confChampY = semiMidUpper - BOX_H - gap3;
+  const confMidY = semiMidUpper + gap3;
+
+  // R2 losers' path (Week 15): the 4 Round-1 losers form their OWN 2 games —
+  // positioned in a separate lower section since they share the same R1 boxes
+  const lowerStart = Math.max(y7, confMidY) + bigGap;
+  const lSemiAY = lowerStart;
+  const lSemiBY = lSemiAY + BOX_H + gameGap;
+  const semiMidLower = (lSemiAY + lSemiBY) / 2 + BOX_H / 2;
+  const confLowerWY = semiMidLower - BOX_H - gap3;
+  const confLowerLY = semiMidLower + gap3;
+
+  const height = confLowerLY + BOX_H + dropGap + BOX_H;
+
+  // Each R3 box's winner crosses conferences directly; its loser drops down
+  // slightly then crosses too — same "direct + drop" idea as the SWAC bracket,
+  // just done 4 times (Championship/3rd, 5th/7th, 9th/11th, 13th/15th).
+  const crossY = [
+    confChampY, confChampY + BOX_H + dropGap,
+    confMidY, confMidY + BOX_H + dropGap,
+    confLowerWY, confLowerWY + BOX_H + dropGap,
+    confLowerLY, confLowerLY + BOX_H + dropGap,
+  ];
+
+  const seedBoxesFor = (teamRows, x) =>
+    pairs.flatMap(([a, b], i) => [
+      <BracketBox key={`${x}-${a}`} x={x} y={r1Ys[i * 2]} seed={a} entry={teamRows[a - 1]} />,
+      <BracketBox key={`${x}-${b}`} x={x} y={r1Ys[i * 2 + 1]} seed={b} entry={teamRows[b - 1]} />,
+    ]);
+
+  // A Round-1 game's two seeds join at one point, then branch to its two
+  // eventual destinations — the winner's slot and the loser's slot.
+  const r1Connectors = (topY, botY, joinX, destWinX, destWinY, destLoseX, destLoseY) => {
+    const mid = (topY + botY) / 2 + BOX_H / 2;
+    return (
+      <>
+        <Connector d={`M ${joinX} ${topY + BOX_H / 2} L ${joinX} ${botY + BOX_H / 2}`} />
+        <Connector d={elbowPath(joinX, mid, destWinX, destWinY + BOX_H / 2)} />
+        <Connector d={elbowPath(joinX, mid, destLoseX, destLoseY + BOX_H / 2)} />
+      </>
+    );
+  };
+  // A single box (R2 or R3 slot) branches to its two next destinations.
+  const boxConnectors = (srcX, srcY, destAX, destAY, destBX, destBY) => (
+    <>
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destAX, destAY + BOX_H / 2)} />
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destBX, destBY + BOX_H / 2)} />
+    </>
+  );
+
+  const oneSide = (teamRows, r1X, r2X, r3X, mirrored) => {
+    const r1Out = mirrored ? r1X : r1X + BOX_W;
+    const r2In = mirrored ? r2X + BOX_W : r2X;
+    const r2Out = mirrored ? r2X : r2X + BOX_W;
+    const r3In = mirrored ? r3X + BOX_W : r3X;
+    const r3Out = mirrored ? r3X : r3X + BOX_W;
+    const centerIn = mirrored ? centerX + BOX_W : centerX;
+    return (
+      <>
+        {r1Connectors(y0, y1, r1Out, r2In, semiAY, r2In, lSemiAY)}
+        {r1Connectors(y2, y3, r1Out, r2In, semiAY, r2In, lSemiAY)}
+        {r1Connectors(y4, y5, r1Out, r2In, semiBY, r2In, lSemiBY)}
+        {r1Connectors(y6, y7, r1Out, r2In, semiBY, r2In, lSemiBY)}
+        {boxConnectors(r2Out, semiAY, r3In, confChampY, r3In, confMidY)}
+        {boxConnectors(r2Out, semiBY, r3In, confChampY, r3In, confMidY)}
+        {boxConnectors(r2Out, lSemiAY, r3In, confLowerWY, r3In, confLowerLY)}
+        {boxConnectors(r2Out, lSemiBY, r3In, confLowerWY, r3In, confLowerLY)}
+        {boxConnectors(r3Out, confChampY, centerIn, crossY[0], centerIn, crossY[1])}
+        {boxConnectors(r3Out, confMidY, centerIn, crossY[2], centerIn, crossY[3])}
+        {boxConnectors(r3Out, confLowerWY, centerIn, crossY[4], centerIn, crossY[5])}
+        {boxConnectors(r3Out, confLowerLY, centerIn, crossY[6], centerIn, crossY[7])}
+        {seedBoxesFor(teamRows, r1X)}
+        <BracketBox x={r2X} y={semiAY} entry="Winner, Game 1" />
+        <BracketBox x={r2X} y={semiBY} entry="Winner, Game 3" />
+        <BracketBox x={r2X} y={lSemiAY} entry="Loser, Game 1" />
+        <BracketBox x={r2X} y={lSemiBY} entry="Loser, Game 3" />
+        <BracketBox x={r3X} y={confChampY} entry="Conference Champion" />
+        <BracketBox x={r3X} y={confMidY} entry="Conference Runner-up" />
+        <BracketBox x={r3X} y={confLowerWY} entry="Winner, Placement Semi" />
+        <BracketBox x={r3X} y={confLowerLY} entry="Loser, Placement Semi" />
+      </>
+    );
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.6}px`, height: "auto" }}>
+        {oneSide(east, eR1X, eR2X, eR3X, false)}
+        {oneSide(west, wR1X, wR2X, wR3X, true)}
+        {rankLabels.map((label, i) => (
+          <BracketBox key={label} x={centerX} y={crossY[i]} entry={label} highlight={fired && i === rankLabels.length - 1 ? "fired" : undefined} />
+        ))}
+        {fired && (
+          <text x={centerX + BOX_W / 2} y={crossY[rankLabels.length - 1] + BOX_H + 16} textAnchor="middle" fontSize="10" fontWeight="700" fill={C.ember}>
+            Toilet Bowl · Loser is FIRED
+          </text>
+        )}
+      </svg>
+      <div className="flex justify-between text-xs uppercase mt-1" style={{ color: C.slate }}>
+        <span>{eastName}</span>
+        <span>{westName}</span>
+      </div>
+    </div>
+  );
+}
+
+// USFL/XFL's 10-team bracket: seeds 1-6 get a Week 14 bye, seeds 7-10 play
+// a Week 14 play-in (7v10, 8v9) first. The play-in winners then fill the
+// #7/#8 slots in a Round of 8 (Week 15), which cascades exactly like one
+// side of the NFL bracket (winners AND losers both keep playing) — except
+// since there's no second conference to cross with, each combining game
+// directly decides its placement pair (Championship/3rd, 5th/7th), no
+// extra "cross" step needed. The two Week 14 play-in LOSERS separately
+// play each other for 9th place — the source PDF's notation for that game
+// was ambiguous, so this is a stated assumption, not a certainty.
+function USFLXFLBracket({ seeds, rankLabels, fired }) {
+  const pairs = BRACKET_PAIRS_R1; // [[1,8],[4,5],[3,6],[2,7]] — "8"/"7" here are play-in winner slots
+  const colGap = 44;
+  const playInX = 0;
+  const r1X = playInX + BOX_W + colGap;
+  const r2X = r1X + BOX_W + colGap;
+  const r3X = r2X + BOX_W + colGap;
+  const width = r3X + BOX_W;
+
+  const gap = 8, gameGap = 40, semiGap = 80, gap3 = 90;
+
+  const y0 = 0, y1 = y0 + BOX_H + gap; // seed1, playin(8v9)-winner
+  const y2 = y1 + BOX_H + gameGap, y3 = y2 + BOX_H + gap; // seed4, seed5
+  const y4 = y3 + BOX_H + semiGap, y5 = y4 + BOX_H + gap; // seed3, seed6
+  const y6 = y5 + BOX_H + gameGap, y7 = y6 + BOX_H + gap; // seed2, playin(7v10)-winner
+  const r1Ys = [y0, y1, y2, y3, y4, y5, y6, y7];
+  const gaMid = (y0 + y1) / 2 + BOX_H / 2;
+  const gbMid = (y2 + y3) / 2 + BOX_H / 2;
+  const gcMid = (y4 + y5) / 2 + BOX_H / 2;
+  const gdMid = (y6 + y7) / 2 + BOX_H / 2;
+
+  const semiAY = (gaMid + gbMid) / 2 - BOX_H / 2;
+  const semiBY = (gcMid + gdMid) / 2 - BOX_H / 2;
+  const semiMidUpper = (semiAY + semiBY) / 2 + BOX_H / 2;
+  const champY = semiMidUpper - BOX_H - gap3;
+  const thirdY = semiMidUpper + gap3;
+
+  const lowerStart = Math.max(y7, thirdY) + 120;
+  const lSemiAY = lowerStart;
+  const lSemiBY = lSemiAY + BOX_H + gameGap;
+  const semiMidLower = (lSemiAY + lSemiBY) / 2 + BOX_H / 2;
+  const fifthY = semiMidLower - BOX_H - gap3;
+  const seventhY = semiMidLower + gap3;
+
+  // Play-in games, positioned to align roughly with the Round-of-8 slots
+  // they feed into, plus the separate 9th-place game from the two losers.
+  const playinAY = y1; // feeds "seed 8" slot — loser goes toward 9th place
+  const playinBY = y7; // feeds "seed 7" slot — loser goes toward 9th place
+  const ninthY = seventhY + BOX_H + 120;
+
+  const height = ninthY + BOX_H;
+
+  const r1Connectors = (topY, botY, joinX, destX, destWinY, destLoseY) => {
+    const mid = (topY + botY) / 2 + BOX_H / 2;
+    return (
+      <>
+        <Connector d={`M ${joinX} ${topY + BOX_H / 2} L ${joinX} ${botY + BOX_H / 2}`} />
+        <Connector d={elbowPath(joinX, mid, destX, destWinY + BOX_H / 2)} />
+        <Connector d={elbowPath(joinX, mid, destX, destLoseY + BOX_H / 2)} />
+      </>
+    );
+  };
+  const boxConnectors = (srcX, srcY, destX, destWinY, destLoseY) => (
+    <>
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destX, destWinY + BOX_H / 2)} />
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destX, destLoseY + BOX_H / 2)} />
+    </>
+  );
+
+  const roundOf8 = [
+    seeds[0], "Winner, #8 vs #9",
+    seeds[3], seeds[4],
+    seeds[2], seeds[5],
+    seeds[1], "Winner, #7 vs #10",
+  ];
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.72}px`, height: "auto" }}>
+        {/* play-in (Week 14) */}
+        <Connector d={`M ${playInX + BOX_W} ${playinAY + BOX_H / 2} L ${r1X} ${y1 + BOX_H / 2}`} />
+        <Connector d={`M ${playInX + BOX_W} ${playinBY + BOX_H / 2} L ${r1X} ${y7 + BOX_H / 2}`} />
+        <BracketBox x={playInX} y={playinAY} seed={8} entry={seeds[7]} />
+        <BracketBox x={playInX} y={playinAY + BOX_H + gap} seed={9} entry={seeds[8]} />
+        <BracketBox x={playInX} y={playinBY} seed={7} entry={seeds[6]} />
+        <BracketBox x={playInX} y={playinBY + BOX_H + gap} seed={10} entry={seeds[9]} />
+        {/* the two play-in losers cross for 9th place */}
+        <Connector d={elbowPath(playInX + BOX_W, playinAY + BOX_H + gap + BOX_H / 2, r3X, ninthY + BOX_H / 2)} />
+        <Connector d={elbowPath(playInX + BOX_W, playinBY + BOX_H + gap + BOX_H / 2, r3X, ninthY + BOX_H / 2)} />
+        <BracketBox x={r3X} y={ninthY} entry={rankLabels[4]} highlight={fired ? "fired" : undefined} />
+
+        {/* Round of 8 (Week 15) -> Semis/Loser-semis (Week 16) */}
+        {r1Connectors(y0, y1, r1X + BOX_W, r2X, semiAY, lSemiAY)}
+        {r1Connectors(y2, y3, r1X + BOX_W, r2X, semiAY, lSemiAY)}
+        {r1Connectors(y4, y5, r1X + BOX_W, r2X, semiBY, lSemiBY)}
+        {r1Connectors(y6, y7, r1X + BOX_W, r2X, semiBY, lSemiBY)}
+        {pairs.map(([a, b], i) => (
+          <g key={i}>
+            <BracketBox x={r1X} y={r1Ys[i * 2]} entry={roundOf8[i * 2]} />
+            <BracketBox x={r1X} y={r1Ys[i * 2 + 1]} entry={roundOf8[i * 2 + 1]} />
+          </g>
+        ))}
+
+        {/* Semis/Loser-semis -> Final placements (Week 17) */}
+        {boxConnectors(r2X + BOX_W, semiAY, r3X, champY, thirdY)}
+        {boxConnectors(r2X + BOX_W, semiBY, r3X, champY, thirdY)}
+        {boxConnectors(r2X + BOX_W, lSemiAY, r3X, fifthY, seventhY)}
+        {boxConnectors(r2X + BOX_W, lSemiBY, r3X, fifthY, seventhY)}
+        <BracketBox x={r2X} y={semiAY} entry="Winner, Game 1" />
+        <BracketBox x={r2X} y={semiBY} entry="Winner, Game 3" />
+        <BracketBox x={r2X} y={lSemiAY} entry="Loser, Game 1" />
+        <BracketBox x={r2X} y={lSemiBY} entry="Loser, Game 3" />
+
+        <BracketBox x={r3X} y={champY} entry={rankLabels[0]} />
+        <BracketBox x={r3X} y={thirdY} entry={rankLabels[1]} />
+        <BracketBox x={r3X} y={fifthY} entry={rankLabels[2]} />
+        <BracketBox x={r3X} y={seventhY} entry={rankLabels[3]} />
+      </svg>
+      <p className="text-xs mt-1" style={{ color: C.slate }}>
+        {rankLabels[4]} is unique to this format: the two Week 14 play-in losers play three straight weeks (Gm 1/3, 2/3, 3/3),
+        and whoever's combined score across all three is higher takes it.
+      </p>
+      {fired && <p className="text-xs mt-1" style={{ color: C.ember }}>{rankLabels[4]} loser is fired.</p>}
+    </div>
+  );
+}
+
+// SEC/Big 12/ACC/Big Ten: a clean 8-seed field, no conferences and no
+// play-in — but everyone still plays through Week 17, same cascade as one
+// side of the USFL/XFL bracket, just without that Week 14 layer.
+function SingleBracket8({ seeds, rankLabels, fired }) {
+  const colGap = 44;
+  const leftR1X = 0;
+  const leftR2X = leftR1X + BOX_W + colGap;
+  const centerX = leftR2X + BOX_W + colGap;
+  const rightR2X = centerX + BOX_W + colGap;
+  const rightR1X = rightR2X + BOX_W + colGap;
+  const width = rightR1X + BOX_W;
+
+  const gap = 8, gameGap = 40, gap3 = 90, sectionGap = 120;
+
+  const y0 = 0, y1 = y0 + BOX_H + gap;
+  const y2 = y1 + BOX_H + gameGap, y3 = y2 + BOX_H + gap;
+  const gaMid = (y0 + y1) / 2 + BOX_H / 2;
+  const gbMid = (y2 + y3) / 2 + BOX_H / 2;
+  const semiY = (gaMid + gbMid) / 2 - BOX_H / 2;
+  const lSemiY = semiY + BOX_H + sectionGap;
+
+  const champY = semiY;
+  const thirdY = semiY + BOX_H + gap3;
+  const fifthY = lSemiY;
+  const seventhY = lSemiY + BOX_H + gap3;
+
+  const height = seventhY + BOX_H;
+
+  const r1Connectors = (topY, botY, joinX, destX, destWinY, destLoseY) => {
+    const mid = (topY + botY) / 2 + BOX_H / 2;
+    return (
+      <>
+        <Connector d={`M ${joinX} ${topY + BOX_H / 2} L ${joinX} ${botY + BOX_H / 2}`} />
+        <Connector d={elbowPath(joinX, mid, destX, destWinY + BOX_H / 2)} />
+        <Connector d={elbowPath(joinX, mid, destX, destLoseY + BOX_H / 2)} />
+      </>
+    );
+  };
+  const boxConnectors = (srcX, srcY, destX, destWinY, destLoseY) => (
+    <>
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destX, destWinY + BOX_H / 2)} />
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destX, destLoseY + BOX_H / 2)} />
+    </>
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.68}px`, height: "auto" }}>
+        {/* left half: seed1v8, seed4v5 — reads left to right */}
+        {r1Connectors(y0, y1, leftR1X + BOX_W, leftR2X, semiY, lSemiY)}
+        {r1Connectors(y2, y3, leftR1X + BOX_W, leftR2X, semiY, lSemiY)}
+        <BracketBox x={leftR1X} y={y0} seed={1} entry={seeds[0]} />
+        <BracketBox x={leftR1X} y={y1} seed={8} entry={seeds[7]} />
+        <BracketBox x={leftR1X} y={y2} seed={4} entry={seeds[3]} />
+        <BracketBox x={leftR1X} y={y3} seed={5} entry={seeds[4]} />
+        {boxConnectors(leftR2X + BOX_W, semiY, centerX, champY, thirdY)}
+        {boxConnectors(leftR2X + BOX_W, lSemiY, centerX, fifthY, seventhY)}
+        <BracketBox x={leftR2X} y={semiY} entry="Winner, Game 1" />
+        <BracketBox x={leftR2X} y={lSemiY} entry="Loser, Game 1" />
+
+        {/* right half: seed3v6, seed2v7 — reads right to left, mirrored */}
+        {r1Connectors(y0, y1, rightR1X, rightR2X + BOX_W, semiY, lSemiY)}
+        {r1Connectors(y2, y3, rightR1X, rightR2X + BOX_W, semiY, lSemiY)}
+        <BracketBox x={rightR1X} y={y0} seed={3} entry={seeds[2]} />
+        <BracketBox x={rightR1X} y={y1} seed={6} entry={seeds[5]} />
+        <BracketBox x={rightR1X} y={y2} seed={2} entry={seeds[1]} />
+        <BracketBox x={rightR1X} y={y3} seed={7} entry={seeds[6]} />
+        {boxConnectors(rightR2X, semiY, centerX + BOX_W, champY, thirdY)}
+        {boxConnectors(rightR2X, lSemiY, centerX + BOX_W, fifthY, seventhY)}
+        <BracketBox x={rightR2X} y={semiY} entry="Winner, Game 3" />
+        <BracketBox x={rightR2X} y={lSemiY} entry="Loser, Game 3" />
+
+        {/* center: where both halves cross for the final placements */}
+        <BracketBox x={centerX} y={champY} entry={rankLabels[0]} />
+        <BracketBox x={centerX} y={thirdY} entry={rankLabels[1]} />
+        <BracketBox x={centerX} y={fifthY} entry={rankLabels[2]} />
+        <BracketBox x={centerX} y={seventhY} entry={rankLabels[3]} highlight={fired ? "fired" : undefined} />
+      </svg>
     </div>
   );
 }
@@ -746,11 +1633,12 @@ export default function App() {
   const [view, setView] = useState("home");
   const [tierKey, setTierKey] = useState("NFL");
   const [dirQuery, setDirQuery] = useState("");
+  const [club300Query, setClub300Query] = useState("");
   const [openRuleSections, setOpenRuleSections] = useState({ general: true });
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [playersDict, setPlayersDict] = useState(null);
-  const [playersLoading, setPlayersLoading] = useState(false);
+  const [draftDataCache, setDraftDataCache] = useState({});
+  const [draftDataLoading, setDraftDataLoading] = useState({});
   const [nflState, setNflState] = useState(null);
   const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
   const [standingsCache, setStandingsCache] = useState({});
@@ -790,6 +1678,7 @@ export default function App() {
         userId: u.user_id || null,
         avatar: u.avatar || null,
         playerIds: r.players || [],
+        division: (r.settings && r.settings.division) || null,
       };
     });
     rows.sort((a, b) => b.w - a.w || b.pts - a.pts);
@@ -946,6 +1835,119 @@ export default function App() {
     return Number.isFinite(n) ? n : null;
   };
 
+  // Computes playoff seeding from final regular-season standings, per the
+  // Rules doc's format for each tier. Returns null for tiers whose format
+  // isn't confirmed yet (see PLAYOFF_FORMAT above) — the bracket section
+  // just doesn't render for those rather than guessing.
+  const computeBracket = (tKey) => {
+    const format = PLAYOFF_FORMAT[tKey];
+    if (!format) return null;
+    const id = leagueMap[tKey];
+    const rows = id ? standingsCache[id] : null;
+    if (!rows || !rows.length) return null;
+
+    const sortByRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
+
+    if (format === "top8-cascade") {
+      const ranked = sortByRecord(rows.filter((r) => r.coach !== "—"));
+      return {
+        format,
+        playoffSeeds: ranked.slice(0, 8),
+        consolationSeeds: ranked.slice(8, 16),
+      };
+    }
+
+    if (format === "conference-division") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const confSeeds = {};
+      const confConsolation = {};
+      ["AFC", "NFC"].forEach((confName) => {
+        const confRows = active.filter((r) => nflConferenceFor(r.division) === confName);
+        const byDivision = {};
+        confRows.forEach((r) => {
+          (byDivision[r.division] = byDivision[r.division] || []).push(r);
+        });
+        const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
+        const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) }));
+        const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
+        const nonWinners = sortByRecord(confRows.filter((r) => !winnerRosterIds.has(r.rosterId)));
+        const wildcards = nonWinners.slice(0, 4);
+        const wildcardRosterIds = new Set(wildcards.map((r) => r.rosterId));
+        const consolation = nonWinners.filter((r) => !wildcardRosterIds.has(r.rosterId)).slice(0, 8);
+        confSeeds[confName] = [...winnersSeeded, ...wildcards];
+        confConsolation[confName] = consolation;
+      });
+      return {
+        format,
+        eastName: "NFC",
+        westName: "AFC",
+        playoffGroup: { east: confSeeds.NFC, west: confSeeds.AFC },
+        consolationGroup: { east: confConsolation.NFC, west: confConsolation.AFC },
+      };
+    }
+
+    if (format === "division-only") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const byDivision = {};
+      active.forEach((r) => {
+        (byDivision[r.division] = byDivision[r.division] || []).push(r);
+      });
+      const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
+      const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) }));
+      const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
+      const remaining = sortByRecord(active.filter((r) => !winnerRosterIds.has(r.rosterId)));
+      const wildcards = remaining.slice(0, 4);
+      return {
+        format,
+        brackets: [
+          { name: "Playoffs", seeds: [...winnersSeeded, ...wildcards] },
+          { name: "Consolation", seeds: remaining.slice(4, 12) },
+        ],
+      };
+    }
+
+    if (format === "conference-top4") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const divisions = [...new Set(active.map((r) => r.division))].sort((a, b) => a - b);
+      const names = TWO_CONF_NAMES[tKey] || {};
+      const [confA, confB] = divisions;
+      const eastName = names[confA] || `Conference ${confA}`;
+      const westName = names[confB] || `Conference ${confB}`;
+      const eastAll = sortByRecord(active.filter((r) => r.division === confA));
+      const westAll = sortByRecord(active.filter((r) => r.division === confB));
+      return {
+        format,
+        eastName,
+        westName,
+        // Playoff group = each conference's top 4 (produces final ranks 1-8).
+        // Consolation group = each conference's next 4 (produces ranks 9-16).
+        playoffGroup: { east: eastAll.slice(0, 4), west: westAll.slice(0, 4) },
+        consolationGroup: { east: eastAll.slice(4, 8), west: westAll.slice(4, 8) },
+      };
+    }
+
+    if (format === "division-playin") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const byDivision = {};
+      active.forEach((r) => {
+        (byDivision[r.division] = byDivision[r.division] || []).push(r);
+      });
+      const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
+      const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) })); // seeds 1-4, all byes
+      const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
+      const remaining = sortByRecord(active.filter((r) => !winnerRosterIds.has(r.rosterId)));
+      const wildcards = remaining.slice(0, 6); // seeds 5-10
+      const consolation = remaining.slice(6, 16); // seeds 11-20
+      return {
+        format,
+        seeds: [...winnersSeeded, ...wildcards], // index 0-9 = seed 1-10
+        consolation,
+      };
+    }
+
+    return null;
+  };
+
   const applicantsForTeam = (tKey, team) =>
     applications
       .filter((a) => a.tierKey === tKey && a.team === team)
@@ -990,6 +1992,145 @@ export default function App() {
   const demoRows = tierKey === "NFL" ? DEMO_NFL.map((r) => ({ ...r, maxPts: null })) : null;
   const rows = mode === "live" ? liveRows : demoRows;
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
+  const bracket = mode === "live" ? computeBracket(tierKey) : null;
+
+  // Groups the current tier's standings to match its real Sleeper
+  // conference/division structure — NFL gets conference > division nesting,
+  // USFL/XFL/FLHS get their 4 divisions/districts, the 5 two-conference
+  // leagues get their 2 conferences. Leagues without a confirmed conference
+  // structure (SEC, Big 12, ACC, Big Ten) return null and keep the single
+  // flat table, same as before.
+  const groupStandings = (tKey, allRows) => {
+    if (!allRows || !allRows.length) return null;
+    const byRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
+    const withDiv = allRows.filter((r) => r.division);
+    if (!withDiv.length) return null;
+
+    if (tKey === "NFL") {
+      const groups = ["AFC", "NFC"].map((confName) => {
+        const confRows = withDiv.filter((r) => nflConferenceFor(r.division) === confName);
+        const byDiv = {};
+        confRows.forEach((r) => (byDiv[r.division] = byDiv[r.division] || []).push(r));
+        const divisions = Object.keys(byDiv)
+          .sort((a, b) => a - b)
+          .map((d) => ({ name: NFL_DIVISIONS[d] || `Division ${d}`, rows: byRecord(byDiv[d]) }));
+        return { name: confName, divisions };
+      });
+      return { type: "nested", groups };
+    }
+
+    let names = null;
+    if (tKey === "FLHS") names = FLHS_DISTRICTS;
+    else if (tKey === "USFL" || tKey === "XFL") names = USFL_XFL_DIVISIONS;
+    else if (TWO_CONF_NAMES[tKey]) names = TWO_CONF_NAMES[tKey];
+    if (!names) return null;
+
+    const byDiv = {};
+    withDiv.forEach((r) => (byDiv[r.division] = byDiv[r.division] || []).push(r));
+    const groups = Object.keys(byDiv)
+      .sort((a, b) => a - b)
+      .map((d) => ({ name: names[d] || `Group ${d}`, rows: byRecord(byDiv[d]) }));
+    return groups.length ? { type: "flat", groups } : null;
+  };
+
+  const standingsGroups = mode === "live" ? groupStandings(tierKey, rows) : null;
+  const overallLastRosterId = rows && rows.length ? rows[rows.length - 1].rosterId : null;
+
+  // Colors the standings "#" column to show who's actually clinched a
+  // playoff spot and how: green for a spot that's automatic regardless of
+  // overall record (a division/conference winner), gold for a spot earned
+  // by ranking rather than a guarantee. Only applies to tiers with a
+  // confirmed format — everything else keeps the plain slate numbering.
+  const seedColors = useMemo(() => {
+    const colors = {};
+    if (mode !== "live" || !rows || !rows.length) return colors;
+    const byRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
+    const format = PLAYOFF_FORMAT[tierKey];
+    const active = rows.filter((r) => r.coach !== "—");
+
+    if (format === "top8-cascade") {
+      byRecord(active).forEach((r, i) => {
+        if (i === 0) colors[r.rosterId] = "green";
+        else if (i < 8) colors[r.rosterId] = "gold";
+      });
+    } else if (format === "conference-top4") {
+      const withDiv = active.filter((r) => r.division);
+      const divisions = [...new Set(withDiv.map((r) => r.division))];
+      divisions.forEach((d) => {
+        byRecord(withDiv.filter((r) => r.division === d)).forEach((r, i) => {
+          if (i === 0) colors[r.rosterId] = "green";
+          else if (i < 4) colors[r.rosterId] = "gold";
+        });
+      });
+    } else if (format === "division-only") {
+      const withDiv = active.filter((r) => r.division);
+      const byDivision = {};
+      withDiv.forEach((r) => (byDivision[r.division] = byDivision[r.division] || []).push(r));
+      const divisionWinners = Object.values(byDivision).map((teams) => byRecord(teams)[0]);
+      divisionWinners.forEach((r) => (colors[r.rosterId] = "green"));
+      const winnerIds = new Set(divisionWinners.map((r) => r.rosterId));
+      byRecord(withDiv.filter((r) => !winnerIds.has(r.rosterId)))
+        .slice(0, 4)
+        .forEach((r) => (colors[r.rosterId] = "gold"));
+    }
+    return colors;
+  }, [mode, rows, tierKey]);
+
+  const renderStandingsRows = (tableRows) =>
+    tableRows.map((r, i) => {
+      const isLast = standingsGroups ? r.rosterId === overallLastRosterId : i >= tableRows.length - 1;
+      const seedColor = seedColors[r.rosterId];
+      const placeColor = seedColor === "green" ? C.turf : seedColor === "gold" ? C.gold : C.slate;
+      return (
+        <tr
+          key={r.coach + i}
+          style={{
+            background: isLast ? "rgba(212,96,76,0.10)" : i % 2 ? "rgba(255,255,255,0.02)" : "transparent",
+            borderTop: `1px solid ${C.line}`,
+          }}
+        >
+          <td className="px-3 py-2" style={{ color: placeColor, fontWeight: seedColor ? 700 : 400 }}>{r.place}</td>
+          <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
+            <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
+              {r.coach}
+              <TrophyBadges name={r.coach} size={12} />
+            </button>
+            {isLast && (
+              <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
+                hot seat
+              </span>
+            )}
+          </td>
+          <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+            <button type="button" onClick={() => openTeamProfile(r, tierKey)} style={{ color: "inherit" }}>
+              {r.team}
+            </button>
+          </td>
+          <td className="px-3 py-2 text-right whitespace-nowrap">
+            <span style={{ color: C.turf }}>{r.w}</span>
+            <span style={{ color: C.slate }}>–</span>
+            <span style={{ color: C.ember }}>{r.l}</span>
+          </td>
+          <td className="px-3 py-2 text-right">{fmt(r.pts)}</td>
+          <td className="px-3 py-2 text-right" style={{ color: C.gold }}>
+            {mode === "live" ? fmt(r.maxPts) : fmt(r.cp)}
+          </td>
+        </tr>
+      );
+    });
+
+  const StandingsTable = ({ tableRows }) => (
+    <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
+      <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ background: C.panel, color: C.slate }}>
+            {["#", "Coach", "Team", "W–L", "PF", mode === "live" ? "Max PF" : "CP"].map((h, i) => th(h, i))}
+          </tr>
+        </thead>
+        <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{renderStandingsRows(tableRows)}</tbody>
+      </table>
+    </div>
+  );
 
   const hotSeatFor = (tKey) => {
     if (mode === "live") {
@@ -1023,6 +2164,7 @@ export default function App() {
             l: r.l,
             maxPts: r.maxPts,
             playerIds: r.playerIds,
+            rosterId: r.rosterId,
           });
         });
       });
@@ -1043,6 +2185,58 @@ export default function App() {
     return list;
   }, [mode, leagueMap, standingsCache]);
 
+  const [coachSort, setCoachSort] = useState({ key: "cp", dir: "desc" });
+
+  // Every coach with career data on file, resolved to whichever team they
+  // currently hold (same rule as the profile popup) — never a mix-and-match
+  // of a different league's numbers.
+  const allCoachesTable = useMemo(() => {
+    return Object.entries(CAREER_STATS).map(([lowerName, entries]) => {
+      const dirEntry = coachDirectory.find((c) => c.name.toLowerCase() === lowerName);
+      const match = dirEntry ? entries.find((e) => e.tierKey === dirEntry.tierKey) : null;
+      const chosen = match || entries[0];
+      const s = chosen.stats;
+      const parseNum = (v) => {
+        const n = parseFloat(String(v).replace("%", ""));
+        return Number.isFinite(n) ? n : -Infinity;
+      };
+      const [wStr, lStr] = (s["Record"] || "").split("-");
+      return {
+        name: dirEntry ? dirEntry.name : lowerName,
+        team: chosen.team,
+        tierKey: chosen.tierKey,
+        cp: parseNum(s["Career CP"]),
+        wins: parseNum(wStr),
+        losses: parseNum(lStr),
+        winPct: parseNum(s["Win %"]),
+        totalPts: parseNum(s["Total Points"]),
+        record: s["Record"],
+        maxPts: match ? dirEntry.maxPts : undefined,
+        rosterId: match ? dirEntry.rosterId : undefined,
+      };
+    });
+  }, [coachDirectory]);
+
+  const sortedCoachesTable = useMemo(() => {
+    const arr = [...allCoachesTable];
+    const { key, dir } = coachSort;
+    arr.sort((a, b) => {
+      let av = a[key];
+      let bv = b[key];
+      if (typeof av === "string") {
+        av = av.toLowerCase();
+        bv = bv.toLowerCase();
+        return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      return dir === "asc" ? av - bv : bv - av;
+    });
+    return arr;
+  }, [allCoachesTable, coachSort]);
+
+  const toggleCoachSort = (key) => {
+    setCoachSort((prev) => (prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
+  };
+
   const findCoachAvatar = (name) => {
     const hit = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
     return hit ? hit.avatar : null;
@@ -1053,33 +2247,63 @@ export default function App() {
     setSelectedCoach(hit || { name, avatar: null, team: null, tierKey: null, tierName: null });
   };
 
-  // Sleeper's full player dictionary is a large, mostly-static file — fetch
-  // it once, lazily, the first time someone actually opens a team roster,
-  // rather than on every page load. Kept in memory only (not localStorage)
-  // since it's sizeable and this avoids any storage-quota surprises.
-  const ensurePlayersLoaded = useCallback(async () => {
-    if (playersDict || playersLoading) return;
-    setPlayersLoading(true);
+  // Draft-pick ownership (including trades) is fetched lazily per league,
+  // the first time someone opens a team profile in that league — not on
+  // every page load, and not for leagues nobody's looked at yet.
+  const ensureDraftDataLoaded = useCallback(async (leagueId) => {
+    if (!leagueId || draftDataCache[leagueId] || draftDataLoading[leagueId]) return;
+    setDraftDataLoading((prev) => ({ ...prev, [leagueId]: true }));
     try {
-      const data = await j(`${SLEEPER}/players/nfl`);
-      setPlayersDict(data);
+      const [tradedPicks, drafts] = await Promise.all([
+        j(`${SLEEPER}/league/${leagueId}/traded_picks`),
+        j(`${SLEEPER}/league/${leagueId}/drafts`),
+      ]);
+      const rounds = (drafts && drafts[0] && drafts[0].settings && drafts[0].settings.rounds) || 4;
+      setDraftDataCache((prev) => ({ ...prev, [leagueId]: { tradedPicks: tradedPicks || [], rounds } }));
     } catch (e) {
-      setPlayersDict({});
+      setDraftDataCache((prev) => ({ ...prev, [leagueId]: { tradedPicks: [], rounds: 4 } }));
     } finally {
-      setPlayersLoading(false);
+      setDraftDataLoading((prev) => ({ ...prev, [leagueId]: false }));
     }
-  }, [playersDict, playersLoading]);
+  }, [draftDataCache, draftDataLoading]);
+
+  // Which picks a roster currently owns for the next 3 seasons, accounting
+  // for trades — a pick traded away drops off this roster's list, and a
+  // pick acquired from another roster is added (flagged "via trade").
+  const ownedPicksFor = (leagueId, rosterId) => {
+    const data = draftDataCache[leagueId];
+    if (!data || !rosterId) return null;
+    const { tradedPicks, rounds } = data;
+    const startSeason = nflState ? parseInt(nflState.season, 10) : new Date().getFullYear();
+    const picks = [];
+    for (let yearOffset = 0; yearOffset < 3; yearOffset++) {
+      const season = String(startSeason + yearOffset);
+      for (let round = 1; round <= rounds; round++) {
+        const tradedAway = tradedPicks.find(
+          (p) => String(p.season) === season && p.round === round && p.roster_id === rosterId && p.owner_id !== rosterId
+        );
+        if (!tradedAway) picks.push({ season, round, viaTrade: false });
+      }
+      tradedPicks
+        .filter((p) => String(p.season) === season && p.owner_id === rosterId && p.roster_id !== rosterId)
+        .forEach((p) => picks.push({ season, round: p.round, viaTrade: true }));
+    }
+    picks.sort((a, b) => (a.season === b.season ? a.round - b.round : a.season.localeCompare(b.season)));
+    return picks;
+  };
 
   const openTeamProfile = (row, tKey) => {
     const t = TIERS.find((x) => x.key === tKey);
+    const leagueId = leagueMap[tKey];
     setSelectedTeam({
       team: row.team,
       tierKey: tKey,
       tierName: t ? t.name : tKey,
       maxPts: row.maxPts,
-      playerIds: row.playerIds || [],
+      rosterId: row.rosterId,
+      leagueId,
     });
-    if (mode === "live") ensurePlayersLoaded();
+    if (mode === "live" && leagueId && row.rosterId) ensureDraftDataLoaded(leagueId);
   };
 
   const filteredDirectory = useMemo(() => {
@@ -1227,7 +2451,7 @@ export default function App() {
           <nav className="mt-4 flex overflow-x-auto">
             <Tab id="home">Home</Tab>
             <Tab id="standings">Standings</Tab>
-            <Tab id="coaches">Top Coaches</Tab>
+            <Tab id="coaches">Coaches</Tab>
             <Tab id="directory">Directory</Tab>
             <Tab id="pyramid">Rules</Tab>
             <Tab id="300club">300 Club</Tab>
@@ -1356,6 +2580,7 @@ export default function App() {
                               style={{ color: m.name === coachName ? C.gold : C.chalk }}
                             >
                               {m.name}
+                              <TrophyBadges name={m.name} size={11} />
                             </button>
                             <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
                             {commish && (
@@ -1507,7 +2732,7 @@ export default function App() {
                           <span
                             className="text-xs"
                             style={{ fontFamily: "'IBM Plex Mono', monospace", color: active ? C.ink : C.gold }}
-                            title="Conference Strength — higher means tougher competition relative to its comparison pool"
+                            title="Conference Strength - higher means tougher competition"
                           >
                             {conferenceStrength[t.key].score >= 0 ? "+" : ""}
                             {conferenceStrength[t.key].score.toFixed(1)}
@@ -1520,9 +2745,7 @@ export default function App() {
                 })}
               </div>
               <div className="hidden lg:block mt-3 text-xs leading-relaxed" style={{ color: C.slate }}>
-                Tier 1 pays the most coaching points. Finish last anywhere and you're fired. The number next to each tier is its
-                Conference Strength score — positive means tougher than its comparison pool, negative means easier. NFL stands
-                alone with nothing to compare against, so it isn't scored. Expect scores near zero until games are actually played.
+                Tier 1 earns the most coaching points. Finish last anywhere and you're fired.
               </div>
             </aside>
 
@@ -1531,89 +2754,38 @@ export default function App() {
                 <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
                   {tier.name}
                 </h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
-                  <a
-                    href={PLAYOFF_BRACKET_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs uppercase tracking-wider"
-                    style={{ color: C.gold }}
-                  >
-                    Playoff bracket ↗
-                  </a>
-                </div>
+                <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
               </div>
 
-              {conferenceStrength[tierKey] ? (
-                <div className="mb-4 text-xs" style={{ color: C.slate }}>
-                  Conference Strength:{" "}
-                  <span style={{ color: C.gold, fontWeight: 600 }}>
-                    {conferenceStrength[tierKey].score >= 0 ? "+" : ""}
-                    {conferenceStrength[tierKey].score.toFixed(1)}
-                  </span>{" "}
-                  against its {conferenceStrength[tierKey].poolSize}-league comparison pool. Positive means this tier's currently
-                  playing tougher; negative means easier. Expect it to sit near zero until real games are on the board.
-                </div>
-              ) : (
-                tierKey === "NFL" && (
-                  <div className="mb-4 text-xs" style={{ color: C.slate }}>
-                    NFL is the only league in its tier — nothing to compare it against, so it doesn't get a Conference Strength
-                    score.
-                  </div>
-                )
-              )}
-
               {rows ? (
-                <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
-                  <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: C.panel, color: C.slate }}>
-                        {["#", "Coach", "Team", "W–L", "PF", mode === "live" ? "Max PF" : "CP"].map((h, i) => th(h, i))}
-                      </tr>
-                    </thead>
-                    <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                      {rows.map((r, i) => {
-                        const isLast = i >= rows.length - 1;
-                        return (
-                          <tr
-                            key={r.coach + i}
-                            style={{
-                              background: isLast ? "rgba(212,96,76,0.10)" : i % 2 ? "rgba(255,255,255,0.02)" : "transparent",
-                              borderTop: `1px solid ${C.line}`,
-                            }}
-                          >
-                            <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{r.place}</td>
-                            <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
-                              <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
-                                {r.coach}
-                              </button>
-                              {isLast && (
-                                <span className="ml-2 px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm" style={{ background: "rgba(212,96,76,0.2)", color: C.ember }}>
-                                  hot seat
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
-                              <button type="button" onClick={() => openTeamProfile(r, tierKey)} style={{ color: "inherit" }}>
-                                {r.team}
-                              </button>
-                            </td>
-                            <td className="px-3 py-2 text-right whitespace-nowrap">
-                              <span style={{ color: C.turf }}>{r.w}</span>
-                              <span style={{ color: C.slate }}>–</span>
-                              <span style={{ color: C.ember }}>{r.l}</span>
-                            </td>
-                            <td className="px-3 py-2 text-right">{fmt(r.pts)}</td>
-                            <td className="px-3 py-2 text-right" style={{ color: C.gold }}>
-                              {mode === "live" ? fmt(r.maxPts) : fmt(r.cp)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                standingsGroups && standingsGroups.type === "nested" ? (
+                  <div className="space-y-6">
+                    {standingsGroups.groups.map((conf) => (
+                      <div key={conf.name}>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{conf.name}</div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {conf.divisions.map((div) => (
+                            <div key={div.name}>
+                              <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>{div.name}</div>
+                              <StandingsTable tableRows={div.rows} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : standingsGroups && standingsGroups.type === "flat" ? (
+                  <div className={`grid gap-4 ${standingsGroups.groups.length > 1 ? "md:grid-cols-2" : ""}`}>
+                    {standingsGroups.groups.map((g) => (
+                      <div key={g.name}>
+                        <div className="text-sm font-semibold mb-1.5" style={{ color: C.gold }}>{g.name}</div>
+                        <StandingsTable tableRows={g.rows} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <StandingsTable tableRows={rows} />
+                )
               ) : tierLoading ? (
                 <div className="py-16 text-center text-sm" style={{ color: C.slate }}>Loading {tier.key} from Sleeper…</div>
               ) : (
@@ -1644,6 +2816,116 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {bracket && (
+                <div className="mt-6">
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                    Playoff Bracket
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: C.slate }}>
+                    Based on final regular-season standings. Round-by-round results fill in as playoff weeks are played.
+                  </p>
+
+                  {bracket.format === "division-playin" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–10</div>
+                        <USFLXFLBracket
+                          seeds={bracket.seeds}
+                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"]}
+                        />
+                      </div>
+                      {bracket.consolation && bracket.consolation.length >= 10 && (
+                        <div>
+                          <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 11–20</div>
+                          <USFLXFLBracket
+                            seeds={bracket.consolation}
+                            rankLabels={["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"]}
+                            fired
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : bracket.format === "conference-top4" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs — ranks 1–8</div>
+                        <MirroredPlacementBracket
+                          east={bracket.playoffGroup.east}
+                          west={bracket.playoffGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          labels={["Championship", "3rd Place", "5th Place", "7th Place"]}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
+                        <MirroredPlacementBracket
+                          east={bracket.consolationGroup.east}
+                          west={bracket.consolationGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          labels={["9th Place", "11th Place", "13th Place", "15th Place"]}
+                          fired
+                        />
+                      </div>
+                    </div>
+                  ) : bracket.format === "conference-division" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs</div>
+                        <NFLBracket
+                          east={bracket.playoffGroup.east}
+                          west={bracket.playoffGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"]}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
+                        <NFLBracket
+                          east={bracket.consolationGroup.east}
+                          west={bracket.consolationGroup.west}
+                          eastName={bracket.eastName}
+                          westName={bracket.westName}
+                          rankLabels={["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"]}
+                          fired
+                        />
+                      </div>
+                    </div>
+                  ) : bracket.format === "top8-cascade" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–8</div>
+                        <SingleBracket8
+                          seeds={bracket.playoffSeeds}
+                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place"]}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
+                        <SingleBracket8
+                          seeds={bracket.consolationSeeds}
+                          rankLabels={["9th Place", "11th Place", "13th Place", "15th Place"]}
+                          fired
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`grid gap-6 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                      {bracket.brackets.map((b) => (
+                        <div key={b.name} className="overflow-x-auto">
+                          <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
+                          <div style={{ minWidth: b.seeds.length <= 4 ? "20rem" : "30rem" }}>
+                            <TreeBracket seeds={b.seeds} finalLabel={b.name === "Playoffs" ? "Championship" : "Top of Consolation"} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1742,44 +3024,78 @@ export default function App() {
 
         {view === "coaches" && (
           <section>
-            <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-              Career Coaching Points
-            </h2>
+            <div className="flex items-baseline justify-between mb-1 gap-2 flex-wrap">
+              <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                Coaches
+              </h2>
+              <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>{allCoachesTable.length} on file</span>
+            </div>
             <p className="text-sm mb-4" style={{ color: C.slate }}>
-              The all-time ladder. Coaching points are earned by team performance, weighted by tier, and accrue season over season — never spent, only built on. Your total is your qualification the next time a job opens up.
+              Every coach with career data on file, resolved to their current team. Coaching points are earned by team
+              performance, weighted by tier, and accrue season over season — never spent, only built on. Click any column to sort.
             </p>
             <div className="overflow-x-auto rounded-sm" style={{ border: `1px solid ${C.line}` }}>
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: C.panel, color: C.slate }}>
-                    {["#", "Coach", "Team", "CP", "W–L", "Win %", "Career PF"].map((h, i) => th(h, i))}
+                    {[
+                      { key: "name", label: "Coach", right: false },
+                      { key: "team", label: "Team", right: false },
+                      { key: "tierKey", label: "Tier", right: false },
+                      { key: "cp", label: "CP", right: true },
+                      { key: "wins", label: "W–L", right: true },
+                      { key: "winPct", label: "Win %", right: true },
+                      { key: "totalPts", label: "Career PF", right: true },
+                    ].map((col) => (
+                      <th
+                        key={col.key}
+                        onClick={() => toggleCoachSort(col.key)}
+                        className={`px-3 py-2 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none ${col.right ? "text-right" : "text-left"}`}
+                        style={{ fontWeight: 500, color: coachSort.key === col.key ? C.gold : C.slate }}
+                      >
+                        {col.label}{coachSort.key === col.key ? (coachSort.dir === "asc" ? " ▲" : " ▼") : ""}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {DEMO_CAREER.map((r, i) => (
-                    <tr key={r.coach} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
-                      <td className="px-3 py-2" style={{ color: i < 3 ? C.gold : C.slate }}>{i + 1}</td>
+                  {sortedCoachesTable.map((r, i) => (
+                    <tr key={r.name + i} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
-                        <button type="button" onClick={() => openCoachProfile(r.coach)} style={{ color: "inherit" }}>
-                          {r.coach}
+                        <button type="button" onClick={() => openCoachProfile(r.name)} style={{ color: "inherit" }}>
+                          {r.name}
+                          <TrophyBadges name={r.name} size={12} />
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>{r.team}</td>
-                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>{fmt(r.cp)}</td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <span style={{ color: C.turf }}>{r.w}</span>
-                        <span style={{ color: C.slate }}>–</span>
-                        <span style={{ color: C.ember }}>{r.l}</span>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+                        <button type="button" onClick={() => openTeamProfile(r, r.tierKey)} style={{ color: "inherit" }}>
+                          {r.team}
+                        </button>
                       </td>
-                      <td className="px-3 py-2 text-right">{r.pct.toFixed(3)}</td>
-                      <td className="px-3 py-2 text-right">{fmt(r.pts)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
+                        {r.cp === -Infinity ? "—" : fmt(r.cp)}
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {r.record === "—" || !r.record ? (
+                          "—"
+                        ) : (
+                          <>
+                            <span style={{ color: C.turf }}>{r.wins}</span>
+                            <span style={{ color: C.slate }}>–</span>
+                            <span style={{ color: C.ember }}>{r.losses}</span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">{r.winPct === -Infinity ? "—" : `${r.winPct.toFixed(1)}%`}</td>
+                      <td className="px-3 py-2 text-right">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <p className="mt-3 text-xs" style={{ color: C.slate }}>
-              This table currently shows 2025 career data. Next step: it reads live from the Alliance sheet's published feed.
+              Static snapshot from the Admin tab export — refreshes whenever a new export is provided, not automatically.
             </p>
           </section>
         )}
@@ -1821,7 +3137,10 @@ export default function App() {
                 >
                   <Avatar name={c.name} avatar={c.avatar} size={38} />
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{c.name}</div>
+                    <div className="text-sm font-semibold truncate">
+                      {c.name}
+                      <TrophyBadges name={c.name} size={12} />
+                    </div>
                     <div className="text-xs truncate" style={{ color: C.slate }}>{c.team}</div>
                     <div className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>{c.tierKey}</div>
                   </div>
@@ -1902,11 +3221,39 @@ export default function App() {
                       <span className="text-xs" style={{ color: C.gold }}>{open ? "−" : "+"}</span>
                     </button>
                     {open && (
-                      <ul className="px-4 py-3 space-y-2 text-sm leading-relaxed list-disc" style={{ background: C.ink }}>
-                        {sec.items.map((item, i) => (
-                          <li key={i} style={{ color: C.chalk }}>{item}</li>
-                        ))}
-                      </ul>
+                      <div className="px-4 py-3" style={{ background: C.ink }}>
+                        {sec.intro && (
+                          <p className="text-xs mb-3" style={{ color: C.slate }}>{sec.intro}</p>
+                        )}
+                        {sec.items && (
+                          <ul className="space-y-2 text-sm leading-relaxed list-disc pl-4">
+                            {sec.items.map((item, i) => (
+                              <li key={i} style={{ color: C.chalk }}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {sec.rows && (
+                          <div className="space-y-1">
+                            {sec.rows.map((row, i) => (
+                              <div key={i} className="flex items-center gap-3 py-1" style={{ borderTop: i > 0 ? `1px solid ${C.line}` : "none" }}>
+                                <span
+                                  className="text-xs shrink-0 px-2 py-0.5 rounded-sm text-right"
+                                  style={{
+                                    minWidth: "4.5rem",
+                                    fontFamily: "'IBM Plex Mono', monospace",
+                                    fontWeight: 600,
+                                    color: row.value.trim().startsWith("-") ? C.ember : C.turf,
+                                    background: row.value.trim().startsWith("-") ? "rgba(212,96,76,0.1)" : "rgba(87,180,120,0.1)",
+                                  }}
+                                >
+                                  {row.value}
+                                </span>
+                                <span className="text-sm" style={{ color: C.chalk }}>{row.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
@@ -1921,28 +3268,111 @@ export default function App() {
         )}
 
         {view === "300club" && (
-          <section className="max-w-2xl">
-            <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-              The 300 Club
-            </h2>
-            <p className="text-sm mb-4" style={{ color: C.slate }}>300+ points in a single game. Immortality, in decimals.</p>
-            <div className="space-y-2">
-              {DEMO_300.map((r, i) => (
-                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                  <span className="text-2xl leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}>
-                    {fmt(r.pts)}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{r.coach}</div>
-                    <div className="text-xs truncate" style={{ color: C.slate }}>{r.team} · {r.conf} · Wk {r.week}, {r.year}</div>
+          <div className="flex flex-col lg:flex-row gap-6">
+            <section className="flex-1 min-w-0">
+              <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                The 300 Club
+              </h2>
+              <p className="text-sm mb-4" style={{ color: C.slate }}>
+                300+ points in a single game. Immortality, in decimals. {CLUB_300.length} games and counting.
+              </p>
+              <input
+                value={club300Query}
+                onChange={(e) => setClub300Query(e.target.value)}
+                placeholder="Search by coach or team…"
+                className="w-full px-3 py-2 text-sm rounded-sm outline-none mb-3"
+                style={{ background: C.panel, border: `1px solid ${C.line}`, color: C.chalk }}
+              />
+              <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: "42rem" }}>
+                {CLUB_300.filter((r) => {
+                  const q = club300Query.trim().toLowerCase();
+                  if (!q) return true;
+                  return r.coach.toLowerCase().includes(q) || r.team.toLowerCase().includes(q);
+                }).map((r, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                    <span className="text-xl leading-none w-20 shrink-0" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}>
+                      {fmt(r.pts)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <button type="button" onClick={() => openCoachProfile(r.coach)} className="text-sm font-semibold truncate block" style={{ color: "inherit" }}>
+                        {r.coach}
+                        <TrophyBadges name={r.coach} size={11} />
+                      </button>
+                      <div className="text-xs truncate" style={{ color: C.slate }}>
+                        <button
+                          type="button"
+                          onClick={() => openTeamProfile({ team: r.team, maxPts: undefined, playerIds: [] }, CONF_TO_TIER_KEY[r.conf] || r.conf)}
+                          style={{ color: "inherit" }}
+                        >
+                          {r.team}
+                        </button>{" "}
+                        · {r.conf} · Wk {r.week}, {r.year}
+                      </div>
+                    </div>
                   </div>
+                ))}
+              </div>
+            </section>
+
+            <aside className="lg:w-72 shrink-0 space-y-6">
+              <div>
+                <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                  MVP · Most Appearances
                 </div>
-              ))}
-            </div>
-            <p className="mt-4 text-xs" style={{ color: C.slate }}>
-              Trophy Room, weekly Hi/Lo, playoff brackets, and the calendar all get pages like this — each one a feed from the sheet or from Sleeper.
-            </p>
-          </section>
+                <div className="space-y-1">
+                  {CLUB_300_TOP_COACHES.map(([name, count]) => (
+                    <button
+                      type="button"
+                      key={name}
+                      onClick={() => openCoachProfile(name)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-sm text-left"
+                      style={{ background: C.panel, border: `1px solid ${C.line}` }}
+                    >
+                      <span className="truncate">
+                        {name}
+                        <TrophyBadges name={name} size={11} />
+                      </span>
+                      <span className="shrink-0 ml-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>{count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                  Most 300pt Teams
+                </div>
+                <div className="space-y-1">
+                  {CLUB_300_TOP_TEAMS.map(([name, count]) => (
+                    <div key={name} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                      <span className="truncate" style={{ color: C.chalk }}>{name}</span>
+                      <span className="shrink-0 ml-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                  By Conference
+                </div>
+                <div className="space-y-1">
+                  {CLUB_300_BY_CONF.map(([conf, count]) => {
+                    const max = CLUB_300_BY_CONF[0][1];
+                    return (
+                      <div key={conf} className="flex items-center gap-2 text-xs">
+                        <span className="w-12 shrink-0 uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, color: C.slate }}>{conf}</span>
+                        <div className="flex-1 rounded-sm overflow-hidden" style={{ background: C.ink, height: "0.9rem" }}>
+                          <div style={{ width: `${(count / max) * 100}%`, background: C.gold, height: "100%" }} />
+                        </div>
+                        <span className="w-5 text-right shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.chalk }}>{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </aside>
+          </div>
         )}
       </main>
 
@@ -1957,8 +3387,8 @@ export default function App() {
       <TeamProfileModal
         team={selectedTeam}
         onClose={() => setSelectedTeam(null)}
-        playersDict={playersDict}
-        playersLoading={playersLoading}
+        draftPicks={selectedTeam ? ownedPicksFor(selectedTeam.leagueId, selectedTeam.rosterId) : null}
+        draftPicksLoading={selectedTeam ? Boolean(draftDataLoading[selectedTeam.leagueId]) : false}
       />
     </div>
   );
