@@ -1502,7 +1502,9 @@ export default function App() {
 
     if (format === "conference-division") {
       const active = rows.filter((r) => r.coach !== "—" && r.division);
-      const conferences = ["AFC", "NFC"].flatMap((confName) => {
+      const playoffBrackets = [];
+      const consolationBrackets = [];
+      ["AFC", "NFC"].forEach((confName) => {
         const confRows = active.filter((r) => nflConferenceFor(r.division) === confName);
         const byDivision = {};
         confRows.forEach((r) => {
@@ -1515,12 +1517,10 @@ export default function App() {
         const wildcards = nonWinners.slice(0, 4);
         const wildcardRosterIds = new Set(wildcards.map((r) => r.rosterId));
         const consolation = nonWinners.filter((r) => !wildcardRosterIds.has(r.rosterId)).slice(0, 8);
-        return [
-          { name: `${confName} Playoffs`, seeds: [...winnersSeeded, ...wildcards] },
-          { name: `${confName} Consolation`, seeds: consolation },
-        ];
+        playoffBrackets.push({ name: `${confName} Playoffs`, seeds: [...winnersSeeded, ...wildcards] });
+        consolationBrackets.push({ name: `${confName} Consolation`, seeds: consolation });
       });
-      return { format, brackets: conferences };
+      return { format, playoffBrackets, consolationBrackets };
     }
 
     if (format === "division-only") {
@@ -2538,6 +2538,35 @@ export default function App() {
                           labels={["9th Place", "11th Place", "13th Place", "15th Place"]}
                           fired
                         />
+                      </div>
+                    </div>
+                  ) : bracket.format === "conference-division" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Playoffs</div>
+                        <div className="grid gap-6 sm:grid-cols-2">
+                          {bracket.playoffBrackets.map((b) => (
+                            <div key={b.name} className="overflow-x-auto">
+                              <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>{b.name}</div>
+                              <div style={{ minWidth: "30rem" }}>
+                                <TreeBracket seeds={b.seeds} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation</div>
+                        <div className="grid gap-6 sm:grid-cols-2">
+                          {bracket.consolationBrackets.map((b) => (
+                            <div key={b.name} className="overflow-x-auto">
+                              <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>{b.name}</div>
+                              <div style={{ minWidth: "30rem" }}>
+                                <TreeBracket seeds={b.seeds} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : (
