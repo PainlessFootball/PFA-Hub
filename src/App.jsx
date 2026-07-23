@@ -342,11 +342,14 @@ const divisionNameFor = (tKey, divNum) => {
   return null;
 };
 
-// Playoff format per tier, per the Rules doc. "top8": straight top-8 by
-// record, no conferences. "conference-division": NFL-style, 4 division
-// winners + 4 wildcards per conference. "division-only": same idea as
-// conference-division but a single group (no conference split) — FLHS's 4
-// districts. "conference-top4": top 4 teams from each of 2 conferences, no
+// Playoff format per tier, per the Rules doc. "top8-cascade": straight
+// top-8 by record, no conferences, but everyone plays through Week 17 —
+// same "winners and losers both keep playing" idea as the others, just
+// without a play-in or division wrinkle — SEC/Big 12/ACC/Big Ten.
+// "conference-division": NFL-style, 4 division winners + 4 wildcards per
+// conference. "division-only": same idea as conference-division but a
+// single group (no conference split) — FLHS's 4 districts.
+// "conference-top4": top 4 teams from each of 2 conferences, no
 // guaranteed division winners — Sun Belt/SoCo/Ivy/SWAC/GLIAC. "division-
 // playin": USFL/XFL's unusual 10-team field — 4 division winners (seeds
 // 1-4) get a bye, seeds 5-10 are wildcards, and a Week 14 play-in (7v10,
@@ -354,7 +357,7 @@ const divisionNameFor = (tKey, divNum) => {
 // to 8 before the main bracket begins.
 const PLAYOFF_FORMAT = {
   NFL: "conference-division",
-  SEC: "top8", "BIG XII": "top8", ACC: "top8", TEN: "top8",
+  SEC: "top8-cascade", "BIG XII": "top8-cascade", ACC: "top8-cascade", TEN: "top8-cascade",
   FLHS: "division-only",
   SUN: "conference-top4", SOCO: "conference-top4", IVY: "conference-top4",
   SWAC: "conference-top4", GLIAC: "conference-top4",
@@ -1540,6 +1543,88 @@ function USFLXFLBracket({ seeds, rankLabels, fired }) {
   );
 }
 
+// SEC/Big 12/ACC/Big Ten: a clean 8-seed field, no conferences and no
+// play-in — but everyone still plays through Week 17, same cascade as one
+// side of the USFL/XFL bracket, just without that Week 14 layer.
+function SingleBracket8({ seeds, rankLabels, fired }) {
+  const colGap = 44;
+  const leftR1X = 0;
+  const leftR2X = leftR1X + BOX_W + colGap;
+  const centerX = leftR2X + BOX_W + colGap;
+  const rightR2X = centerX + BOX_W + colGap;
+  const rightR1X = rightR2X + BOX_W + colGap;
+  const width = rightR1X + BOX_W;
+
+  const gap = 8, gameGap = 40, gap3 = 90, sectionGap = 120;
+
+  const y0 = 0, y1 = y0 + BOX_H + gap;
+  const y2 = y1 + BOX_H + gameGap, y3 = y2 + BOX_H + gap;
+  const gaMid = (y0 + y1) / 2 + BOX_H / 2;
+  const gbMid = (y2 + y3) / 2 + BOX_H / 2;
+  const semiY = (gaMid + gbMid) / 2 - BOX_H / 2;
+  const lSemiY = semiY + BOX_H + sectionGap;
+
+  const champY = semiY;
+  const thirdY = semiY + BOX_H + gap3;
+  const fifthY = lSemiY;
+  const seventhY = lSemiY + BOX_H + gap3;
+
+  const height = seventhY + BOX_H;
+
+  const r1Connectors = (topY, botY, joinX, destX, destWinY, destLoseY) => {
+    const mid = (topY + botY) / 2 + BOX_H / 2;
+    return (
+      <>
+        <Connector d={`M ${joinX} ${topY + BOX_H / 2} L ${joinX} ${botY + BOX_H / 2}`} />
+        <Connector d={elbowPath(joinX, mid, destX, destWinY + BOX_H / 2)} />
+        <Connector d={elbowPath(joinX, mid, destX, destLoseY + BOX_H / 2)} />
+      </>
+    );
+  };
+  const boxConnectors = (srcX, srcY, destX, destWinY, destLoseY) => (
+    <>
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destX, destWinY + BOX_H / 2)} />
+      <Connector d={elbowPath(srcX, srcY + BOX_H / 2, destX, destLoseY + BOX_H / 2)} />
+    </>
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.68}px`, height: "auto" }}>
+        {/* left half: seed1v8, seed4v5 — reads left to right */}
+        {r1Connectors(y0, y1, leftR1X + BOX_W, leftR2X, semiY, lSemiY)}
+        {r1Connectors(y2, y3, leftR1X + BOX_W, leftR2X, semiY, lSemiY)}
+        <BracketBox x={leftR1X} y={y0} seed={1} entry={seeds[0]} />
+        <BracketBox x={leftR1X} y={y1} seed={8} entry={seeds[7]} />
+        <BracketBox x={leftR1X} y={y2} seed={4} entry={seeds[3]} />
+        <BracketBox x={leftR1X} y={y3} seed={5} entry={seeds[4]} />
+        {boxConnectors(leftR2X + BOX_W, semiY, centerX, champY, thirdY)}
+        {boxConnectors(leftR2X + BOX_W, lSemiY, centerX, fifthY, seventhY)}
+        <BracketBox x={leftR2X} y={semiY} entry="Winner, Game 1" />
+        <BracketBox x={leftR2X} y={lSemiY} entry="Loser, Game 1" />
+
+        {/* right half: seed3v6, seed2v7 — reads right to left, mirrored */}
+        {r1Connectors(y0, y1, rightR1X, rightR2X + BOX_W, semiY, lSemiY)}
+        {r1Connectors(y2, y3, rightR1X, rightR2X + BOX_W, semiY, lSemiY)}
+        <BracketBox x={rightR1X} y={y0} seed={3} entry={seeds[2]} />
+        <BracketBox x={rightR1X} y={y1} seed={6} entry={seeds[5]} />
+        <BracketBox x={rightR1X} y={y2} seed={2} entry={seeds[1]} />
+        <BracketBox x={rightR1X} y={y3} seed={7} entry={seeds[6]} />
+        {boxConnectors(rightR2X, semiY, centerX + BOX_W, champY, thirdY)}
+        {boxConnectors(rightR2X, lSemiY, centerX + BOX_W, fifthY, seventhY)}
+        <BracketBox x={rightR2X} y={semiY} entry="Winner, Game 3" />
+        <BracketBox x={rightR2X} y={lSemiY} entry="Loser, Game 3" />
+
+        {/* center: where both halves cross for the final placements */}
+        <BracketBox x={centerX} y={champY} entry={rankLabels[0]} />
+        <BracketBox x={centerX} y={thirdY} entry={rankLabels[1]} />
+        <BracketBox x={centerX} y={fifthY} entry={rankLabels[2]} />
+        <BracketBox x={centerX} y={seventhY} entry={rankLabels[3]} highlight={fired ? "fired" : undefined} />
+      </svg>
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
@@ -1760,14 +1845,12 @@ export default function App() {
 
     const sortByRecord = (arr) => [...arr].sort((a, b) => b.w - a.w || b.pts - a.pts);
 
-    if (format === "top8") {
+    if (format === "top8-cascade") {
       const ranked = sortByRecord(rows.filter((r) => r.coach !== "—"));
       return {
         format,
-        brackets: [
-          { name: "Playoffs", seeds: ranked.slice(0, 8) },
-          { name: "Consolation", seeds: ranked.slice(8, 16) },
-        ],
+        playoffSeeds: ranked.slice(0, 8),
+        consolationSeeds: ranked.slice(8, 16),
       };
     }
 
@@ -2796,6 +2879,24 @@ export default function App() {
                           eastName={bracket.eastName}
                           westName={bracket.westName}
                           rankLabels={["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"]}
+                          fired
+                        />
+                      </div>
+                    </div>
+                  ) : bracket.format === "top8-cascade" ? (
+                    <div className="space-y-8">
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–8</div>
+                        <SingleBracket8
+                          seeds={bracket.playoffSeeds}
+                          rankLabels={["Championship", "3rd Place", "5th Place", "7th Place"]}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
+                        <SingleBracket8
+                          seeds={bracket.consolationSeeds}
+                          rankLabels={["9th Place", "11th Place", "13th Place", "15th Place"]}
                           fired
                         />
                       </div>
