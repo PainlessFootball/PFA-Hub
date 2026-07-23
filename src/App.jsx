@@ -1061,6 +1061,72 @@ function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading }) {
   );
 }
 
+// ── Bracket components: a real tournament-tree layout (rounds as columns),
+// using TEAM names rather than coach names. Later rounds show "Winner of
+// Match N" placeholders until the actual games are played — this only
+// builds the seeding/shape, not live progression.
+function BracketSlot({ seed, entry }) {
+  if (typeof entry === "string") {
+    return <div className="truncate" style={{ color: C.slate }}>{entry}</div>;
+  }
+  return (
+    <div className="truncate">
+      {seed && <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seed}</span>}{" "}
+      {entry ? entry.team : "—"}
+      {entry && entry.divisionName && <span style={{ color: C.gold }}> · {entry.divisionName}</span>}
+    </div>
+  );
+}
+
+function BracketMatch({ seedA, teamA, seedB, teamB }) {
+  return (
+    <div className="px-2.5 py-2 rounded-sm text-xs mb-3" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+      <BracketSlot seed={seedA} entry={teamA} />
+      <div className="text-center" style={{ color: C.slate, fontSize: "0.6rem", letterSpacing: "0.1em" }}>VS</div>
+      <BracketSlot seed={seedB} entry={teamB} />
+    </div>
+  );
+}
+
+function BracketColumns({ seeds }) {
+  const size = seeds.length <= 4 ? 4 : 8;
+  const pairs = size === 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1;
+  const r1 = pairs.map(([a, b]) => ({ seedA: a, teamA: seeds[a - 1], seedB: b, teamB: seeds[b - 1] }));
+
+  if (size === 4) {
+    return (
+      <div className="flex gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Round 1</div>
+          {r1.map((m, i) => <BracketMatch key={i} {...m} />)}
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Final</div>
+          <BracketMatch teamA="Winner, Match 1" teamB="Winner, Match 2" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Round 1</div>
+        {r1.map((m, i) => <BracketMatch key={i} {...m} />)}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-around">
+        <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Semifinal</div>
+        <BracketMatch teamA="Winner, Match 1" teamB="Winner, Match 2" />
+        <BracketMatch teamA="Winner, Match 3" teamB="Winner, Match 4" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Final</div>
+        <BracketMatch teamA="Semifinal 1 winner" teamB="Semifinal 2 winner" />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState("loading");
   const [view, setView] = useState("home");
@@ -2150,90 +2216,55 @@ export default function App() {
               {bracket && (
                 <div className="mt-6">
                   <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                    Playoff Seeding
+                    Playoff Bracket
                   </div>
                   <p className="text-xs mb-3" style={{ color: C.slate }}>
                     Based on final regular-season standings. Round-by-round results fill in as playoff weeks are played.
                   </p>
 
                   {bracket.format === "division-playin" ? (
-                    <div className="space-y-4">
-                      <div>
-                        <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.turf }}>Seeds 1–6 · Bye (Week 14)</div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                          {bracket.seeds.slice(0, 6).map((t, i) => (
-                            <div key={i} className="px-2.5 py-1.5 rounded-sm text-xs truncate" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                              <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{i + 1}</span> {t ? t.coach : "—"}
-                              {t && t.divisionName && <span style={{ color: C.gold }}> · {t.divisionName}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.gold }}>Play-In · Week 14</div>
-                        <div className="space-y-1">
-                          {[[7, 10], [8, 9]].map(([seedA, seedB], i) => {
-                            const teamA = bracket.seeds[seedA - 1];
-                            const teamB = bracket.seeds[seedB - 1];
-                            return (
-                              <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                                <span className="truncate">
-                                  <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedA}</span> {teamA ? teamA.coach : "—"}
-                                </span>
-                                <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
-                                <span className="truncate text-right">
-                                  {teamB ? teamB.coach : "—"} <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedB}</span>
-                                </span>
+                    <div className="space-y-4 overflow-x-auto">
+                      <div className="flex gap-3" style={{ minWidth: "42rem" }}>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs uppercase mb-2" style={{ color: C.turf }}>Bye · Week 14</div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {bracket.seeds.slice(0, 6).map((t, i) => (
+                              <div key={i} className="px-2.5 py-2 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                                <BracketSlot seed={i + 1} entry={t} />
                               </div>
-                            );
-                          })}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>Round of 8 · Week 15</div>
-                        <div className="space-y-1">
-                          {[
-                            { a: bracket.seeds[0], b: "Winner, #8 vs #9" },
-                            { a: bracket.seeds[3], b: bracket.seeds[4] },
-                            { a: bracket.seeds[2], b: bracket.seeds[5] },
-                            { a: bracket.seeds[1], b: "Winner, #7 vs #10" },
-                          ].map((pair, i) => (
-                            <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                              <span className="truncate">{pair.a ? pair.a.coach : "—"}</span>
-                              <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
-                              <span className="truncate text-right" style={{ color: typeof pair.b === "string" ? C.slate : C.chalk }}>
-                                {typeof pair.b === "string" ? pair.b : pair.b ? pair.b.coach : "—"}
-                              </span>
-                            </div>
-                          ))}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs uppercase mb-2" style={{ color: C.gold }}>Play-In · Week 14</div>
+                          <BracketMatch seedA={7} teamA={bracket.seeds[6]} seedB={10} teamB={bracket.seeds[9]} />
+                          <BracketMatch seedA={8} teamA={bracket.seeds[7]} seedB={9} teamB={bracket.seeds[8]} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Round of 8 · Week 15</div>
+                          <BracketMatch seedA={1} teamA={bracket.seeds[0]} teamB="Winner, #8 vs #9" />
+                          <BracketMatch seedA={4} teamA={bracket.seeds[3]} seedB={5} teamB={bracket.seeds[4]} />
+                          <BracketMatch seedA={3} teamA={bracket.seeds[2]} seedB={6} teamB={bracket.seeds[5]} />
+                          <BracketMatch seedA={2} teamA={bracket.seeds[1]} teamB="Winner, #7 vs #10" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-around">
+                          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Semifinal</div>
+                          <BracketMatch teamA="Winner, Match 1" teamB="Winner, Match 2" />
+                          <BracketMatch teamA="Winner, Match 3" teamB="Winner, Match 4" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <div className="text-xs uppercase mb-2" style={{ color: C.slate }}>Final</div>
+                          <BracketMatch teamA="Semifinal 1 winner" teamB="Semifinal 2 winner" />
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className={`grid gap-4 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                    <div className={`grid gap-6 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
                       {bracket.brackets.map((b) => (
-                        <div key={b.name}>
+                        <div key={b.name} className="overflow-x-auto">
                           <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
-                          <div className="space-y-1">
-                            {(b.seeds.length <= 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1).map(([seedA, seedB], i) => {
-                              const teamA = b.seeds[seedA - 1];
-                              const teamB = b.seeds[seedB - 1];
-                              return (
-                                <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                                  <span className="truncate">
-                                    <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedA}</span>{" "}
-                                    {teamA ? teamA.coach : "—"}
-                                    {teamA && teamA.divisionName && <span style={{ color: C.gold }}> · {teamA.divisionName}</span>}
-                                  </span>
-                                  <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
-                                  <span className="truncate text-right">
-                                    {teamB && teamB.divisionName && <span style={{ color: C.gold }}>{teamB.divisionName} · </span>}
-                                    {teamB ? teamB.coach : "—"}{" "}
-                                    <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedB}</span>
-                                  </span>
-                                </div>
-                              );
-                            })}
+                          <div style={{ minWidth: b.seeds.length <= 4 ? "20rem" : "30rem" }}>
+                            <BracketColumns seeds={b.seeds} />
                           </div>
                         </div>
                       ))}
