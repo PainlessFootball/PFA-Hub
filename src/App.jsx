@@ -2072,6 +2072,27 @@ export default function App() {
       byRecord(withDiv.filter((r) => !winnerIds.has(r.rosterId)))
         .slice(0, 4)
         .forEach((r) => (colors[r.rosterId] = "gold"));
+    } else if (format === "conference-division") {
+      const withDiv = active.filter((r) => r.division);
+      const byDivision = {};
+      withDiv.forEach((r) => (byDivision[r.division] = byDivision[r.division] || []).push(r));
+      const divisionWinners = Object.values(byDivision).map((teams) => byRecord(teams)[0]);
+      divisionWinners.forEach((r) => (colors[r.rosterId] = "green"));
+      const winnerIds = new Set(divisionWinners.map((r) => r.rosterId));
+      ["AFC", "NFC"].forEach((confName) => {
+        const confNonWinners = withDiv.filter((r) => nflConferenceFor(r.division) === confName && !winnerIds.has(r.rosterId));
+        byRecord(confNonWinners).slice(0, 4).forEach((r) => (colors[r.rosterId] = "gold"));
+      });
+    } else if (format === "division-playin") {
+      const withDiv = active.filter((r) => r.division);
+      const byDivision = {};
+      withDiv.forEach((r) => (byDivision[r.division] = byDivision[r.division] || []).push(r));
+      const divisionWinners = Object.values(byDivision).map((teams) => byRecord(teams)[0]);
+      divisionWinners.forEach((r) => (colors[r.rosterId] = "green"));
+      const winnerIds = new Set(divisionWinners.map((r) => r.rosterId));
+      byRecord(withDiv.filter((r) => !winnerIds.has(r.rosterId)))
+        .slice(0, 6)
+        .forEach((r) => (colors[r.rosterId] = "gold"));
     }
     return colors;
   }, [mode, rows, tierKey]);
@@ -2837,7 +2858,7 @@ export default function App() {
                           rankLabels={["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"]}
                         />
                       </div>
-                      {bracket.consolation && bracket.consolation.length >= 10 && (
+                      {bracket.consolation && bracket.consolation.length > 0 && (
                         <div>
                           <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 11–20</div>
                           <USFLXFLBracket
