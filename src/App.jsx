@@ -392,15 +392,14 @@ function draftPickCaption(rankLabels, pickTable, startRank) {
 // rank 10 — confirmed against both the SEC and FLHS tables exactly, so
 // this isn't a straight linear scale across 1-10. Places 11-16 are
 // identical, fixed values in every 16-team league regardless of which one
-// it is. FLHS's base (90) is confirmed directly and doesn't fit a clean
-// -5-per-league step from SEC's confirmed 140 over 10 leagues (that lands
-// FLHS at 95) — treated here as a deliberate larger final drop since it's
-// the one high-school-tier league, not just a typo. Worth confirming.
+// it is. Champion CP steps down 5 per league, SEC (140) through FLHS (95)
+// — a league that used to sit between GLIAC and FLHS has since folded,
+// which is why FLHS isn't one more step down at 90.
 const CP_OFFSETS_1_10 = [0, 5, 10, 15, 20, 25, 30, 35, 45, 50]; // subtracted from each league's champion CP
 const CP_TAIL_16 = [20, 10, 0, -5, -10, -15]; // ranks 11-16
 const CHAMPION_CP_16 = {
   SEC: 140, "BIG XII": 135, ACC: 130, TEN: 125, SUN: 120,
-  SOCO: 115, IVY: 110, SWAC: 105, GLIAC: 100, FLHS: 90,
+  SOCO: 115, IVY: 110, SWAC: 105, GLIAC: 100, FLHS: 95,
 };
 const cpForPlace16 = (tKey, place) =>
   place <= 10 ? CHAMPION_CP_16[tKey] - CP_OFFSETS_1_10[place - 1] : CP_TAIL_16[place - 11];
@@ -1621,10 +1620,10 @@ function SingleBracket8({ seeds, rankLabels, fired }) {
   const gaMid = (y0 + y1) / 2 + BOX_H / 2;
   const gbMid = (y2 + y3) / 2 + BOX_H / 2;
   const semiY = (gaMid + gbMid) / 2 - BOX_H / 2;
-  const lSemiY = semiY + BOX_H + sectionGap;
 
   const champY = semiY;
   const thirdY = semiY + BOX_H + gap3;
+  const lSemiY = thirdY + BOX_H + sectionGap;
   const fifthY = lSemiY;
   const seventhY = lSemiY + BOX_H + gap3;
 
