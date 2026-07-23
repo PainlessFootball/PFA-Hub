@@ -372,21 +372,34 @@ const DRAFT_PICKS_16 = [16, 15, 9, 10, 11, 12, 13, 14, 3, 4, 5, 6, 7, 8, 2, 1];
 const DRAFT_PICKS_20 = [20, 19, 11, 12, 13, 14, 15, 16, 17, 18, 3, 4, 5, 6, 7, 8, 9, 10, 2, 1];
 const DRAFT_PICKS_32 = [32, 31, 29, 30, 25, 26, 27, 28, 17, 18, 19, 20, 21, 22, 23, 24, 9, 10, 11, 12, 13, 14, 15, 16, 3, 4, 5, 6, 7, 8, 2, 1];
 
+// Turns 1/2/3/etc into "1st"/"2nd"/"3rd"/etc.
+function ordinal(n) {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+}
+
 // Builds the "which placement game sets which draft pick (and CP, for
 // 16-team leagues)" data — one row per rankLabel, each representing a game
 // that decides two consecutive final ranks (its winner and its loser).
+// Each outcome carries its own ineligible/fired status so the panel can
+// show it directly rather than as a separate blanket note.
 function placementInfoRows(rankLabels, pickTable, startRank, tKeyForCP) {
+  const totalTeams = pickTable.length;
+  const buildOutcome = (rank) => {
+    const pick = pickTable[rank - 1];
+    if (pick === undefined) return null;
+    const entry = { pick, fired: rank === totalTeams };
+    if (tKeyForCP) {
+      entry.cp = cpForPlace16(tKeyForCP, rank);
+      entry.ineligible = !entry.fired && !promotionEligible16(rank);
+    }
+    return entry;
+  };
   return rankLabels.map((label, i) => {
     const winRank = startRank + i * 2;
     const loseRank = winRank + 1;
-    const winPick = pickTable[winRank - 1];
-    const losePick = pickTable[loseRank - 1];
-    const row = { label, winPick, losePick };
-    if (tKeyForCP) {
-      row.winCP = cpForPlace16(tKeyForCP, winRank);
-      row.loseCP = cpForPlace16(tKeyForCP, loseRank);
-    }
-    return row;
+    return { label, win: buildOutcome(winRank), lose: buildOutcome(loseRank) };
   });
 }
 
@@ -415,24 +428,31 @@ const promotionEligible16 = (place) => place <= 11;
 
 // Compact reference panel meant to sit beside a bracket rather than as a
 // paragraph underneath it.
-function PlacementInfoPanel({ rows, note }) {
-  return (
-    <div className="shrink-0 rounded-sm p-3 text-xs" style={{ background: C.panel, border: `1px solid ${C.line}`, minWidth: "11rem" }}>
-      <div className="uppercase tracking-wider mb-2" style={{ color: C.slate, fontSize: "0.65rem", letterSpacing: "0.08em" }}>
-        Draft Order{rows[0].winCP !== undefined ? " & CP" : ""}
+function PlacementInfoPanel({ rows }) {
+  const hasCP = rows.some((r) => r.win && r.win.cp !== undefined);
+  const outcomeLine = (entry) => {
+    if (!entry) return null;
+    const status = entry.fired ? "FIRED" : entry.ineligible ? "INELIGIBLE" : null;
+    return (
+      <div style={{ color: status ? C.ember : C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
+        {ordinal(entry.pick)} pick{entry.cp !== undefined ? ` · ${entry.cp} CP` : ""}{status ? ` - ${status}` : ""}
       </div>
-      <div className="space-y-1.5">
+    );
+  };
+  return (
+    <div className="shrink-0 rounded-sm p-3 text-xs" style={{ background: C.panel, border: `1px solid ${C.line}`, minWidth: "12rem" }}>
+      <div className="uppercase tracking-wider mb-2" style={{ color: C.slate, fontSize: "0.65rem", letterSpacing: "0.08em" }}>
+        Draft Order{hasCP ? " & Coaching Points" : ""}
+      </div>
+      <div className="space-y-2">
         {rows.map((r) => (
           <div key={r.label}>
-            <div style={{ color: C.chalk }}>{r.label}</div>
-            <div style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
-              {r.winPick}{r.winCP !== undefined ? ` · ${r.winCP} CP` : ""}
-              {r.losePick ? ` / ${r.losePick}${r.loseCP !== undefined ? ` · ${r.loseCP} CP` : ""}` : ""}
-            </div>
+            <div className="font-semibold mb-0.5" style={{ color: C.chalk }}>{r.label}</div>
+            {outcomeLine(r.win)}
+            {outcomeLine(r.lose)}
           </div>
         ))}
       </div>
-      {note && <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>{note}</div>}
     </div>
   );
 }
@@ -2993,7 +3013,6 @@ export default function App() {
                           </div>
                           <PlacementInfoPanel
                             rows={placementInfoRows(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9, tierKey)}
-                            note="Ranks 12-16 ineligible for promotion."
                           />
                         </div>
                       </div>
@@ -3058,7 +3077,6 @@ export default function App() {
                           </div>
                           <PlacementInfoPanel
                             rows={placementInfoRows(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9, tierKey)}
-                            note="Ranks 12-16 ineligible for promotion."
                           />
                         </div>
                       </div>
