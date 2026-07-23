@@ -320,6 +320,10 @@ const nflConferenceFor = (divisionNum) => (divisionNum && divisionNum <= 4 ? "AF
 // Confirmed directly by Lainey.
 const FLHS_DISTRICTS = { 1: "District 13", 2: "District 14", 3: "District 15", 4: "District 16" };
 
+// USFL/XFL's 4 divisions (both leagues use the same names). Confirmed
+// directly by Lainey.
+const USFL_XFL_DIVISIONS = { 1: "North", 2: "South", 3: "East", 4: "West" };
+
 // Real conference names for the 5 two-conference leagues (Sleeper division
 // number -> name). Confirmed directly by Lainey.
 const TWO_CONF_NAMES = {
@@ -330,22 +334,31 @@ const TWO_CONF_NAMES = {
   GLIAC: { 1: "Great Lakes", 2: "Ohio Athletic" },
 };
 
+// Looks up a division's real name for any tier that has one on file.
+const divisionNameFor = (tKey, divNum) => {
+  if (tKey === "NFL") return NFL_DIVISIONS[divNum];
+  if (tKey === "FLHS") return FLHS_DISTRICTS[divNum];
+  if (tKey === "USFL" || tKey === "XFL") return USFL_XFL_DIVISIONS[divNum];
+  return null;
+};
+
 // Playoff format per tier, per the Rules doc. "top8": straight top-8 by
 // record, no conferences. "conference-division": NFL-style, 4 division
 // winners + 4 wildcards per conference. "division-only": same idea as
 // conference-division but a single group (no conference split) — FLHS's 4
 // districts. "conference-top4": top 4 teams from each of 2 conferences, no
-// guaranteed division winners — Sun Belt/SoCo/Ivy/SWAC/GLIAC. Real
-// conference names aren't confirmed yet for those 5, so they show as
-// "Conference 1"/"Conference 2" (generic, but functionally correct) until
-// Lainey sends the actual Sleeper division mapping. USFL/XFL's format is
-// still pending entirely — the bracket section won't render for those yet.
+// guaranteed division winners — Sun Belt/SoCo/Ivy/SWAC/GLIAC. "division-
+// playin": USFL/XFL's unusual 10-team field — 4 division winners (seeds
+// 1-4) get a bye, seeds 5-10 are wildcards, and a Week 14 play-in (7v10,
+// 8v9 — one week earlier than every other tier's Week 15 start) trims it
+// to 8 before the main bracket begins.
 const PLAYOFF_FORMAT = {
   NFL: "conference-division",
   SEC: "top8", "BIG XII": "top8", ACC: "top8", TEN: "top8",
   FLHS: "division-only",
   SUN: "conference-top4", SOCO: "conference-top4", IVY: "conference-top4",
   SWAC: "conference-top4", GLIAC: "conference-top4",
+  USFL: "division-playin", XFL: "division-playin",
 };
 
 // Standard fixed single-elimination bracket pairings.
@@ -1288,7 +1301,7 @@ export default function App() {
           (byDivision[r.division] = byDivision[r.division] || []).push(r);
         });
         const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
-        const winnersSeeded = sortByRecord(divisionWinners);
+        const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) }));
         const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
         const wildcards = sortByRecord(confRows.filter((r) => !winnerRosterIds.has(r.rosterId))).slice(0, 4);
         return { name: confName, seeds: [...winnersSeeded, ...wildcards] };
@@ -1303,7 +1316,7 @@ export default function App() {
         (byDivision[r.division] = byDivision[r.division] || []).push(r);
       });
       const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
-      const winnersSeeded = sortByRecord(divisionWinners);
+      const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) }));
       const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
       const remaining = sortByRecord(active.filter((r) => !winnerRosterIds.has(r.rosterId)));
       const wildcards = remaining.slice(0, 4);
@@ -1325,6 +1338,23 @@ export default function App() {
         seeds: sortByRecord(active.filter((r) => r.division === divNum)).slice(0, 4),
       }));
       return { format, brackets };
+    }
+
+    if (format === "division-playin") {
+      const active = rows.filter((r) => r.coach !== "—" && r.division);
+      const byDivision = {};
+      active.forEach((r) => {
+        (byDivision[r.division] = byDivision[r.division] || []).push(r);
+      });
+      const divisionWinners = Object.values(byDivision).map((teams) => sortByRecord(teams)[0]);
+      const winnersSeeded = sortByRecord(divisionWinners).map((r) => ({ ...r, divisionName: divisionNameFor(tKey, r.division) })); // seeds 1-4, all byes
+      const winnerRosterIds = new Set(winnersSeeded.map((r) => r.rosterId));
+      const remaining = sortByRecord(active.filter((r) => !winnerRosterIds.has(r.rosterId)));
+      const wildcards = remaining.slice(0, 6); // seeds 5-10
+      return {
+        format,
+        seeds: [...winnersSeeded, ...wildcards], // index 0-9 = seed 1-10
+      };
     }
 
     return null;
@@ -2125,32 +2155,90 @@ export default function App() {
                   <p className="text-xs mb-3" style={{ color: C.slate }}>
                     Based on final regular-season standings. Round-by-round results fill in as playoff weeks are played.
                   </p>
-                  <div className={`grid gap-4 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
-                    {bracket.brackets.map((b) => (
-                      <div key={b.name}>
-                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
+
+                  {bracket.format === "division-playin" ? (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.turf }}>Seeds 1–6 · Bye (Week 14)</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                          {bracket.seeds.slice(0, 6).map((t, i) => (
+                            <div key={i} className="px-2.5 py-1.5 rounded-sm text-xs truncate" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                              <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{i + 1}</span> {t ? t.coach : "—"}
+                              {t && t.divisionName && <span style={{ color: C.gold }}> · {t.divisionName}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.gold }}>Play-In · Week 14</div>
                         <div className="space-y-1">
-                          {(b.seeds.length <= 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1).map(([seedA, seedB], i) => {
-                            const teamA = b.seeds[seedA - 1];
-                            const teamB = b.seeds[seedB - 1];
+                          {[[7, 10], [8, 9]].map(([seedA, seedB], i) => {
+                            const teamA = bracket.seeds[seedA - 1];
+                            const teamB = bracket.seeds[seedB - 1];
                             return (
                               <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
                                 <span className="truncate">
-                                  <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedA}</span>{" "}
-                                  {teamA ? teamA.coach : "—"}
+                                  <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedA}</span> {teamA ? teamA.coach : "—"}
                                 </span>
                                 <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
                                 <span className="truncate text-right">
-                                  {teamB ? teamB.coach : "—"}{" "}
-                                  <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedB}</span>
+                                  {teamB ? teamB.coach : "—"} <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedB}</span>
                                 </span>
                               </div>
                             );
                           })}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-wider mb-1.5" style={{ color: C.slate }}>Round of 8 · Week 15</div>
+                        <div className="space-y-1">
+                          {[
+                            { a: bracket.seeds[0], b: "Winner, #8 vs #9" },
+                            { a: bracket.seeds[3], b: bracket.seeds[4] },
+                            { a: bracket.seeds[2], b: bracket.seeds[5] },
+                            { a: bracket.seeds[1], b: "Winner, #7 vs #10" },
+                          ].map((pair, i) => (
+                            <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                              <span className="truncate">{pair.a ? pair.a.coach : "—"}</span>
+                              <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
+                              <span className="truncate text-right" style={{ color: typeof pair.b === "string" ? C.slate : C.chalk }}>
+                                {typeof pair.b === "string" ? pair.b : pair.b ? pair.b.coach : "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`grid gap-4 ${bracket.brackets.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                      {bracket.brackets.map((b) => (
+                        <div key={b.name}>
+                          <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>{b.name}</div>
+                          <div className="space-y-1">
+                            {(b.seeds.length <= 4 ? BRACKET_PAIRS_R1_4 : BRACKET_PAIRS_R1).map(([seedA, seedB], i) => {
+                              const teamA = b.seeds[seedA - 1];
+                              const teamB = b.seeds[seedB - 1];
+                              return (
+                                <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                                  <span className="truncate">
+                                    <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedA}</span>{" "}
+                                    {teamA ? teamA.coach : "—"}
+                                    {teamA && teamA.divisionName && <span style={{ color: C.gold }}> · {teamA.divisionName}</span>}
+                                  </span>
+                                  <span className="px-2 shrink-0" style={{ color: C.slate }}>vs</span>
+                                  <span className="truncate text-right">
+                                    {teamB && teamB.divisionName && <span style={{ color: C.gold }}>{teamB.divisionName} · </span>}
+                                    {teamB ? teamB.coach : "—"}{" "}
+                                    <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>#{seedB}</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
