@@ -159,29 +159,31 @@ const HISTORICAL_NFL_2025 = {
     east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", semiALose: "San Francisco", semiBLose: "Green Bay", champ: "LA Rams", runnerUp: "Detroit" },
     west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", semiALose: "LA Chargers", semiBLose: "Pittsburgh", champ: "Tennessee", runnerUp: "Baltimore" },
     champion: "Tennessee", secondPlace: "LA Rams", thirdPlace: "Detroit", fourthPlace: "Baltimore",
+    championScore: 210.60, secondScore: 178.40, thirdScore: 144.60, fourthScore: 102.80,
     // Each source key points at the row that actually holds the R1 LOSER for
     // that game — verified individually since winner/loser isn't always in
     // the same top/bottom slot (depends on how the sheet drew that matchup).
     extraGames: [
-      { label: "5th", eastSource: "semiALose", westSource: "semiBLose", winner: "San Francisco", loser: "Pittsburgh" },
-      { label: "7th", eastSource: "semiBLose", westSource: "semiALose", winner: "Green Bay", loser: "LA Chargers" },
-      { label: "9th", eastSource: "y2", westSource: "y3", winner: "Philadelphia", loser: "Miami" },
-      { label: "11th", eastSource: "y5", westSource: "y5", winner: "NY Jets", loser: "Seattle" },
-      { label: "13th", eastSource: "y1", westSource: "y0", winner: "New England", loser: "Arizona" },
-      { label: "15th", eastSource: "y6", westSource: "y6", winner: "New Orleans", loser: "Jacksonville" },
+      { label: "5th", eastSource: "semiALose", westSource: "semiBLose", winner: "San Francisco", loser: "Pittsburgh", winnerScore: 242.20, loserScore: 154.35 },
+      { label: "7th", eastSource: "semiBLose", westSource: "semiALose", winner: "Green Bay", loser: "LA Chargers", winnerScore: 192.40, loserScore: 146.20 },
+      { label: "9th", eastSource: "y2", westSource: "y3", winner: "Philadelphia", loser: "Miami", winnerScore: 258.40, loserScore: 186.75 },
+      { label: "11th", eastSource: "y5", westSource: "y5", winner: "NY Jets", loser: "Seattle", winnerScore: 203.80, loserScore: 123.80 },
+      { label: "13th", eastSource: "y1", westSource: "y0", winner: "New England", loser: "Arizona", winnerScore: 184.60, loserScore: 180.05 },
+      { label: "15th", eastSource: "y6", westSource: "y6", winner: "New Orleans", loser: "Jacksonville", winnerScore: 140.70, loserScore: 109.60 },
     ],
   },
   consolation: {
     east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiA: "Atlanta", semiB: "NY Giants", semiALose: "Chicago", semiBLose: "Minnesota", champ: "Atlanta", runnerUp: "NY Giants" },
     west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", semiALose: "Las Vegas", semiBLose: "Buffalo", champ: "Cincinnati", runnerUp: "Indianapolis" },
     champion: "Cincinnati", secondPlace: "Atlanta", thirdPlace: "NY Giants", fourthPlace: "Indianapolis",
+    championScore: 175.90, secondScore: 108.65, thirdScore: 194.80, fourthScore: 174.75,
     extraGames: [
-      { label: "21st", eastSource: "semiBLose", westSource: "semiALose", winner: "Minnesota", loser: "Las Vegas" },
-      { label: "23rd", eastSource: "semiALose", westSource: "semiBLose", winner: "Chicago", loser: "Buffalo" },
-      { label: "25th", eastSource: "y7", westSource: "y5", winner: "Carolina", loser: "Kansas City" },
-      { label: "27th", eastSource: "y0", westSource: "y3", winner: "Dallas", loser: "Houston" },
-      { label: "29th", eastSource: "y5", westSource: "y7", winner: "Tampa Bay", loser: "Cleveland" },
-      { label: "31st", eastSource: "y3", westSource: "y1", winner: "Washington", loser: "Denver" },
+      { label: "21st", eastSource: "semiBLose", westSource: "semiALose", winner: "Minnesota", loser: "Las Vegas", winnerScore: 204.70, loserScore: 169.10 },
+      { label: "23rd", eastSource: "semiALose", westSource: "semiBLose", winner: "Chicago", loser: "Buffalo", winnerScore: 157.60, loserScore: 155.00 },
+      { label: "25th", eastSource: "y7", westSource: "y5", winner: "Carolina", loser: "Kansas City", winnerScore: 146.55, loserScore: 118.40 },
+      { label: "27th", eastSource: "y0", westSource: "y3", winner: "Dallas", loser: "Houston", winnerScore: 171.60, loserScore: 92.20 },
+      { label: "29th", eastSource: "y5", westSource: "y7", winner: "Tampa Bay", loser: "Cleveland", winnerScore: 94.40, loserScore: 90.15 },
+      { label: "31st", eastSource: "y3", westSource: "y1", winner: "Washington", loser: "Denver", winnerScore: 153.00, loserScore: 63.50 },
     ],
   },
 };
@@ -1652,7 +1654,7 @@ function Connector({ d }) {
 // component only renders — every "who beat whom" call was made by the
 // caller (see the historicalNFL2025 data below), verified line-by-line
 // against the actual playoff sheet, not derived inside here.
-function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, thirdPlace, fourthPlace, extraGames, fired, rank1Text = "Champion", rank3Text = "3rd" }) {
+function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, thirdPlace, fourthPlace, championScore, secondScore, thirdScore, fourthScore, extraGames, fired, rank1Text = "Champion", rank3Text = "3rd" }) {
   const colGap = 44;
   const r1X = 0, r2X = r1X + BOX_W + colGap, r3X = r2X + BOX_W + colGap;
   const centerX = r3X + BOX_W + colGap;
@@ -1745,6 +1747,18 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
         <BracketBox x={centerX} y={secondY} entry={findRowByName(east.rows, secondPlace) || secondPlace} />
         <BracketBox x={centerX} y={runnerY} entry={findRowByName(east.rows, thirdPlace) || thirdPlace} />
         <BracketBox x={centerX} y={fourthY} entry={findRowByName(east.rows, fourthPlace) || fourthPlace} />
+        {championScore != null && (
+          <text x={centerX + BOX_W + 8} y={champY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill={C.turf}>{championScore.toFixed(2)}</text>
+        )}
+        {secondScore != null && (
+          <text x={centerX + BOX_W + 8} y={secondY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fill={C.slate}>{secondScore.toFixed(2)}</text>
+        )}
+        {thirdScore != null && (
+          <text x={centerX + BOX_W + 8} y={runnerY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill={C.turf}>{thirdScore.toFixed(2)}</text>
+        )}
+        {fourthScore != null && (
+          <text x={centerX + BOX_W + 8} y={fourthY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fill={C.slate}>{fourthScore.toFixed(2)}</text>
+        )}
         <text x={centerX + BOX_W / 2} y={champY - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
           {rank1Text}
         </text>
@@ -1763,6 +1777,12 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
               <Connector d={elbowPath(sourceXFor(g.westSource, false), westSourceY + BOX_H / 2, centerX + BOX_W, winY + BOX_H / 2)} />
               <BracketBox x={centerX} y={winY} entry={findRowByName(allRows, g.winner) || g.winner} />
               <BracketBox x={centerX} y={loseY} entry={findRowByName(allRows, g.loser) || g.loser} highlight={isLast ? "fired" : undefined} />
+              {g.winnerScore != null && (
+                <text x={centerX + BOX_W + 8} y={winY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill={C.turf}>{g.winnerScore.toFixed(2)}</text>
+              )}
+              {g.loserScore != null && (
+                <text x={centerX + BOX_W + 8} y={loseY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fill={isLast ? C.ember : C.slate}>{g.loserScore.toFixed(2)}</text>
+              )}
               <text x={centerX + BOX_W / 2} y={winY - 8} textAnchor="middle" fontSize="9" fill={C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 {g.label}
               </text>
@@ -3698,6 +3718,10 @@ export default function App() {
                             secondPlace={HISTORICAL_NFL_2025[g.key].secondPlace}
                             thirdPlace={HISTORICAL_NFL_2025[g.key].thirdPlace}
                             fourthPlace={HISTORICAL_NFL_2025[g.key].fourthPlace}
+                            championScore={HISTORICAL_NFL_2025[g.key].championScore}
+                            secondScore={HISTORICAL_NFL_2025[g.key].secondScore}
+                            thirdScore={HISTORICAL_NFL_2025[g.key].thirdScore}
+                            fourthScore={HISTORICAL_NFL_2025[g.key].fourthScore}
                             extraGames={HISTORICAL_NFL_2025[g.key].extraGames}
                             fired={g.fired}
                             rank1Text={g.key === "playoffs" ? "Champion" : `${half + 1}th`}
