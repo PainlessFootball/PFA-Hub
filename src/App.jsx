@@ -145,6 +145,38 @@ const findRowByName = (rows, name) => {
   );
 };
 
+// Confirmed Round 1 (Week 14) results — the one round we can show with full
+// confidence without any bracket-geometry guesswork, since each game is a
+// single box directly off the source bracket sheet. Deliberately stops at
+// Round 1: later rounds require knowing exactly which box in NFLBracket a
+// team lands in, which isn't safe to guess without live-testing the render.
+const HISTORICAL_ROUND1 = {
+  2025: {
+    NFL: {
+      playoffs: [
+        ["San Francisco", 169.40, "Arizona", 156.40],
+        ["LA Rams", 181.80, "Philadelphia", 157.55],
+        ["Green Bay", 206.15, "Seattle", 145.05],
+        ["Detroit", 126.85, "New Orleans", 123.75],
+        ["Tennessee", 200.40, "New England", 165.55],
+        ["LA Chargers", 234.35, "Miami", 113.60],
+        ["Baltimore", 211.60, "NY Jets", 195.40],
+        ["Pittsburgh", 171.80, "Jacksonville", 160.00],
+      ],
+      consolation: [
+        ["Atlanta", 132.50, "Dallas", 126.40],
+        ["Chicago", 158.35, "Washington", 129.45],
+        ["NY Giants", 148.05, "Carolina", 144.85],
+        ["Minnesota", 116.10, "Tampa Bay", 109.75],
+        ["Las Vegas", 154.65, "Houston", 109.90],
+        ["Cincinnati", 189.95, "Denver", 68.20],
+        ["Buffalo", 216.15, "Cleveland", 134.50],
+        ["Indianapolis", 141.50, "Kansas City", 135.10],
+      ],
+    },
+  },
+};
+
 const SLEEPER = "https://api.sleeper.app/v1";
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -3398,6 +3430,40 @@ export default function App() {
                       );
                     })}
                   </ol>
+                  {HISTORICAL_ROUND1[standingsSeason] && HISTORICAL_ROUND1[standingsSeason][tierKey] && (
+                    <div className="mt-5">
+                      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                        Round 1 (Week 14)
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {Object.entries(HISTORICAL_ROUND1[standingsSeason][tierKey]).map(([groupName, games]) => (
+                          <div key={groupName}>
+                            <div className="text-xs uppercase mb-1" style={{ color: C.gold }}>{groupName}</div>
+                            <ul className="space-y-1 text-sm">
+                              {games.map(([teamA, ptsA, teamB, ptsB], i) => {
+                                const rowA = findRowByName(rows, teamA);
+                                const rowB = findRowByName(rows, teamB);
+                                const aWon = ptsA > ptsB;
+                                return (
+                                  <li key={i} className="flex items-center justify-between px-2 py-1 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                                    <span className="truncate" style={{ fontWeight: aWon ? 700 : 400, color: aWon ? C.turf : "inherit" }}>
+                                      {(rowA && rowA.team) || teamA}
+                                    </span>
+                                    <span className="px-2 text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate }}>
+                                      {ptsA.toFixed(2)} – {ptsB.toFixed(2)}
+                                    </span>
+                                    <span className="truncate text-right" style={{ fontWeight: !aWon ? 700 : 400, color: !aWon ? C.turf : "inherit" }}>
+                                      {(rowB && rowB.team) || teamB}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
