@@ -102,6 +102,49 @@ const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
   .map(Number)
   .sort((a, b) => b - a);
 
+// Confirmed final placements (1st through last), transcribed directly from
+// Lainey's real playoff-sheet PDFs/screenshots — NOT computed from Sleeper
+// data, since Sleeper's own bracket data for this custom full-cascade format
+// is unconfirmed (see the console-log check added earlier). Team names here
+// are exactly as they appeared that season, since that's what needs to match
+// against that season's own fetched standings rows (team display names can
+// change between seasons). Add more seasons/tiers here as they're confirmed.
+const HISTORICAL_FINAL_ORDER = {
+  2025: {
+    NFL: [
+      "Tennessee", "LA Rams", "Detroit", "Baltimore", "San Francisco", "Pittsburgh", "Green Bay", "LA Chargers",
+      "Philadelphia", "Miami", "NY Jets", "Seattle", "New England", "Arizona", "New Orleans", "Jacksonville",
+      "Cincinnati", "Atlanta", "NY Giants", "Indianapolis", "Minnesota", "Las Vegas", "Chicago", "Buffalo",
+      "Carolina", "Kansas City", "Dallas", "Houston", "Tampa Bay", "Cleveland", "Washington", "Denver",
+    ],
+    USFL: [
+      "Memphis", "San Antonio", "Washington", "Denver", "Philadelphia", "Los Angeles", "Pittsburgh", "Birmingham",
+      "Boston", "New Jersey", "Detroit", "Oklahoma", "Orlando", "Houston", "Michigan", "Jacksonville",
+      "Tampa Bay", "Chicago", "Arizona", "Oakland",
+    ],
+    XFL: [
+      "Birmingham", "DC", "Seattle", "Boston", "LAX", "Memphis", "Orlando", "Brooklyn",
+      "Tampa Bay", "Dallas", "Omaha", "St Louis", "Houston", "LAW", "Atlanta", "San Francisco",
+      "New York", "New Jersey", "Chicago", "Las Vegas",
+    ],
+  },
+};
+
+// Loose match for confirmed-historical team names against that season's own
+// fetched Sleeper rows — case/whitespace-insensitive, and tries a "starts
+// with" match too since PDF shorthand ("LA Rams") vs a season's actual
+// Sleeper display name ("LA Rams" or "Los Angeles Rams") can vary slightly.
+const findRowByName = (rows, name) => {
+  if (!rows || !name) return null;
+  const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const target = norm(name);
+  return (
+    rows.find((r) => norm(r.team) === target) ||
+    rows.find((r) => norm(r.team).startsWith(target) || target.startsWith(norm(r.team))) ||
+    null
+  );
+};
+
 const SLEEPER = "https://api.sleeper.app/v1";
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -3312,6 +3355,49 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {standingsSeason !== CURRENT_SEASON && HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey] && (
+                <div className="mt-6">
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                    Confirmed Final Results — {standingsSeason}
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: C.slate }}>
+                    Transcribed from the real {standingsSeason} playoff sheets — actual results, not a seeding
+                    estimate. The bracket diagram below still shows seeding only; this list is the source of truth
+                    until the diagram itself is rebuilt to match.
+                  </p>
+                  <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {HISTORICAL_FINAL_ORDER[standingsSeason][tierKey].map((name, i) => {
+                      const place = i + 1;
+                      const row = findRowByName(rows, name);
+                      const isLast = place === HISTORICAL_FINAL_ORDER[standingsSeason][tierKey].length;
+                      return (
+                        <li
+                          key={`${place}-${name}`}
+                          className="flex items-center gap-2 px-2 py-1 rounded-sm"
+                          style={{ background: isLast ? "rgba(196,74,58,0.12)" : "transparent" }}
+                        >
+                          <span className="w-8 shrink-0 text-right" style={{ color: isLast ? C.ember : C.gold, fontWeight: 700 }}>
+                            {place}.
+                          </span>
+                          {row && row.avatar && (
+                            <img src={row.avatar} alt="" className="w-5 h-5 rounded-sm shrink-0" />
+                          )}
+                          <span className="truncate" style={{ fontWeight: 600 }}>{(row && row.team) || name}</span>
+                          {row && row.coach && (
+                            <span className="truncate text-xs" style={{ color: C.slate }}>— {row.coach}</span>
+                          )}
+                          {isLast && (
+                            <span className="text-xs ml-auto shrink-0" style={{ color: C.ember, fontWeight: 700 }}>
+                              FIRED
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
               )}
 
