@@ -156,35 +156,77 @@ const findRowByName = (rows, name) => {
 // the sheet (game A top/bottom, game B top/bottom, game C, game D).
 const HISTORICAL_NFL_2025 = {
   playoffs: {
-    east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", semiALose: "San Francisco", semiBLose: "Green Bay", champ: "LA Rams", runnerUp: "Detroit" },
-    west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", semiALose: "LA Chargers", semiBLose: "Pittsburgh", champ: "Tennessee", runnerUp: "Baltimore" },
+    east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", champ: "LA Rams", runnerUp: "Detroit" },
+    west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", champ: "Tennessee", runnerUp: "Baltimore" },
     champion: "Tennessee", secondPlace: "LA Rams", thirdPlace: "Detroit", fourthPlace: "Baltimore",
-    championScore: 210.60, secondScore: 178.40, thirdScore: 144.60, fourthScore: 102.80,
-    // Each source key points at the row that actually holds the R1 LOSER for
-    // that game — verified individually since winner/loser isn't always in
-    // the same top/bottom slot (depends on how the sheet drew that matchup).
-    extraGames: [
-      { label: "5th", eastSource: "semiALose", westSource: "semiBLose", winner: "San Francisco", loser: "Pittsburgh", winnerScore: 242.20, loserScore: 154.35 },
-      { label: "7th", eastSource: "semiBLose", westSource: "semiALose", winner: "Green Bay", loser: "LA Chargers", winnerScore: 192.40, loserScore: 146.20 },
-      { label: "9th", eastSource: "y2", westSource: "y3", winner: "Philadelphia", loser: "Miami", winnerScore: 258.40, loserScore: 186.75 },
-      { label: "11th", eastSource: "y5", westSource: "y5", winner: "NY Jets", loser: "Seattle", winnerScore: 203.80, loserScore: 123.80 },
-      { label: "13th", eastSource: "y1", westSource: "y0", winner: "New England", loser: "Arizona", winnerScore: 184.60, loserScore: 180.05 },
-      { label: "15th", eastSource: "y6", westSource: "y6", winner: "New Orleans", loser: "Jacksonville", winnerScore: 140.70, loserScore: 109.60 },
-    ],
+    // The 4 semifinal losers (San Francisco/Green Bay/LA Chargers/Pittsburgh)
+    // drop into their own mini-bracket: a semifinal round none of the sheets
+    // show scores for, reconstructed from the confirmed final order (it's
+    // the only pairing that produces SF 5th, Pittsburgh 6th, GB 7th, LAC 8th).
+    fifthEighth: {
+      semis: [
+        { a: "San Francisco", b: "LA Chargers", winner: "San Francisco" },
+        { a: "Green Bay", b: "Pittsburgh", winner: "Pittsburgh" },
+      ],
+      final: { label: "5th", a: "San Francisco", b: "Pittsburgh", winner: "San Francisco" },
+      consolation: { label: "7th", a: "Green Bay", b: "LA Chargers", winner: "Green Bay" },
+    },
+    // The 8 Round 1 losers drop into their own full 3-round bracket (own R1,
+    // own semis, then finals) — same reconstruction logic as above, none of
+    // these mid-round scores are on the sheet, only the confirmed outcomes.
+    ninthSixteenth: {
+      r1: [
+        { a: "Philadelphia", b: "New England", winner: "Philadelphia" },
+        { a: "Seattle", b: "Jacksonville", winner: "Seattle" },
+        { a: "Arizona", b: "Miami", winner: "Miami" },
+        { a: "New Orleans", b: "NY Jets", winner: "NY Jets" },
+      ],
+      upperSemis: [
+        { a: "Philadelphia", b: "NY Jets", winner: "Philadelphia" },
+        { a: "Seattle", b: "Miami", winner: "Miami" },
+      ],
+      upperFinal: { label: "9th", a: "Philadelphia", b: "Miami", winner: "Philadelphia" },
+      upperConsolation: { label: "11th", a: "NY Jets", b: "Seattle", winner: "NY Jets" },
+      lowerSemis: [
+        { a: "New England", b: "New Orleans", winner: "New England" },
+        { a: "Arizona", b: "Jacksonville", winner: "Arizona" },
+      ],
+      lowerFinal: { label: "13th", a: "New England", b: "Arizona", winner: "New England" },
+      lowerConsolation: { label: "15th", a: "New Orleans", b: "Jacksonville", winner: "New Orleans" },
+    },
   },
   consolation: {
-    east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiA: "Atlanta", semiB: "NY Giants", semiALose: "Chicago", semiBLose: "Minnesota", champ: "Atlanta", runnerUp: "NY Giants" },
-    west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", semiALose: "Las Vegas", semiBLose: "Buffalo", champ: "Cincinnati", runnerUp: "Indianapolis" },
+    east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiA: "Atlanta", semiB: "NY Giants", champ: "Atlanta", runnerUp: "NY Giants" },
+    west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", champ: "Cincinnati", runnerUp: "Indianapolis" },
     champion: "Cincinnati", secondPlace: "Atlanta", thirdPlace: "NY Giants", fourthPlace: "Indianapolis",
-    championScore: 175.90, secondScore: 108.65, thirdScore: 194.80, fourthScore: 174.75,
-    extraGames: [
-      { label: "21st", eastSource: "semiBLose", westSource: "semiALose", winner: "Minnesota", loser: "Las Vegas", winnerScore: 204.70, loserScore: 169.10 },
-      { label: "23rd", eastSource: "semiALose", westSource: "semiBLose", winner: "Chicago", loser: "Buffalo", winnerScore: 157.60, loserScore: 155.00 },
-      { label: "25th", eastSource: "y7", westSource: "y5", winner: "Carolina", loser: "Kansas City", winnerScore: 146.55, loserScore: 118.40 },
-      { label: "27th", eastSource: "y0", westSource: "y3", winner: "Dallas", loser: "Houston", winnerScore: 171.60, loserScore: 92.20 },
-      { label: "29th", eastSource: "y5", westSource: "y7", winner: "Tampa Bay", loser: "Cleveland", winnerScore: 94.40, loserScore: 90.15 },
-      { label: "31st", eastSource: "y3", westSource: "y1", winner: "Washington", loser: "Denver", winnerScore: 153.00, loserScore: 63.50 },
-    ],
+    fifthEighth: {
+      semis: [
+        { a: "Minnesota", b: "Buffalo", winner: "Minnesota" },
+        { a: "Chicago", b: "Las Vegas", winner: "Las Vegas" },
+      ],
+      final: { label: "21st", a: "Minnesota", b: "Las Vegas", winner: "Minnesota" },
+      consolation: { label: "23rd", a: "Chicago", b: "Buffalo", winner: "Chicago" },
+    },
+    ninthSixteenth: {
+      r1: [
+        { a: "Carolina", b: "Cleveland", winner: "Carolina" },
+        { a: "Dallas", b: "Denver", winner: "Dallas" },
+        { a: "Tampa Bay", b: "Houston", winner: "Houston" },
+        { a: "Washington", b: "Kansas City", winner: "Kansas City" },
+      ],
+      upperSemis: [
+        { a: "Carolina", b: "Houston", winner: "Carolina" },
+        { a: "Dallas", b: "Kansas City", winner: "Kansas City" },
+      ],
+      upperFinal: { label: "25th", a: "Carolina", b: "Kansas City", winner: "Carolina" },
+      upperConsolation: { label: "27th", a: "Houston", b: "Dallas", winner: "Dallas" },
+      lowerSemis: [
+        { a: "Tampa Bay", b: "Denver", winner: "Tampa Bay" },
+        { a: "Cleveland", b: "Washington", winner: "Cleveland" },
+      ],
+      lowerFinal: { label: "29th", a: "Tampa Bay", b: "Cleveland", winner: "Tampa Bay" },
+      lowerConsolation: { label: "31st", a: "Washington", b: "Denver", winner: "Washington" },
+    },
   },
 };
 
@@ -1654,7 +1696,11 @@ function Connector({ d }) {
 // component only renders — every "who beat whom" call was made by the
 // caller (see the historicalNFL2025 data below), verified line-by-line
 // against the actual playoff sheet, not derived inside here.
-function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, thirdPlace, fourthPlace, championScore, secondScore, thirdScore, fourthScore, extraGames, fired, rank1Text = "Champion", rank3Text = "3rd" }) {
+// Standard 16-team, 2-conference, single-elimination "win and advance"
+// bracket: Round 1 (8 seeds/conference) -> Semifinal -> Conference
+// Championship -> Championship, mirrored NFC/AFC-style, converging in the
+// center. Every box is real, verified data — no seeding placeholders.
+function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, thirdPlace, fourthPlace, fifthEighth, ninthSixteenth, fired, rank1Text = "Champion", rank3Text = "3rd" }) {
   const colGap = 44;
   const r1X = 0, r2X = r1X + BOX_W + colGap, r3X = r2X + BOX_W + colGap;
   const centerX = r3X + BOX_W + colGap;
@@ -1672,33 +1718,13 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
   const semiAY = (gaMid + gbMid) / 2 - BOX_H / 2, semiBY = (gcMid + gdMid) / 2 - BOX_H / 2;
   const semiMid = (semiAY + semiBY) / 2 + BOX_H / 2;
   // Champion + 2nd stack tight together (2nd is just the loser of the same
-  // final game the champion won); a clear gap below that, then 3rd + 4th
-  // stack tight together the same way (3rd is the winner of the runner-up
-  // side boxes playing each other).
+  // final game the champion won); 3rd + 4th stack the same way just below.
   const champY = semiMid - BOX_H - 20;
   const secondY = champY + BOX_H + gap;
   const runnerY = secondY + BOX_H + 56;
   const fourthY = runnerY + BOX_H + gap;
-  // Round 2 losers — these teams exist (San Francisco, Green Bay, etc. in the
-  // 2025 case) but had no box anywhere before; they sit right under the
-  // semifinal winner they lost to, same stacking idea as champion/2nd.
-  const semiALoseY = semiAY + BOX_H + gap;
-  const semiBLoseY = semiBY + BOX_H + gap;
   const topHeight = y7 + BOX_H;
-
-  // Every placement below 4th is "two teams converge on a center box, loser
-  // stacks directly under the winner" — exactly like Champion/2nd and
-  // 3rd/4th above, just fed from different source rows. This table maps the
-  // short keys used in each season's data to this component's own geometry,
-  // so a future season only needs to supply new team names, not new layout.
-  const sourceYMap = { semiALose: semiALoseY, semiBLose: semiBLoseY, y0, y1, y2, y3, y4, y5, y6, y7 };
-  const extraGap = 34;
-  const extraYFor = (i) => fourthY + BOX_H + 50 + i * (2 * (BOX_H + gap) + extraGap);
-
-  const sourceXFor = (key, isEast) => {
-    if (key === "semiALose" || key === "semiBLose") return isEast ? r2X + BOX_W : wR2X;
-    return isEast ? r1X + BOX_W : wR1X; // y0..y7 keys live in the R1 column
-  };
+  const totalHeight = Math.max(topHeight, fourthY + BOX_H) + 20;
 
   const oneSide = (side, x1, x2, x3, mirrored) => {
     const out = mirrored ? x1 : x1 + BOX_W;
@@ -1726,17 +1752,92 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
         ))}
         <BracketBox x={x2} y={semiAY} entry={findRowByName(side.rows, side.semiA) || side.semiA} />
         <BracketBox x={x2} y={semiBY} entry={findRowByName(side.rows, side.semiB) || side.semiB} />
-        {side.semiALose && <BracketBox x={x2} y={semiALoseY} entry={findRowByName(side.rows, side.semiALose) || side.semiALose} />}
-        {side.semiBLose && <BracketBox x={x2} y={semiBLoseY} entry={findRowByName(side.rows, side.semiBLose) || side.semiBLose} />}
         <BracketBox x={x3} y={champY} entry={findRowByName(side.rows, side.champ) || side.champ} />
         <BracketBox x={x3} y={runnerY} entry={findRowByName(side.rows, side.runnerUp) || side.runnerUp} />
       </>
     );
   };
 
-  const lastExtraY = extraGames && extraGames.length ? extraYFor(extraGames.length - 1) + BOX_H * 2 + gap : fourthY + BOX_H;
-  const totalHeight = Math.max(topHeight, lastExtraY) + 20;
+  // Renders one recurring shape: 4 teams -> semifinal (2 games) -> winners
+  // meet in a "final", losers meet in a "consolation" game. This exact shape
+  // is what 5th-8th needs once, and what 9th-16th needs twice (its "upper"
+  // and "lower" halves) — so it's built once here and reused three times.
+  const renderQuad = (semis, final, consolation, x0, y0, keyPrefix, finalHighlight, consLastFired) => {
+    const gapQ = 20;
+    const y = [y0, y0 + BOX_H + gapQ, y0 + BOX_H * 2 + gapQ * 2, y0 + BOX_H * 3 + gapQ * 3];
+    const mid1 = (y[0] + y[1]) / 2 + BOX_H / 2, mid2 = (y[2] + y[3]) / 2 + BOX_H / 2;
+    const x1 = x0 + BOX_W + colGap, x2 = x1 + BOX_W + colGap;
+    const winAY = mid1 - BOX_H / 2, winBY = mid2 - BOX_H / 2;
+    const finalY = (winAY + winBY) / 2;
+    const pushDown = 110;
+    const loseAY = winAY + pushDown, loseBY = winBY + pushDown;
+    const consY = (loseAY + loseBY) / 2;
+    const bottom = consY + BOX_H;
+    return {
+      height: bottom - y0,
+      el: (
+        <g key={keyPrefix}>
+          <Connector d={`M ${x0 + BOX_W} ${y[0] + BOX_H / 2} L ${x0 + BOX_W} ${y[1] + BOX_H / 2}`} />
+          <Connector d={elbowPath(x0 + BOX_W, mid1, x1, winAY + BOX_H / 2)} />
+          <Connector d={elbowPath(x0 + BOX_W, mid1, x1, loseAY + BOX_H / 2)} />
+          <Connector d={`M ${x0 + BOX_W} ${y[2] + BOX_H / 2} L ${x0 + BOX_W} ${y[3] + BOX_H / 2}`} />
+          <Connector d={elbowPath(x0 + BOX_W, mid2, x1, winBY + BOX_H / 2)} />
+          <Connector d={elbowPath(x0 + BOX_W, mid2, x1, loseBY + BOX_H / 2)} />
+          <Connector d={elbowPath(x1 + BOX_W, winAY + BOX_H / 2, x2, finalY + BOX_H / 2)} />
+          <Connector d={elbowPath(x1 + BOX_W, winBY + BOX_H / 2, x2, finalY + BOX_H / 2)} />
+          <Connector d={elbowPath(x1 + BOX_W, loseAY + BOX_H / 2, x2, consY + BOX_H / 2)} />
+          <Connector d={elbowPath(x1 + BOX_W, loseBY + BOX_H / 2, x2, consY + BOX_H / 2)} />
+          {box(x0, y[0], semis[0].a)}
+          {box(x0, y[1], semis[0].b)}
+          {box(x0, y[2], semis[1].a)}
+          {box(x0, y[3], semis[1].b)}
+          {box(x1, winAY, semis[0].winner)}
+          {box(x1, winBY, semis[1].winner)}
+          {box(x1, loseAY, loserOf(semis[0]))}
+          {box(x1, loseBY, loserOf(semis[1]))}
+          {box(x2, finalY, final.winner, finalHighlight)}
+          {box(x2, consY, loserOf(final), consLastFired ? "fired" : undefined)}
+          {label(x2, finalY, final.label, finalHighlight ? C.gold : undefined)}
+          {label(x2, consY, consolation.label)}
+        </g>
+      ),
+    };
+  };
+
+  const loserOf = (g) => (g.winner === g.a ? g.b : g.a);
   const allRows = (east.rows || []).concat(west.rows || []);
+  const box = (x, y, name, hl) => <BracketBox key={`${x}-${y}`} x={x} y={y} entry={findRowByName(allRows, name) || name} highlight={hl} />;
+  const label = (x, y, text, color) => (
+    <text x={x + BOX_W / 2} y={y - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill={color || C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
+      {text}
+    </text>
+  );
+
+  const feY0 = fourthY + BOX_H + 70;
+  const feBlock = fifthEighth ? renderQuad(fifthEighth.semis, fifthEighth.final, fifthEighth.consolation, r1X, feY0, "fe", undefined, false) : null;
+
+  const nsY0 = feBlock ? feY0 + feBlock.height + 60 : feY0;
+  // 9th-16th's own Round 1 (4 games, 8 teams) splits into an upper group
+  // (feeds the "9th/11th" quad) and a lower group ("13th/15th" quad).
+  const nsR1 = ninthSixteenth ? ninthSixteenth.r1 : null;
+  const nsGap = 16, nsGameGap = 30;
+  const nsR1Y = nsR1
+    ? [0, 1, 2, 3].flatMap((i) => {
+        const base = nsY0 + i * (BOX_H * 2 + nsGap + nsGameGap);
+        return [base, base + BOX_H + nsGap];
+      })
+    : [];
+  const nsR1Bottom = nsR1 ? nsR1Y[nsR1Y.length - 1] + BOX_H : nsY0;
+  const upperQuadY0 = nsR1Bottom + 50;
+  const upperQuad = ninthSixteenth
+    ? renderQuad(ninthSixteenth.upperSemis, ninthSixteenth.upperFinal, ninthSixteenth.upperConsolation, r2X, upperQuadY0, "ns-up", undefined, false)
+    : null;
+  const lowerQuadY0 = upperQuad ? upperQuadY0 + upperQuad.height + 40 : upperQuadY0;
+  const lowerQuad = ninthSixteenth
+    ? renderQuad(ninthSixteenth.lowerSemis, ninthSixteenth.lowerFinal, ninthSixteenth.lowerConsolation, r2X, lowerQuadY0, "ns-low", undefined, fired)
+    : null;
+
+  const totalHeight = Math.max(topHeight, (lowerQuad ? lowerQuadY0 + lowerQuad.height : nsR1Bottom)) + 20;
 
   return (
     <div className="overflow-x-auto">
@@ -1747,48 +1848,41 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
         <BracketBox x={centerX} y={secondY} entry={findRowByName(east.rows, secondPlace) || secondPlace} />
         <BracketBox x={centerX} y={runnerY} entry={findRowByName(east.rows, thirdPlace) || thirdPlace} />
         <BracketBox x={centerX} y={fourthY} entry={findRowByName(east.rows, fourthPlace) || fourthPlace} />
-        {championScore != null && (
-          <text x={centerX + BOX_W + 8} y={champY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill={C.turf}>{championScore.toFixed(2)}</text>
-        )}
-        {secondScore != null && (
-          <text x={centerX + BOX_W + 8} y={secondY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fill={C.slate}>{secondScore.toFixed(2)}</text>
-        )}
-        {thirdScore != null && (
-          <text x={centerX + BOX_W + 8} y={runnerY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill={C.turf}>{thirdScore.toFixed(2)}</text>
-        )}
-        {fourthScore != null && (
-          <text x={centerX + BOX_W + 8} y={fourthY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fill={C.slate}>{fourthScore.toFixed(2)}</text>
-        )}
         <text x={centerX + BOX_W / 2} y={champY - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
           {rank1Text}
         </text>
         <text x={centerX + BOX_W / 2} y={runnerY - 8} textAnchor="middle" fontSize="9" fill={C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
           {rank3Text}
         </text>
-        {extraGames && extraGames.map((g, i) => {
-          const winY = extraYFor(i);
-          const loseY = winY + BOX_H + gap;
-          const eastSourceY = sourceYMap[g.eastSource];
-          const westSourceY = sourceYMap[g.westSource];
-          const isLast = fired && i === extraGames.length - 1;
-          return (
-            <g key={g.label}>
-              <Connector d={elbowPath(sourceXFor(g.eastSource, true), eastSourceY + BOX_H / 2, centerX, winY + BOX_H / 2)} />
-              <Connector d={elbowPath(sourceXFor(g.westSource, false), westSourceY + BOX_H / 2, centerX + BOX_W, winY + BOX_H / 2)} />
-              <BracketBox x={centerX} y={winY} entry={findRowByName(allRows, g.winner) || g.winner} />
-              <BracketBox x={centerX} y={loseY} entry={findRowByName(allRows, g.loser) || g.loser} highlight={isLast ? "fired" : undefined} />
-              {g.winnerScore != null && (
-                <text x={centerX + BOX_W + 8} y={winY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill={C.turf}>{g.winnerScore.toFixed(2)}</text>
-              )}
-              {g.loserScore != null && (
-                <text x={centerX + BOX_W + 8} y={loseY + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fill={isLast ? C.ember : C.slate}>{g.loserScore.toFixed(2)}</text>
-              )}
-              <text x={centerX + BOX_W / 2} y={winY - 8} textAnchor="middle" fontSize="9" fill={C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                {g.label}
-              </text>
-            </g>
-          );
-        })}
+
+        {feBlock && (
+          <>
+            <text x={r1X} y={feY0 - 18} fontSize="10" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.15em" }}>
+              Placement bracket — semifinal losers
+            </text>
+            {feBlock.el}
+          </>
+        )}
+
+        {nsR1 && (
+          <>
+            <text x={r1X} y={nsY0 - 18} fontSize="10" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.15em" }}>
+              Placement bracket — Round 1 losers
+            </text>
+            {nsR1.map((g, i) => (
+              <g key={`ns-r1-${i}`}>
+                <Connector d={`M ${r1X + BOX_W} ${nsR1Y[i * 2] + BOX_H / 2} L ${r1X + BOX_W} ${nsR1Y[i * 2 + 1] + BOX_H / 2}`} />
+                {box(r1X, nsR1Y[i * 2], g.a)}
+                {box(r1X, nsR1Y[i * 2 + 1], g.b)}
+              </g>
+            ))}
+            <text x={r2X} y={upperQuadY0 - 18} fontSize="9" fill={C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              Winners continue below
+            </text>
+          </>
+        )}
+        {upperQuad && upperQuad.el}
+        {lowerQuad && lowerQuad.el}
       </svg>
       <div className="flex justify-between text-xs uppercase mt-1" style={{ color: C.slate }}>
         <span>{eastName}</span>
@@ -3718,11 +3812,8 @@ export default function App() {
                             secondPlace={HISTORICAL_NFL_2025[g.key].secondPlace}
                             thirdPlace={HISTORICAL_NFL_2025[g.key].thirdPlace}
                             fourthPlace={HISTORICAL_NFL_2025[g.key].fourthPlace}
-                            championScore={HISTORICAL_NFL_2025[g.key].championScore}
-                            secondScore={HISTORICAL_NFL_2025[g.key].secondScore}
-                            thirdScore={HISTORICAL_NFL_2025[g.key].thirdScore}
-                            fourthScore={HISTORICAL_NFL_2025[g.key].fourthScore}
-                            extraGames={HISTORICAL_NFL_2025[g.key].extraGames}
+                            fifthEighth={HISTORICAL_NFL_2025[g.key].fifthEighth}
+                            ninthSixteenth={HISTORICAL_NFL_2025[g.key].ninthSixteenth}
                             fired={g.fired}
                             rank1Text={g.key === "playoffs" ? "Champion" : `${half + 1}th`}
                             rank3Text={g.key === "playoffs" ? "3rd" : `${half + 3}th`}
