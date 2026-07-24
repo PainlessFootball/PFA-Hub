@@ -2027,6 +2027,10 @@ export default function App() {
   const [standingsSeason, setStandingsSeason] = useState(CURRENT_SEASON);
   const [standingsCache, setStandingsCache] = useState({});
   const [matchupsCache, setMatchupsCache] = useState({});
+  // Sleeper's own bracket data (real round-by-round winner/loser), keyed by
+  // league ID — separate from standingsCache because it comes from a
+  // different pair of endpoints and isn't always present (see loadBracketResults).
+  const [bracketResultsCache, setBracketResultsCache] = useState({});
   const [tierLoading, setTierLoading] = useState(false);
 
   const [news, setNews] = useState(SEED_NEWS);
@@ -2094,6 +2098,28 @@ export default function App() {
           }));
         setMatchupsCache((c) => ({ ...c, [leagueId]: pairs }));
       } catch (e) {}
+    }
+  }, []);
+
+  // Sleeper's own playoff bracket — this is the actual round-by-round
+  // winner/loser data (roster IDs, not just seeding), separate from the
+  // standings fetch above. Whether this lines up cleanly with our custom
+  // full-cascade-to-last-place format is untested against real data as of
+  // this write — see the note where this is consumed in computeBracket.
+  const loadBracketResults = useCallback(async (leagueId) => {
+    try {
+      const [winners, losers] = await Promise.all([
+        j(`${SLEEPER}/league/${leagueId}/winners_bracket`),
+        j(`${SLEEPER}/league/${leagueId}/losers_bracket`),
+      ]);
+      setBracketResultsCache((c) => ({ ...c, [leagueId]: { winners: winners || [], losers: losers || [] } }));
+      // TEMPORARY — remove once we've confirmed this data looks right. Open
+      // the browser console on the Standings page to check what Sleeper
+      // actually has for a given league before the real-results rendering
+      // gets wired in.
+      console.log(`[bracket check] league ${leagueId}:`, { winners, losers });
+    } catch (e) {
+      setBracketResultsCache((c) => ({ ...c, [leagueId]: { winners: [], losers: [] } }));
     }
   }, []);
 
@@ -2385,6 +2411,16 @@ export default function App() {
   const rows = mode === "live" ? liveRows : demoRows;
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
   const bracket = mode === "live" ? computeBracket(tierKey) : null;
+
+  // Fetch Sleeper's real bracket results for whichever tier/season is on
+  // screen, so computeBracket can fill in actual winners instead of only
+  // seeding (see the "top8-cascade" / "division-only" branches above).
+  useEffect(() => {
+    if (mode !== "live" || !leagueId) return;
+    if (!PLAYOFF_FORMAT[tierKey]) return;
+    if (bracketResultsCache[leagueId]) return;
+    loadBracketResults(leagueId);
+  }, [mode, tierKey, leagueId, bracketResultsCache, loadBracketResults]);
 
   // Groups the current tier's standings to match its real Sleeper
   // conference/division structure — NFL gets conference > division nesting,
