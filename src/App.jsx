@@ -150,6 +150,39 @@ const findRowByName = (rows, name) => {
 // single box directly off the source bracket sheet. Deliberately stops at
 // Round 1: later rounds require knowing exactly which box in NFLBracket a
 // team lands in, which isn't safe to guess without live-testing the render.
+// Fully resolved 2025 NFL bracket, both groups — every round traced directly
+// against the real playoff sheet (not derived from Sleeper matchup data).
+// r1 order matters: it's the top-to-bottom game order exactly as drawn on
+// the sheet (game A top/bottom, game B top/bottom, game C, game D).
+const HISTORICAL_NFL_2025 = {
+  playoffs: {
+    east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", champ: "LA Rams", runnerUp: "Detroit" },
+    west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", champ: "Tennessee", runnerUp: "Baltimore" },
+    champion: "Tennessee", secondPlace: "LA Rams", thirdPlace: "Detroit", fourthPlace: "Baltimore",
+    lowerGames: [
+      { label: "5th", teamA: "San Francisco", scoreA: 242.20, teamB: "Pittsburgh", scoreB: 154.35 },
+      { label: "7th", teamA: "Green Bay", scoreA: 192.40, teamB: "LA Chargers", scoreB: 146.20 },
+      { label: "9th", teamA: "Philadelphia", scoreA: 258.40, teamB: "Miami", scoreB: 186.75 },
+      { label: "11th", teamA: "NY Jets", scoreA: 203.80, teamB: "Seattle", scoreB: 123.80 },
+      { label: "13th", teamA: "New England", scoreA: 184.60, teamB: "Arizona", scoreB: 180.05 },
+      { label: "15th", teamA: "New Orleans", scoreA: 140.70, teamB: "Jacksonville", scoreB: 109.60 },
+    ],
+  },
+  consolation: {
+    east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiA: "Atlanta", semiB: "NY Giants", champ: "Atlanta", runnerUp: "NY Giants" },
+    west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", champ: "Cincinnati", runnerUp: "Indianapolis" },
+    champion: "Cincinnati", secondPlace: "Atlanta", thirdPlace: "NY Giants", fourthPlace: "Indianapolis",
+    lowerGames: [
+      { label: "21st", teamA: "Minnesota", scoreA: 179.60, teamB: "Las Vegas", scoreB: 146.20 },
+      { label: "23rd", teamA: "Chicago", scoreA: 157.60, teamB: "Buffalo", scoreB: 155.00 },
+      { label: "25th", teamA: "Carolina", scoreA: 146.55, teamB: "Kansas City", scoreB: 118.40 },
+      { label: "27th", teamA: "Dallas", scoreA: 171.60, teamB: "Houston", scoreB: 92.20 },
+      { label: "29th", teamA: "Tampa Bay", scoreA: 94.40, teamB: "Cleveland", scoreB: 90.15 },
+      { label: "31st", teamA: "Washington", scoreA: 153.00, teamB: "Denver", scoreB: 63.50 },
+    ],
+  },
+};
+
 const HISTORICAL_ROUND1 = {
   2025: {
     NFL: {
@@ -1609,6 +1642,108 @@ function elbowPath(x1, y1, x2, y2) {
 
 function Connector({ d }) {
   return <path d={d} fill="none" stroke={C.line} strokeWidth="1.5" />;
+}
+
+// Accurate replica of the real two-conference cascade, built directly off
+// what the PDF shows rather than reverse-engineered from NFLBracket. This
+// component only renders — every "who beat whom" call was made by the
+// caller (see the historicalNFL2025 data below), verified line-by-line
+// against the actual playoff sheet, not derived inside here.
+function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, thirdPlace, fourthPlace, lowerGames, fired, rank1Text = "Champion", rank3Text = "3rd", rank4Text = "4th" }) {
+  const colGap = 44;
+  const r1X = 0, r2X = r1X + BOX_W + colGap, r3X = r2X + BOX_W + colGap;
+  const centerX = r3X + BOX_W + colGap;
+  const wR3X = centerX + BOX_W + colGap, wR2X = wR3X + BOX_W + colGap, wR1X = wR2X + BOX_W + colGap;
+  const width = wR1X + BOX_W;
+
+  const gap = 8, gameGap = 40, semiGap = 80, gap3 = 60;
+  const y0 = 0, y1 = y0 + BOX_H + gap;
+  const y2 = y1 + BOX_H + gameGap, y3 = y2 + BOX_H + gap;
+  const y4 = y3 + BOX_H + semiGap, y5 = y4 + BOX_H + gap;
+  const y6 = y5 + BOX_H + gameGap, y7 = y6 + BOX_H + gap;
+  const r1ys = [y0, y1, y2, y3, y4, y5, y6, y7];
+  const gaMid = (y0 + y1) / 2 + BOX_H / 2, gbMid = (y2 + y3) / 2 + BOX_H / 2;
+  const gcMid = (y4 + y5) / 2 + BOX_H / 2, gdMid = (y6 + y7) / 2 + BOX_H / 2;
+  const semiAY = (gaMid + gbMid) / 2 - BOX_H / 2, semiBY = (gcMid + gdMid) / 2 - BOX_H / 2;
+  const semiMid = (semiAY + semiBY) / 2 + BOX_H / 2;
+  const champY = semiMid - BOX_H - gap3, runnerY = semiMid + gap3;
+  const topHeight = y7 + BOX_H;
+
+  const oneSide = (side, x1, x2, x3, mirrored) => {
+    const out = mirrored ? x1 : x1 + BOX_W;
+    const in2 = mirrored ? x2 + BOX_W : x2;
+    const out2 = mirrored ? x2 : x2 + BOX_W;
+    const in3 = mirrored ? x3 + BOX_W : x3;
+    const out3 = mirrored ? x3 : x3 + BOX_W;
+    const centerIn = mirrored ? centerX + BOX_W : centerX;
+    return (
+      <>
+        <Connector d={`M ${out} ${y0 + BOX_H / 2} L ${out} ${y1 + BOX_H / 2}`} />
+        <Connector d={elbowPath(out, gaMid, in2, semiAY + BOX_H / 2)} />
+        <Connector d={`M ${out} ${y2 + BOX_H / 2} L ${out} ${y3 + BOX_H / 2}`} />
+        <Connector d={elbowPath(out, gbMid, in2, semiAY + BOX_H / 2)} />
+        <Connector d={`M ${out} ${y4 + BOX_H / 2} L ${out} ${y5 + BOX_H / 2}`} />
+        <Connector d={elbowPath(out, gcMid, in2, semiBY + BOX_H / 2)} />
+        <Connector d={`M ${out} ${y6 + BOX_H / 2} L ${out} ${y7 + BOX_H / 2}`} />
+        <Connector d={elbowPath(out, gdMid, in2, semiBY + BOX_H / 2)} />
+        <Connector d={elbowPath(out2, semiAY + BOX_H / 2, in3, champY + BOX_H / 2)} />
+        <Connector d={elbowPath(out2, semiBY + BOX_H / 2, in3, champY + BOX_H / 2)} />
+        <Connector d={elbowPath(out3, champY + BOX_H / 2, centerIn, champY + BOX_H / 2)} />
+        {side.r1.map((entry, i) => (
+          <BracketBox key={`r1-${i}`} x={x1} y={r1ys[i]} entry={findRowByName(side.rows, entry) || entry} />
+        ))}
+        <BracketBox x={x2} y={semiAY} entry={findRowByName(side.rows, side.semiA) || side.semiA} />
+        <BracketBox x={x2} y={semiBY} entry={findRowByName(side.rows, side.semiB) || side.semiB} />
+        <BracketBox x={x3} y={champY} entry={findRowByName(side.rows, side.champ) || side.champ} />
+        <BracketBox x={x3} y={runnerY} entry={findRowByName(side.rows, side.runnerUp) || side.runnerUp} />
+      </>
+    );
+  };
+
+  const lowerY0 = topHeight + 50;
+  const lowerRowH = BOX_H + 14;
+
+  return (
+    <div className="overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${width} ${lowerY0 + (lowerGames ? lowerGames.length * lowerRowH : 0)}`}
+        width="100%"
+        style={{ minWidth: `${width * 0.6}px`, height: "auto" }}
+      >
+        {oneSide(east, r1X, r2X, r3X, false)}
+        {oneSide(west, wR1X, wR2X, wR3X, true)}
+        <BracketBox x={centerX} y={champY} entry={findRowByName(east.rows, champion) || champion} highlight="champion" />
+        <BracketBox x={centerX} y={runnerY} entry={findRowByName(east.rows, secondPlace) || secondPlace} />
+        <text x={centerX + BOX_W / 2} y={champY - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          {rank1Text}
+        </text>
+        {thirdPlace && (
+          <text x={centerX + BOX_W / 2} y={topHeight + 24} textAnchor="middle" fontSize="9" fill={C.slate}>
+            {rank3Text}: {(findRowByName(east.rows, thirdPlace) || {}).team || thirdPlace} · {rank4Text}: {(findRowByName(east.rows, fourthPlace) || {}).team || fourthPlace}
+          </text>
+        )}
+        {lowerGames && lowerGames.map((g, i) => {
+          const y = lowerY0 + i * lowerRowH;
+          const isLast = fired && i === lowerGames.length - 1;
+          const aWon = g.scoreA >= g.scoreB;
+          return (
+            <g key={i}>
+              <text x={0} y={y + BOX_H / 2 + 4} fontSize="10" fontWeight="700" fill={isLast ? C.ember : C.gold}>{g.label}</text>
+              <BracketBox x={110} y={y} entry={findRowByName(east.rows.concat(west.rows), g.teamA) || g.teamA} highlight={aWon ? undefined : undefined} />
+              <text x={110 + BOX_W + 8} y={y + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight={aWon ? 700 : 400} fill={aWon ? C.turf : C.slate}>{g.scoreA.toFixed(1)}</text>
+              <text x={110 + BOX_W + 46} y={y + BOX_H / 2 + 4} fontSize="9.5" fill={C.slate}>–</text>
+              <text x={110 + BOX_W + 58} y={y + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight={!aWon ? 700 : 400} fill={!aWon ? C.turf : C.slate}>{g.scoreB.toFixed(1)}</text>
+              <BracketBox x={110 + BOX_W + 96} y={y} entry={findRowByName(east.rows.concat(west.rows), g.teamB) || g.teamB} highlight={isLast ? "fired" : undefined} />
+            </g>
+          );
+        })}
+      </svg>
+      <div className="flex justify-between text-xs uppercase mt-1" style={{ color: C.slate }}>
+        <span>{eastName}</span>
+        <span>{westName}</span>
+      </div>
+    </div>
+  );
 }
 
 // A from-scratch "completed bracket" visual for confirmed historical results —
@@ -3521,7 +3656,23 @@ export default function App() {
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>
                           {g.label} {g.key === "playoffs" ? `— ranks 1–${half}` : `— ranks ${half + 1}–${order.length}`}
                         </div>
-                        {r1 && r1[g.key] ? (
+                        {standingsSeason === 2025 && tierKey === "NFL" ? (
+                          <ResolvedCascadeBracket
+                            east={{ ...HISTORICAL_NFL_2025[g.key].east, rows }}
+                            west={{ ...HISTORICAL_NFL_2025[g.key].west, rows }}
+                            eastName={HISTORICAL_NFL_2025[g.key].east.name}
+                            westName={HISTORICAL_NFL_2025[g.key].west.name}
+                            champion={HISTORICAL_NFL_2025[g.key].champion}
+                            secondPlace={HISTORICAL_NFL_2025[g.key].secondPlace}
+                            thirdPlace={HISTORICAL_NFL_2025[g.key].thirdPlace}
+                            fourthPlace={HISTORICAL_NFL_2025[g.key].fourthPlace}
+                            lowerGames={HISTORICAL_NFL_2025[g.key].lowerGames}
+                            fired={g.fired}
+                            rank1Text={g.key === "playoffs" ? "Champion" : `${half + 1}th`}
+                            rank3Text={g.key === "playoffs" ? "3rd" : `${half + 3}th`}
+                            rank4Text={g.key === "playoffs" ? "4th" : `${half + 4}th`}
+                          />
+                        ) : r1 && r1[g.key] ? (
                           <CompletedBracketFlow
                             round1={r1[g.key]}
                             finalOrder={g.finalOrder}
