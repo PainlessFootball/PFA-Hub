@@ -1791,7 +1791,6 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
   const runnerY = secondY + BOX_H + 56;
   const fourthY = runnerY + BOX_H + gap;
   const topHeight = y7 + BOX_H;
-  const totalHeight = Math.max(topHeight, fourthY + BOX_H) + 20;
 
   const oneSide = (side, x1, x2, x3, mirrored) => {
     const out = mirrored ? x1 : x1 + BOX_W;
