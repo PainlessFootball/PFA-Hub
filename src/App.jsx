@@ -98,6 +98,11 @@ const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
 // Years available in the Standings page's season picker — driven straight off
 // LEAGUE_HISTORY, so adding a new year there (e.g. 2022, or next year's IDs
 // each summer) automatically shows up as a new button with no other changes.
+// Temporarily off — brackets and the draft-order panel are hidden site-wide
+// until this is revisited. Nothing below was deleted; flip this back to
+// true to bring the whole thing back exactly as it was.
+const SHOW_BRACKETS = false;
+
 const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
   .map(Number)
   .sort((a, b) => b - a);
@@ -1921,20 +1926,10 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
           {rank3Text}
         </text>
 
-        {feBlock && (
-          <>
-            <text x={r1X} y={feY0 - 18} fontSize="10" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.15em" }}>
-              Placement bracket — semifinal losers
-            </text>
-            {feBlock.el}
-          </>
-        )}
+        {feBlock && feBlock.el}
 
         {nsR1 && (
           <>
-            <text x={r1X} y={nsY0 - 18} fontSize="10" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.15em" }}>
-              Placement bracket — Round 1 losers
-            </text>
             {nsR1.map((g, i) => (
               <g key={`ns-r1-${i}`}>
                 <Connector d={`M ${r1X + BOX_W} ${nsR1Y[i * 2] + BOX_H / 2} L ${r1X + BOX_W} ${nsR1Y[i * 2 + 1] + BOX_H / 2}`} />
@@ -1942,9 +1937,6 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
                 {box(r1X, nsR1Y[i * 2 + 1], g.b)}
               </g>
             ))}
-            <text x={r2X} y={upperQuadY0 - 18} fontSize="9" fill={C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              Winners continue below
-            </text>
           </>
         )}
         {upperQuad && upperQuad.el}
@@ -3762,7 +3754,7 @@ export default function App() {
                 sets both next season's draft order and each team's coaching points for the season — see the breakdown
                 below.
               </div>
-              {placementPanels && (
+              {SHOW_BRACKETS && placementPanels && (
                 <div className="hidden lg:block mt-4 space-y-4">
                   <div className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
                     Draft Order
@@ -3879,7 +3871,7 @@ export default function App() {
                 </div>
               )}
 
-              {standingsSeason !== CURRENT_SEASON && HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey] && (() => {
+              {SHOW_BRACKETS && standingsSeason !== CURRENT_SEASON && HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey] && (() => {
                 const order = HISTORICAL_FINAL_ORDER[standingsSeason][tierKey];
                 const half = Math.floor(order.length / 2);
                 const groups = [
@@ -3951,7 +3943,7 @@ export default function App() {
                 );
               })()}
 
-              {bracket && !(HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey]) && (
+              {SHOW_BRACKETS && bracket && !(HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey]) && (
                 <div className="mt-6">
                   <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
                     Playoff Bracket
