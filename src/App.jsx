@@ -1188,7 +1188,74 @@ function Avatar({ name, avatar, size = 36 }) {
 // idea as wearing multiple rings. Only two categories for now (novelty
 // awards excluded per Lainey); anything else falls back to a plain star.
 //   "harvey28": [{ award: "League Champion", league: "NFL", year: 2023 }, ...]
-const COACH_TROPHIES = {};
+const COACH_TROPHIES = {
+  josssock: [{ award: "League Champion", league: "NFL", year: 2023 }],
+  aziv49: [{ award: "League Champion", league: "SEC", year: 2022 }],
+  harvey28: [
+    { award: "League Champion", league: "NFL", year: 2025 },
+    { award: "League Champion", league: "Sun Belt", year: 2022 },
+  ],
+  huibuh: [{ award: "League Champion", league: "NFL", year: 2024 }],
+  foggybuckets: [{ award: "League Champion", league: "SWAC", year: 2022 }],
+  firephool: [{ award: "League Champion", league: "Big XII", year: 2025 }],
+  mvpmalik2: [{ award: "League Champion", league: "GLIAC", year: 2024 }],
+  spacebarracecar: [{ award: "League Champion", league: "USFL", year: 2025 }],
+  redphoenix437: [
+    { award: "League Champion", league: "USFL", year: 2022 },
+    { award: "League Champion", league: "USFL", year: 2023 },
+  ],
+  noga2003: [{ award: "League Champion", league: "XFL", year: 2025 }],
+  z1856z: [{ award: "League Champion", league: "XFL", year: 2023 }],
+  tylerwt003: [{ award: "League Champion", league: "ACC", year: 2025 }],
+  "wonks l": [{ award: "League Champion", league: "ACC", year: 2022 }],
+  juugking: [{ award: "League Champion", league: "Sun Belt", year: 2025 }],
+  acubes21: [{ award: "League Champion", league: "SoCon", year: 2025 }],
+  jamie04: [
+    { award: "League Champion", league: "SoCon", year: 2024 },
+    { award: "Coach of the Year", league: "SoCon", year: 2024 },
+  ],
+  bradlevo: [{ award: "League Champion", league: "SoCon", year: 2023 }],
+  dylan3380: [{ award: "League Champion", league: "SoCon", year: 2022 }],
+  jorgeortiz11: [{ award: "League Champion", league: "GLIAC", year: 2025 }],
+  stokescity: [{ award: "League Champion", league: "FLHS", year: 2025 }],
+  mbulls: [{ award: "League Champion", league: "FLHS", year: 2022 }],
+  pwnrangr: [
+    { award: "League Champion", league: "FLHS", year: 2023 },
+    { award: "League Champion", league: "Big Ten", year: 2022 },
+    { award: "Coach of the Year", league: "Big Ten", year: 2022 },
+  ],
+  glang727: [{ award: "League Champion", league: "SWAC", year: 2023 }],
+  harold2576: [{ award: "League Champion", league: "GLIAC", year: 2023 }],
+  dilly314: [{ award: "League Champion", league: "Ivy League", year: 2024 }],
+  wynnguy: [
+    { award: "Coach of the Year", league: "Ivy League", year: 2025 },
+    { award: "League Champion", league: "Ivy League", year: 2022 },
+    { award: "League Champion", league: "Ivy League", year: 2025 },
+  ],
+  ziplocbaggins: [
+    { award: "League Champion", league: "Big XII", year: 2024 },
+    { award: "League Champion", league: "Big XII", year: 2023 },
+  ],
+  garmstrong2002: [{ award: "League Champion", league: "GLIAC", year: 2022 }],
+  zero00: [
+    { award: "League Champion", league: "SEC", year: 2024 },
+    { award: "Coach of the Year", league: "SEC", year: 2024 },
+    { award: "League Champion", league: "ACC", year: 2023 },
+    { award: "League Champion", league: "USFL", year: 2024 },
+    { award: "League Champion", league: "ACC", year: 2024 },
+    { award: "Coach of the Year", league: "ACC", year: 2025 },
+  ],
+  samwow123: [
+    { award: "League Champion", league: "SEC", year: 2025 },
+    { award: "League Champion", league: "Big Ten", year: 2025 },
+  ],
+  rifelife520: [{ award: "League Champion", league: "SEC", year: 2023 }],
+  mambasdisciples: [{ award: "League Champion", league: "SWAC", year: 2024 }],
+  finnbar3: [{ award: "Coach of the Year", league: "NFL", year: 2024 }],
+  wdh76: [{ award: "Coach of the Year", league: "Big XII", year: 2023 }],
+  mrcoolbuns: [{ award: "Coach of the Year", league: "XFL", year: 2023 }],
+  austin3x: [{ award: "Coach of the Year", league: "Sun Belt", year: 2025 }],
+};
 
 // Original, generic badge shapes — not a recreation of any real trophy —
 // just enough to visually distinguish the two award categories.
