@@ -95,6 +95,13 @@ const LEAGUE_HISTORY = {
 const CURRENT_SEASON = 2026;
 const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
 
+// Years available in the Standings page's season picker — driven straight off
+// LEAGUE_HISTORY, so adding a new year there (e.g. 2022, or next year's IDs
+// each summer) automatically shows up as a new button with no other changes.
+const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
+  .map(Number)
+  .sort((a, b) => b - a);
+
 const SLEEPER = "https://api.sleeper.app/v1";
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -2017,6 +2024,7 @@ export default function App() {
   const [draftDataLoading, setDraftDataLoading] = useState({});
   const [nflState, setNflState] = useState(null);
   const [leagueMap, setLeagueMap] = useState(LEAGUE_HISTORY[CURRENT_SEASON]);
+  const [standingsSeason, setStandingsSeason] = useState(CURRENT_SEASON);
   const [standingsCache, setStandingsCache] = useState({});
   const [matchupsCache, setMatchupsCache] = useState({});
   const [tierLoading, setTierLoading] = useState(false);
@@ -2144,12 +2152,17 @@ export default function App() {
   }, [chat.length]);
 
   useEffect(() => {
-    const id = leagueMap[tierKey];
+    const seasonMap = standingsSeason === CURRENT_SEASON ? leagueMap : LEAGUE_HISTORY[standingsSeason] || {};
+    const id = seasonMap[tierKey];
     if (mode === "live" && id && !standingsCache[id]) {
       setTierLoading(true);
-      loadLeague(id, nflState && nflState.week).finally(() => setTierLoading(false));
+      // Only fetch live week-by-week matchups for the current season — a
+      // past season's league is already finished, so there's no "this week"
+      // to show; just pull its final standings.
+      const week = standingsSeason === CURRENT_SEASON ? nflState && nflState.week : undefined;
+      loadLeague(id, week).finally(() => setTierLoading(false));
     }
-  }, [tierKey, mode, leagueMap, standingsCache, loadLeague, nflState]);
+  }, [tierKey, mode, standingsSeason, leagueMap, standingsCache, loadLeague, nflState]);
 
   // once discovery has filled in leagueMap, fetch standings for every connected
   // league (not just the one being viewed) so the homepage Hot Seat report can
@@ -2218,7 +2231,8 @@ export default function App() {
   const computeBracket = (tKey) => {
     const format = PLAYOFF_FORMAT[tKey];
     if (!format) return null;
-    const id = leagueMap[tKey];
+    const seasonMap = standingsSeason === CURRENT_SEASON ? leagueMap : LEAGUE_HISTORY[standingsSeason] || {};
+    const id = seasonMap[tKey];
     const rows = id ? standingsCache[id] : null;
     if (!rows || !rows.length) return null;
 
@@ -2361,7 +2375,11 @@ export default function App() {
   };
 
   const tier = TIERS.find((t) => t.key === tierKey);
-  const leagueId = leagueMap[tierKey];
+  // The Standings page can look at any season in SEASON_OPTIONS; every other
+  // page (Coaches, Directory, homepage Hot Seat, Conference Strength) always
+  // uses leagueMap, i.e. the current season — only what's shown here shifts.
+  const seasonLeagueMap = standingsSeason === CURRENT_SEASON ? leagueMap : LEAGUE_HISTORY[standingsSeason] || {};
+  const leagueId = seasonLeagueMap[tierKey];
   const liveRows = leagueId ? standingsCache[leagueId] : null;
   const demoRows = tierKey === "NFL" ? DEMO_NFL.map((r) => ({ ...r, maxPts: null })) : null;
   const rows = mode === "live" ? liveRows : demoRows;
@@ -3156,12 +3174,42 @@ export default function App() {
             </aside>
 
             <section className="flex-1 min-w-0">
-              <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
+              <div className="flex items-baseline justify-between mb-1 gap-2 flex-wrap">
                 <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
                   {tier.name}
                 </h2>
                 <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
               </div>
+
+              {mode === "live" && (
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <div className="flex gap-1">
+                    {SEASON_OPTIONS.map((yr) => {
+                      const active = yr === standingsSeason;
+                      return (
+                        <button
+                          key={yr}
+                          onClick={() => setStandingsSeason(yr)}
+                          className="px-2.5 py-1 text-xs tracking-wider rounded-sm transition-colors"
+                          style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            background: active ? C.gold : "transparent",
+                            color: active ? C.ink : C.slate,
+                            border: `1px solid ${active ? C.gold : C.line}`,
+                          }}
+                        >
+                          {yr}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {standingsSeason !== CURRENT_SEASON && (
+                    <span className="text-xs" style={{ color: C.slate }}>
+                      Viewing final {standingsSeason} standings — read-only, no live scoring.
+                    </span>
+                  )}
+                </div>
+              )}
 
               {rows ? (
                 standingsGroups && standingsGroups.type === "nested" ? (
@@ -3200,8 +3248,14 @@ export default function App() {
                     {tier.name}
                   </div>
                   <div className="text-sm max-w-md mx-auto">
-                    This tier hasn't been matched to its Sleeper league yet. It connects automatically when the league name
-                    contains "{tier.key}" — or add its league ID to the leagueMap in src/App.jsx.
+                    {standingsSeason === CURRENT_SEASON ? (
+                      <>
+                        This tier hasn't been matched to its Sleeper league yet. It connects automatically when the league name
+                        contains "{tier.key}" — or add its league ID to the leagueMap in src/App.jsx.
+                      </>
+                    ) : (
+                      <>No {standingsSeason} league ID on file for this tier yet — add it to LEAGUE_HISTORY[{standingsSeason}] in src/App.jsx.</>
+                    )}
                   </div>
                 </div>
               )}
