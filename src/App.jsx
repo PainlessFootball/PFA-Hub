@@ -158,8 +158,9 @@ const HISTORICAL_NFL_2025 = {
   playoffs: {
     east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", champ: "LA Rams", runnerUp: "Detroit" },
     west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", champ: "Tennessee", runnerUp: "Baltimore" },
-    champion: "Tennessee", secondPlace: "LA Rams", thirdPlace: "Detroit", fourthPlace: "Baltimore",
+    champion: "Tennessee", secondPlace: "LA Rams",
     lowerGames: [
+      { label: "3rd", teamA: "Detroit", scoreA: 144.60, teamB: "Baltimore", scoreB: 102.80 },
       { label: "5th", teamA: "San Francisco", scoreA: 242.20, teamB: "Pittsburgh", scoreB: 154.35 },
       { label: "7th", teamA: "Green Bay", scoreA: 192.40, teamB: "LA Chargers", scoreB: 146.20 },
       { label: "9th", teamA: "Philadelphia", scoreA: 258.40, teamB: "Miami", scoreB: 186.75 },
@@ -171,8 +172,9 @@ const HISTORICAL_NFL_2025 = {
   consolation: {
     east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiA: "Atlanta", semiB: "NY Giants", champ: "Atlanta", runnerUp: "NY Giants" },
     west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", champ: "Cincinnati", runnerUp: "Indianapolis" },
-    champion: "Cincinnati", secondPlace: "Atlanta", thirdPlace: "NY Giants", fourthPlace: "Indianapolis",
+    champion: "Cincinnati", secondPlace: "Atlanta",
     lowerGames: [
+      { label: "19th", teamA: "NY Giants", scoreA: 194.80, teamB: "Indianapolis", scoreB: 174.75 },
       { label: "21st", teamA: "Minnesota", scoreA: 179.60, teamB: "Las Vegas", scoreB: 146.20 },
       { label: "23rd", teamA: "Chicago", scoreA: 157.60, teamB: "Buffalo", scoreB: 155.00 },
       { label: "25th", teamA: "Carolina", scoreA: 146.55, teamB: "Kansas City", scoreB: 118.40 },
@@ -1649,7 +1651,7 @@ function Connector({ d }) {
 // component only renders — every "who beat whom" call was made by the
 // caller (see the historicalNFL2025 data below), verified line-by-line
 // against the actual playoff sheet, not derived inside here.
-function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, thirdPlace, fourthPlace, lowerGames, fired, rank1Text = "Champion", rank3Text = "3rd", rank4Text = "4th" }) {
+function ResolvedCascadeBracket({ east, west, eastName, westName, champion, secondPlace, lowerGames, fired, rank1Text = "Champion", rank2Text = "2nd" }) {
   const colGap = 44;
   const r1X = 0, r2X = r1X + BOX_W + colGap, r3X = r2X + BOX_W + colGap;
   const centerX = r3X + BOX_W + colGap;
@@ -1717,11 +1719,9 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
         <text x={centerX + BOX_W / 2} y={champY - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill={C.gold} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
           {rank1Text}
         </text>
-        {thirdPlace && (
-          <text x={centerX + BOX_W / 2} y={topHeight + 24} textAnchor="middle" fontSize="9" fill={C.slate}>
-            {rank3Text}: {(findRowByName(east.rows, thirdPlace) || {}).team || thirdPlace} · {rank4Text}: {(findRowByName(east.rows, fourthPlace) || {}).team || fourthPlace}
-          </text>
-        )}
+        <text x={centerX + BOX_W / 2} y={runnerY - 8} textAnchor="middle" fontSize="9" fill={C.slate} style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          {rank2Text}
+        </text>
         {lowerGames && lowerGames.map((g, i) => {
           const y = lowerY0 + i * lowerRowH;
           const isLast = fired && i === lowerGames.length - 1;
@@ -3664,13 +3664,10 @@ export default function App() {
                             westName={HISTORICAL_NFL_2025[g.key].west.name}
                             champion={HISTORICAL_NFL_2025[g.key].champion}
                             secondPlace={HISTORICAL_NFL_2025[g.key].secondPlace}
-                            thirdPlace={HISTORICAL_NFL_2025[g.key].thirdPlace}
-                            fourthPlace={HISTORICAL_NFL_2025[g.key].fourthPlace}
                             lowerGames={HISTORICAL_NFL_2025[g.key].lowerGames}
                             fired={g.fired}
                             rank1Text={g.key === "playoffs" ? "Champion" : `${half + 1}th`}
-                            rank3Text={g.key === "playoffs" ? "3rd" : `${half + 3}th`}
-                            rank4Text={g.key === "playoffs" ? "4th" : `${half + 4}th`}
+                            rank2Text={g.key === "playoffs" ? "2nd" : `${half + 2}th`}
                           />
                         ) : r1 && r1[g.key] ? (
                           <CompletedBracketFlow
