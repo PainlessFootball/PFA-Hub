@@ -174,6 +174,30 @@ const HISTORICAL_ROUND1 = {
         ["Indianapolis", 141.50, "Kansas City", 135.10],
       ],
     },
+    // USFL/XFL are 10-team fields — seeds 1-6 bye through Week 14, so only
+    // seeds 7-10 actually play a Round 1 game (2 games per group). The other
+    // 6 teams per group just don't have a Round 1 box; they still appear in
+    // the final order.
+    USFL: {
+      playoffs: [
+        ["Philadelphia", 240.10, "New Jersey", 194.05],
+        ["Washington", 266.40, "Birmingham", 214.20],
+      ],
+      consolation: [
+        ["Houston", 197.90, "Arizona", 133.80],
+        ["Detroit", 202.25, "Tampa Bay", 189.80],
+      ],
+    },
+    XFL: {
+      playoffs: [
+        ["Memphis", 246.50, "Tampa Bay", 125.75],
+        ["Seattle", 238.85, "Orlando", 200.15],
+      ],
+      consolation: [
+        ["New Jersey", 158.20, "Chicago", 127.25],
+        ["Omaha", 199.35, "Atlanta", 177.15],
+      ],
+    },
   },
 };
 
@@ -1585,6 +1609,88 @@ function elbowPath(x1, y1, x2, y2) {
 
 function Connector({ d }) {
   return <path d={d} fill="none" stroke={C.line} strokeWidth="1.5" />;
+}
+
+// A from-scratch "completed bracket" visual for confirmed historical results —
+// deliberately NOT reusing NFLBracket/USFLXFLBracket's internal geometry,
+// since those components' box-to-box wiring can't be safely verified without
+// live-rendering it. This one owns its own layout instead: Round 1 games on
+// the left (real teams, real scores, winner bolded), confirmed final rank
+// order on the right, with a line connecting each team from its Round 1 box
+// to wherever it actually landed. Whoever crosses over the most on the way
+// down lost ground; whoever climbs shows the real story of the bracket.
+function CompletedBracketFlow({ round1, finalOrder, startRank, rows, fired }) {
+  const rowGap = 6, gameGap = 20;
+  const leftX = 0;
+  const rightX = 420;
+  const width = rightX + BOX_W;
+
+  const left = [];
+  let y = 0;
+  round1.forEach(([a, pa, b, pb]) => {
+    left.push({ name: a, pts: pa, y, won: pa > pb });
+    y += BOX_H + rowGap;
+    left.push({ name: b, pts: pb, y, won: pb > pa });
+    y += BOX_H + gameGap;
+  });
+  const leftHeight = y - gameGap;
+
+  const right = finalOrder.map((name, i) => ({ name, rank: startRank + i, y: i * (BOX_H + rowGap) }));
+  const rightHeight = right.length ? right[right.length - 1].y + BOX_H : 0;
+  const height = Math.max(leftHeight, rightHeight);
+  const leftOffset = (height - leftHeight) / 2;
+  const rightOffset = (height - rightHeight) / 2;
+
+  const byName = {};
+  right.forEach((r) => { byName[r.name] = r; });
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: `${width * 0.7}px`, height: "auto" }}>
+        {left.map((entry, i) => {
+          const target = byName[entry.name];
+          if (!target) return null;
+          return (
+            <Connector
+              key={`c-${i}`}
+              d={elbowPath(leftX + BOX_W, entry.y + leftOffset + BOX_H / 2, rightX, target.y + rightOffset + BOX_H / 2)}
+            />
+          );
+        })}
+        {left.map((entry, i) => (
+          <g key={`l-${i}`}>
+            <BracketBox x={leftX} y={entry.y + leftOffset} entry={findRowByName(rows, entry.name) || entry.name} />
+            <text
+              x={leftX + BOX_W - 6}
+              y={entry.y + leftOffset + BOX_H / 2 + 4}
+              textAnchor="end"
+              fontSize="9.5"
+              fontFamily="'IBM Plex Mono', monospace"
+              fontWeight={entry.won ? 700 : 400}
+              fill={entry.won ? C.turf : C.slate}
+            >
+              {entry.pts.toFixed(1)}
+            </text>
+          </g>
+        ))}
+        {right.map((entry) => {
+          const isFirst = entry.rank === startRank;
+          const isLast = fired && entry.rank === startRank + right.length - 1;
+          return (
+            <g key={`r-${entry.rank}`}>
+              <BracketBox
+                x={rightX}
+                y={entry.y + rightOffset}
+                seed={entry.rank}
+                entry={findRowByName(rows, entry.name) || entry.name}
+                highlight={isFirst ? "champion" : isLast ? "fired" : undefined}
+              />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
 }
 
 // Simple left-to-right single-elimination tree: Round 1 -> (Semifinal) ->
@@ -3390,84 +3496,63 @@ export default function App() {
                 </div>
               )}
 
-              {standingsSeason !== CURRENT_SEASON && HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey] && (
-                <div className="mt-6">
-                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                    Confirmed Final Results — {standingsSeason}
-                  </div>
-                  <p className="text-xs mb-3" style={{ color: C.slate }}>
-                    Transcribed from the real {standingsSeason} playoff sheets — actual results, not a seeding
-                    estimate. The bracket diagram below still shows seeding only; this list is the source of truth
-                    until the diagram itself is rebuilt to match.
-                  </p>
-                  <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {HISTORICAL_FINAL_ORDER[standingsSeason][tierKey].map((name, i) => {
-                      const place = i + 1;
-                      const row = findRowByName(rows, name);
-                      const isLast = place === HISTORICAL_FINAL_ORDER[standingsSeason][tierKey].length;
-                      return (
-                        <li
-                          key={`${place}-${name}`}
-                          className="flex items-center gap-2 px-2 py-1 rounded-sm"
-                          style={{ background: isLast ? "rgba(196,74,58,0.12)" : "transparent" }}
-                        >
-                          <span className="w-8 shrink-0 text-right" style={{ color: isLast ? C.ember : C.gold, fontWeight: 700 }}>
-                            {place}.
-                          </span>
-                          {row && row.avatar && (
-                            <img src={row.avatar} alt="" className="w-5 h-5 rounded-sm shrink-0" />
-                          )}
-                          <span className="truncate" style={{ fontWeight: 600 }}>{(row && row.team) || name}</span>
-                          {row && row.coach && (
-                            <span className="truncate text-xs" style={{ color: C.slate }}>— {row.coach}</span>
-                          )}
-                          {isLast && (
-                            <span className="text-xs ml-auto shrink-0" style={{ color: C.ember, fontWeight: 700 }}>
-                              FIRED
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                  {HISTORICAL_ROUND1[standingsSeason] && HISTORICAL_ROUND1[standingsSeason][tierKey] && (
-                    <div className="mt-5">
+              {standingsSeason !== CURRENT_SEASON && HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey] && (() => {
+                const order = HISTORICAL_FINAL_ORDER[standingsSeason][tierKey];
+                const half = Math.floor(order.length / 2);
+                const groups = [
+                  { label: "Playoffs", key: "playoffs", finalOrder: order.slice(0, half), startRank: 1 },
+                  { label: "Consolation", key: "consolation", finalOrder: order.slice(half), startRank: half + 1, fired: true },
+                ];
+                const r1 = HISTORICAL_ROUND1[standingsSeason] && HISTORICAL_ROUND1[standingsSeason][tierKey];
+                return (
+                  <div className="mt-6 space-y-8">
+                    <div>
                       <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                        Round 1 (Week 14)
+                        Completed Bracket — {standingsSeason}
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        {Object.entries(HISTORICAL_ROUND1[standingsSeason][tierKey]).map(([groupName, games]) => (
-                          <div key={groupName}>
-                            <div className="text-xs uppercase mb-1" style={{ color: C.gold }}>{groupName}</div>
-                            <ul className="space-y-1 text-sm">
-                              {games.map(([teamA, ptsA, teamB, ptsB], i) => {
-                                const rowA = findRowByName(rows, teamA);
-                                const rowB = findRowByName(rows, teamB);
-                                const aWon = ptsA > ptsB;
-                                return (
-                                  <li key={i} className="flex items-center justify-between px-2 py-1 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                                    <span className="truncate" style={{ fontWeight: aWon ? 700 : 400, color: aWon ? C.turf : "inherit" }}>
-                                      {(rowA && rowA.team) || teamA}
-                                    </span>
-                                    <span className="px-2 text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate }}>
-                                      {ptsA.toFixed(2)} – {ptsB.toFixed(2)}
-                                    </span>
-                                    <span className="truncate text-right" style={{ fontWeight: !aWon ? 700 : 400, color: !aWon ? C.turf : "inherit" }}>
-                                      {(rowB && rowB.team) || teamB}
-                                    </span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-xs" style={{ color: C.slate }}>
+                        The real {standingsSeason} results, transcribed from the playoff sheets — Round 1 on the
+                        left, confirmed final order on the right. Byes don't get a Round 1 box but still land in
+                        their real final spot.
+                      </p>
                     </div>
-                  )}
-                </div>
-              )}
+                    {groups.map((g) => (
+                      <div key={g.key}>
+                        <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>
+                          {g.label} {g.key === "playoffs" ? `— ranks 1–${half}` : `— ranks ${half + 1}–${order.length}`}
+                        </div>
+                        {r1 && r1[g.key] ? (
+                          <CompletedBracketFlow
+                            round1={r1[g.key]}
+                            finalOrder={g.finalOrder}
+                            startRank={g.startRank}
+                            rows={rows}
+                            fired={g.fired}
+                          />
+                        ) : (
+                          <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                            {g.finalOrder.map((name, i) => {
+                              const place = g.startRank + i;
+                              const row = findRowByName(rows, name);
+                              const isLast = g.fired && i === g.finalOrder.length - 1;
+                              return (
+                                <li key={place} className="flex items-center gap-2 px-2 py-1 rounded-sm" style={{ background: isLast ? "rgba(196,74,58,0.12)" : "transparent" }}>
+                                  <span className="w-8 shrink-0 text-right" style={{ color: isLast ? C.ember : C.gold, fontWeight: 700 }}>{place}.</span>
+                                  {row && row.avatar && <img src={row.avatar} alt="" className="w-5 h-5 rounded-sm shrink-0" />}
+                                  <span className="truncate" style={{ fontWeight: 600 }}>{(row && row.team) || name}</span>
+                                  {isLast && <span className="text-xs ml-auto shrink-0" style={{ color: C.ember, fontWeight: 700 }}>FIRED</span>}
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
-              {bracket && (
+              {bracket && !(HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey]) && (
                 <div className="mt-6">
                   <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
                     Playoff Bracket
