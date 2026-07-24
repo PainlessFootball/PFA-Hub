@@ -1729,11 +1729,11 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
           return (
             <g key={i}>
               <text x={0} y={y + BOX_H / 2 + 4} fontSize="10" fontWeight="700" fill={isLast ? C.ember : C.gold}>{g.label}</text>
-              <BracketBox x={110} y={y} entry={findRowByName(east.rows.concat(west.rows), g.teamA) || g.teamA} highlight={aWon ? undefined : undefined} />
+              <BracketBox x={110} y={y} entry={findRowByName((east.rows || []).concat(west.rows || []), g.teamA) || g.teamA} highlight={aWon ? undefined : undefined} />
               <text x={110 + BOX_W + 8} y={y + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight={aWon ? 700 : 400} fill={aWon ? C.turf : C.slate}>{g.scoreA.toFixed(1)}</text>
               <text x={110 + BOX_W + 46} y={y + BOX_H / 2 + 4} fontSize="9.5" fill={C.slate}>–</text>
               <text x={110 + BOX_W + 58} y={y + BOX_H / 2 + 4} fontSize="9.5" fontFamily="'IBM Plex Mono', monospace" fontWeight={!aWon ? 700 : 400} fill={!aWon ? C.turf : C.slate}>{g.scoreB.toFixed(1)}</text>
-              <BracketBox x={110 + BOX_W + 96} y={y} entry={findRowByName(east.rows.concat(west.rows), g.teamB) || g.teamB} highlight={isLast ? "fired" : undefined} />
+              <BracketBox x={110 + BOX_W + 96} y={y} entry={findRowByName((east.rows || []).concat(west.rows || []), g.teamB) || g.teamB} highlight={isLast ? "fired" : undefined} />
             </g>
           );
         })}
