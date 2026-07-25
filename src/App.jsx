@@ -1891,7 +1891,7 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
     </text>
   );
 
-  const feY0 = fourthY + BOX_H + 70;
+  const feY0 = Math.max(fourthY + BOX_H, topHeight) + 70;
   const feBlock = fifthEighth ? renderQuad(fifthEighth.semis, fifthEighth.final, fifthEighth.consolation, r1X, feY0, "fe", undefined, false) : null;
 
   const nsY0 = feBlock ? feY0 + feBlock.height + 60 : feY0;
