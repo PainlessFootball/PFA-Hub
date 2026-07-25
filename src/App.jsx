@@ -1895,18 +1895,10 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
   const feBlock = fifthEighth ? renderQuad(fifthEighth.semis, fifthEighth.final, fifthEighth.consolation, r1X, feY0, "fe", undefined, false) : null;
 
   const nsY0 = feBlock ? feY0 + feBlock.height + 60 : feY0;
-  // 9th-16th's own Round 1 (4 games, 8 teams) splits into an upper group
-  // (feeds the "9th/11th" quad) and a lower group ("13th/15th" quad).
-  const nsR1 = ninthSixteenth ? ninthSixteenth.r1 : null;
-  const nsGap = 16, nsGameGap = 30;
-  const nsR1Y = nsR1
-    ? [0, 1, 2, 3].flatMap((i) => {
-        const base = nsY0 + i * (BOX_H * 2 + nsGap + nsGameGap);
-        return [base, base + BOX_H + nsGap];
-      })
-    : [];
-  const nsR1Bottom = nsR1 ? nsR1Y[nsR1Y.length - 1] + BOX_H : nsY0;
-  const upperQuadY0 = nsR1Bottom + 50;
+  // 9th-16th's own Round 1 splits into an upper group (feeds the "9th/11th"
+  // quad) and a lower group ("13th/15th" quad) — each quad's own semis
+  // already show these teams, so there's no separate "Round 1" list here.
+  const upperQuadY0 = nsY0;
   const upperQuad = ninthSixteenth
     ? renderQuad(ninthSixteenth.upperSemis, ninthSixteenth.upperFinal, ninthSixteenth.upperConsolation, r2X, upperQuadY0, "ns-up", undefined, false)
     : null;
@@ -1915,7 +1907,7 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
     ? renderQuad(ninthSixteenth.lowerSemis, ninthSixteenth.lowerFinal, ninthSixteenth.lowerConsolation, r2X, lowerQuadY0, "ns-low", undefined, fired)
     : null;
 
-  const totalHeight = Math.max(topHeight, (lowerQuad ? lowerQuadY0 + lowerQuad.height : nsR1Bottom)) + 20;
+  const totalHeight = Math.max(topHeight, (lowerQuad ? lowerQuadY0 + lowerQuad.height : nsY0)) + 20;
 
   return (
     <div className="overflow-x-auto">
@@ -1935,17 +1927,6 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
 
         {feBlock && feBlock.el}
 
-        {nsR1 && (
-          <>
-            {nsR1.map((g, i) => (
-              <g key={`ns-r1-${i}`}>
-                <Connector d={`M ${r2X + BOX_W} ${nsR1Y[i * 2] + BOX_H / 2} L ${r2X + BOX_W} ${nsR1Y[i * 2 + 1] + BOX_H / 2}`} />
-                {box(r2X, nsR1Y[i * 2], g.a)}
-                {box(r2X, nsR1Y[i * 2 + 1], g.b)}
-              </g>
-            ))}
-          </>
-        )}
         {upperQuad && upperQuad.el}
         {lowerQuad && lowerQuad.el}
       </svg>
