@@ -167,40 +167,43 @@ const HISTORICAL_NFL_2025 = {
     east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", champ: "LA Rams", runnerUp: "Detroit" },
     west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", champ: "Tennessee", runnerUp: "Baltimore" },
     champion: "Tennessee", secondPlace: "LA Rams", thirdPlace: "Detroit", fourthPlace: "Baltimore",
-    // The 4 semifinal losers (San Francisco/Green Bay/LA Chargers/Pittsburgh)
-    // drop into their own mini-bracket: a semifinal round none of the sheets
-    // show scores for, reconstructed from the confirmed final order (it's
-    // the only pairing that produces SF 5th, Pittsburgh 6th, GB 7th, LAC 8th).
+    // The 4 semifinal losers stay within their own conference for one more
+    // round (mirroring the championship bracket exactly), THEN cross at
+    // Week 17 for 5th/7th. None of the sheets show scores for the internal
+    // round — reconstructed from the confirmed final order.
     fifthEighth: {
-      semis: [
-        { a: "San Francisco", b: "LA Chargers", winner: "San Francisco" },
-        { a: "Green Bay", b: "Pittsburgh", winner: "Pittsburgh" },
-      ],
-      final: { label: "5th", a: "San Francisco", b: "Pittsburgh", winner: "San Francisco" },
-      consolation: { label: "7th", a: "Green Bay", b: "LA Chargers", winner: "Green Bay" },
+      east: { a: "San Francisco", b: "Green Bay", winner: "San Francisco" },
+      west: { a: "LA Chargers", b: "Pittsburgh", winner: "Pittsburgh" },
+      final: { label: "5th", winner: "San Francisco", loser: "Pittsburgh" },
+      consolation: { label: "7th", winner: "Green Bay", loser: "LA Chargers" },
     },
-    // The 8 Round 1 losers drop into their own full 3-round bracket (own R1,
-    // own semis, then finals) — same reconstruction logic as above, none of
-    // these mid-round scores are on the sheet, only the confirmed outcomes.
+    // The 8 Round 1 losers stay within conference for two more rounds (own
+    // semis, then an own final/consolation deciding each conference's
+    // internal 1st-4th among these 8) — THEN cross at Week 17, same idea
+    // as the top bracket just one tier down.
     ninthSixteenth: {
-      r1: [
-        { a: "Philadelphia", b: "New England", winner: "Philadelphia" },
-        { a: "Seattle", b: "Jacksonville", winner: "Seattle" },
-        { a: "Arizona", b: "Miami", winner: "Miami" },
-        { a: "New Orleans", b: "NY Jets", winner: "NY Jets" },
+      east: {
+        semis: [
+          { a: "Arizona", b: "Philadelphia", winner: "Philadelphia" },
+          { a: "Seattle", b: "New Orleans", winner: "Seattle" },
+        ],
+        final: { winner: "Philadelphia", loser: "Seattle" },
+        consolation: { winner: "Arizona", loser: "New Orleans" },
+      },
+      west: {
+        semis: [
+          { a: "New England", b: "Miami", winner: "Miami" },
+          { a: "NY Jets", b: "Jacksonville", winner: "NY Jets" },
+        ],
+        final: { winner: "Miami", loser: "NY Jets" },
+        consolation: { winner: "New England", loser: "Jacksonville" },
+      },
+      cross: [
+        { label: "9th", winner: "Philadelphia", loser: "Miami" },
+        { label: "11th", winner: "NY Jets", loser: "Seattle" },
+        { label: "13th", winner: "New England", loser: "Arizona" },
+        { label: "15th", winner: "New Orleans", loser: "Jacksonville" },
       ],
-      upperSemis: [
-        { a: "Philadelphia", b: "NY Jets", winner: "Philadelphia" },
-        { a: "Seattle", b: "Miami", winner: "Miami" },
-      ],
-      upperFinal: { label: "9th", a: "Philadelphia", b: "Miami", winner: "Philadelphia" },
-      upperConsolation: { label: "11th", a: "NY Jets", b: "Seattle", winner: "NY Jets" },
-      lowerSemis: [
-        { a: "New England", b: "New Orleans", winner: "New England" },
-        { a: "Arizona", b: "Jacksonville", winner: "Arizona" },
-      ],
-      lowerFinal: { label: "13th", a: "New England", b: "Arizona", winner: "New England" },
-      lowerConsolation: { label: "15th", a: "New Orleans", b: "Jacksonville", winner: "New Orleans" },
     },
   },
   consolation: {
@@ -208,35 +211,38 @@ const HISTORICAL_NFL_2025 = {
     west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", champ: "Cincinnati", runnerUp: "Indianapolis" },
     champion: "Cincinnati", secondPlace: "Atlanta", thirdPlace: "NY Giants", fourthPlace: "Indianapolis",
     fifthEighth: {
-      semis: [
-        { a: "Minnesota", b: "Buffalo", winner: "Minnesota" },
-        { a: "Chicago", b: "Las Vegas", winner: "Las Vegas" },
-      ],
-      final: { label: "21st", a: "Minnesota", b: "Las Vegas", winner: "Minnesota" },
-      consolation: { label: "23rd", a: "Chicago", b: "Buffalo", winner: "Chicago" },
+      east: { a: "Chicago", b: "Minnesota", winner: "Minnesota" },
+      west: { a: "Las Vegas", b: "Buffalo", winner: "Las Vegas" },
+      final: { label: "21st", winner: "Minnesota", loser: "Las Vegas" },
+      consolation: { label: "23rd", winner: "Chicago", loser: "Buffalo" },
     },
     ninthSixteenth: {
-      r1: [
-        { a: "Carolina", b: "Cleveland", winner: "Carolina" },
-        { a: "Dallas", b: "Denver", winner: "Dallas" },
-        { a: "Tampa Bay", b: "Houston", winner: "Houston" },
-        { a: "Washington", b: "Kansas City", winner: "Kansas City" },
+      east: {
+        semis: [
+          { a: "Dallas", b: "Washington", winner: "Dallas" },
+          { a: "Tampa Bay", b: "Carolina", winner: "Carolina" },
+        ],
+        final: { winner: "Carolina", loser: "Dallas" },
+        consolation: { winner: "Tampa Bay", loser: "Washington" },
+      },
+      west: {
+        semis: [
+          { a: "Denver", b: "Houston", winner: "Houston" },
+          { a: "Kansas City", b: "Cleveland", winner: "Kansas City" },
+        ],
+        final: { winner: "Kansas City", loser: "Houston" },
+        consolation: { winner: "Cleveland", loser: "Denver" },
+      },
+      cross: [
+        { label: "25th", winner: "Carolina", loser: "Kansas City" },
+        { label: "27th", winner: "Dallas", loser: "Houston" },
+        { label: "29th", winner: "Tampa Bay", loser: "Cleveland" },
+        { label: "31st", winner: "Washington", loser: "Denver" },
       ],
-      upperSemis: [
-        { a: "Carolina", b: "Houston", winner: "Carolina" },
-        { a: "Dallas", b: "Kansas City", winner: "Kansas City" },
-      ],
-      upperFinal: { label: "25th", a: "Carolina", b: "Kansas City", winner: "Carolina" },
-      upperConsolation: { label: "27th", a: "Houston", b: "Dallas", winner: "Dallas" },
-      lowerSemis: [
-        { a: "Tampa Bay", b: "Denver", winner: "Tampa Bay" },
-        { a: "Cleveland", b: "Washington", winner: "Cleveland" },
-      ],
-      lowerFinal: { label: "29th", a: "Tampa Bay", b: "Cleveland", winner: "Tampa Bay" },
-      lowerConsolation: { label: "31st", a: "Washington", b: "Denver", winner: "Washington" },
     },
   },
 };
+
 
 const HISTORICAL_ROUND1 = {
   2025: {
@@ -1836,52 +1842,6 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
   // meet in a "final", losers meet in a "consolation" game. This exact shape
   // is what 5th-8th needs once, and what 9th-16th needs twice (its "upper"
   // and "lower" halves) — so it's built once here and reused three times.
-  const renderQuad = (semis, final, consolation, x0, y0, keyPrefix, finalHighlight, consLastFired) => {
-    const gapQ = 20;
-    const y = [y0, y0 + BOX_H + gapQ, y0 + BOX_H * 2 + gapQ * 2, y0 + BOX_H * 3 + gapQ * 3];
-    const mid1 = (y[0] + y[1]) / 2 + BOX_H / 2, mid2 = (y[2] + y[3]) / 2 + BOX_H / 2;
-    const x1 = x0 + BOX_W + colGap, x2 = x1 + BOX_W + colGap;
-    const winAY = mid1 - BOX_H / 2, winBY = mid2 - BOX_H / 2;
-    const finalY = (winAY + winBY) / 2;
-    // Losers' column starts clear of BOTH winner boxes (not just offset from
-    // one of them) — winAY and winBY don't sit at the same height, so a
-    // single fixed offset from winAY alone let the two columns collide.
-    const loseGap = 40;
-    const loseAY = Math.max(winAY, winBY) + BOX_H + loseGap;
-    const loseBY = loseAY + BOX_H + gapQ;
-    const consY = (loseAY + loseBY) / 2;
-    const bottom = consY + BOX_H;
-    return {
-      height: bottom - y0,
-      el: (
-        <g key={keyPrefix}>
-          <Connector d={`M ${x0 + BOX_W} ${y[0] + BOX_H / 2} L ${x0 + BOX_W} ${y[1] + BOX_H / 2}`} />
-          <Connector d={elbowPath(x0 + BOX_W, mid1, x1, winAY + BOX_H / 2)} />
-          <Connector d={elbowPath(x0 + BOX_W, mid1, x1, loseAY + BOX_H / 2)} />
-          <Connector d={`M ${x0 + BOX_W} ${y[2] + BOX_H / 2} L ${x0 + BOX_W} ${y[3] + BOX_H / 2}`} />
-          <Connector d={elbowPath(x0 + BOX_W, mid2, x1, winBY + BOX_H / 2)} />
-          <Connector d={elbowPath(x0 + BOX_W, mid2, x1, loseBY + BOX_H / 2)} />
-          <Connector d={elbowPath(x1 + BOX_W, winAY + BOX_H / 2, x2, finalY + BOX_H / 2)} />
-          <Connector d={elbowPath(x1 + BOX_W, winBY + BOX_H / 2, x2, finalY + BOX_H / 2)} />
-          <Connector d={elbowPath(x1 + BOX_W, loseAY + BOX_H / 2, x2, consY + BOX_H / 2)} />
-          <Connector d={elbowPath(x1 + BOX_W, loseBY + BOX_H / 2, x2, consY + BOX_H / 2)} />
-          {box(x0, y[0], semis[0].a)}
-          {box(x0, y[1], semis[0].b)}
-          {box(x0, y[2], semis[1].a)}
-          {box(x0, y[3], semis[1].b)}
-          {box(x1, winAY, semis[0].winner)}
-          {box(x1, winBY, semis[1].winner)}
-          {box(x1, loseAY, loserOf(semis[0]))}
-          {box(x1, loseBY, loserOf(semis[1]))}
-          {box(x2, finalY, final.winner, finalHighlight)}
-          {box(x2, consY, loserOf(final), consLastFired ? "fired" : undefined)}
-          {label(x2, finalY, final.label, finalHighlight ? C.gold : undefined)}
-          {label(x2, consY, consolation.label)}
-        </g>
-      ),
-    };
-  };
-
   const loserOf = (g) => (g.winner === g.a ? g.b : g.a);
   const allRows = (east.rows || []).concat(west.rows || []);
   const box = (x, y, name, hl) => <BracketBox key={`${x}-${y}`} x={x} y={y} entry={findRowByName(allRows, name) || name} highlight={hl} />;
@@ -1891,23 +1851,132 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
     </text>
   );
 
+  // 5th-8th shape: each conference plays its own 1-game decider (mirrored,
+  // same as the championship bracket's own rounds), THEN crosses at the
+  // very end for 5th/7th. Two teams per side, one round per side.
+  const renderMirrored2 = (eastGame, westGame, finalGame, consolationGame, y0, keyPrefix, consFired) => {
+    const gapQ = 20;
+    const eY0 = y0, eY1 = y0 + BOX_H + gapQ;
+    const mid = (eY0 + eY1) / 2 + BOX_H / 2;
+    const winY = mid - BOX_H / 2;
+    const loseY = winY + BOX_H + 40;
+    const eX0 = r1X, eX1 = r2X, wX0 = wR1X, wX1 = wR2X;
+    const finalY = winY, consY = loseY;
+    const bottom = loseY + BOX_H;
+    return {
+      height: bottom - y0,
+      el: (
+        <g key={keyPrefix}>
+          <Connector d={`M ${eX0 + BOX_W} ${eY0 + BOX_H / 2} L ${eX0 + BOX_W} ${eY1 + BOX_H / 2}`} />
+          <Connector d={elbowPath(eX0 + BOX_W, mid, eX1, winY + BOX_H / 2)} />
+          <Connector d={elbowPath(eX0 + BOX_W, mid, eX1, loseY + BOX_H / 2)} />
+          <Connector d={`M ${wX0} ${eY0 + BOX_H / 2} L ${wX0} ${eY1 + BOX_H / 2}`} />
+          <Connector d={elbowPath(wX0, mid, wX1 + BOX_W, winY + BOX_H / 2)} />
+          <Connector d={elbowPath(wX0, mid, wX1 + BOX_W, loseY + BOX_H / 2)} />
+          <Connector d={elbowPath(eX1 + BOX_W, winY + BOX_H / 2, centerX, finalY + BOX_H / 2)} />
+          <Connector d={elbowPath(wX1, winY + BOX_H / 2, centerX + BOX_W, finalY + BOX_H / 2)} />
+          <Connector d={elbowPath(eX1 + BOX_W, loseY + BOX_H / 2, centerX, consY + BOX_H / 2)} />
+          <Connector d={elbowPath(wX1, loseY + BOX_H / 2, centerX + BOX_W, consY + BOX_H / 2)} />
+          {box(eX0, eY0, eastGame.a)}
+          {box(eX0, eY1, eastGame.b)}
+          {box(eX1, winY, eastGame.winner)}
+          {box(eX1, loseY, loserOf(eastGame))}
+          {box(wX0, eY0, westGame.a)}
+          {box(wX0, eY1, westGame.b)}
+          {box(wX1, winY, westGame.winner)}
+          {box(wX1, loseY, loserOf(westGame))}
+          {box(centerX, finalY, finalGame.winner)}
+          {box(centerX, consY, consolationGame.winner, consFired ? "fired" : undefined)}
+          {label(centerX, finalY, finalGame.label)}
+          {label(centerX, consY, consolationGame.label)}
+        </g>
+      ),
+    };
+  };
+
+  // 9th-16th shape: each conference runs its OWN full mini-bracket (own
+  // semis, own final deciding that conference's internal rank1/2, own
+  // consolation deciding internal rank3/4) — entirely within conference,
+  // same idea as the championship bracket one tier down — THEN 4 cross
+  // games at the very end (9th/11th/13th/15th).
+  const renderMirrored4 = (east4, west4, cross, y0, keyPrefix, fired4) => {
+    const gapQ = 20;
+    const y = [y0, y0 + BOX_H + gapQ, y0 + BOX_H * 2 + gapQ * 2, y0 + BOX_H * 3 + gapQ * 3];
+    const mid1 = (y[0] + y[1]) / 2 + BOX_H / 2, mid2 = (y[2] + y[3]) / 2 + BOX_H / 2;
+    const winAY = mid1 - BOX_H / 2, winBY = mid2 - BOX_H / 2;
+    const rank1Y = (winAY + winBY) / 2;
+    const rank2Y = rank1Y + BOX_H + gapQ;
+    const loseGap = 40;
+    const loseAY = Math.max(winAY, winBY) + BOX_H + loseGap;
+    const loseBY = loseAY + BOX_H + gapQ;
+    const rank3Y = (loseAY + loseBY) / 2;
+    const rank4Y = rank3Y + BOX_H + gapQ;
+    const bottom = rank4Y + BOX_H;
+
+    const oneConf = (side, x0, x1, x2, mirrored) => {
+      const out0 = mirrored ? x0 : x0 + BOX_W;
+      const in1 = mirrored ? x1 + BOX_W : x1;
+      const out1 = mirrored ? x1 : x1 + BOX_W;
+      const in2 = mirrored ? x2 + BOX_W : x2;
+      return (
+        <>
+          <Connector d={`M ${out0} ${y[0] + BOX_H / 2} L ${out0} ${y[1] + BOX_H / 2}`} />
+          <Connector d={elbowPath(out0, mid1, in1, winAY + BOX_H / 2)} />
+          <Connector d={elbowPath(out0, mid1, in1, loseAY + BOX_H / 2)} />
+          <Connector d={`M ${out0} ${y[2] + BOX_H / 2} L ${out0} ${y[3] + BOX_H / 2}`} />
+          <Connector d={elbowPath(out0, mid2, in1, winBY + BOX_H / 2)} />
+          <Connector d={elbowPath(out0, mid2, in1, loseBY + BOX_H / 2)} />
+          <Connector d={elbowPath(out1, winAY + BOX_H / 2, in2, rank1Y + BOX_H / 2)} />
+          <Connector d={elbowPath(out1, winBY + BOX_H / 2, in2, rank2Y + BOX_H / 2)} />
+          <Connector d={elbowPath(out1, loseAY + BOX_H / 2, in2, rank3Y + BOX_H / 2)} />
+          <Connector d={elbowPath(out1, loseBY + BOX_H / 2, in2, rank4Y + BOX_H / 2)} />
+          {box(x0, y[0], side.semis[0].a)}
+          {box(x0, y[1], side.semis[0].b)}
+          {box(x0, y[2], side.semis[1].a)}
+          {box(x0, y[3], side.semis[1].b)}
+          {box(x1, winAY, side.semis[0].winner)}
+          {box(x1, winBY, side.semis[1].winner)}
+          {box(x1, loseAY, loserOf(side.semis[0]))}
+          {box(x1, loseBY, loserOf(side.semis[1]))}
+          {box(x2, rank1Y, side.final.winner)}
+          {box(x2, rank2Y, side.final.loser)}
+          {box(x2, rank3Y, side.consolation.winner)}
+          {box(x2, rank4Y, side.consolation.loser)}
+        </>
+      );
+    };
+
+    const crossYs = [rank1Y, rank2Y, rank3Y, rank4Y];
+    return {
+      height: bottom - y0,
+      el: (
+        <g key={keyPrefix}>
+          {oneConf(east4, r1X, r2X, r3X, false)}
+          {oneConf(west4, wR1X, wR2X, wR3X, true)}
+          {cross.map((g, i) => {
+            const cy = crossYs[i];
+            const isLast = fired4 && i === cross.length - 1;
+            return (
+              <g key={`cross-${i}`}>
+                <Connector d={elbowPath(r3X + BOX_W, cy + BOX_H / 2, centerX, cy + BOX_H / 2)} />
+                <Connector d={elbowPath(wR3X, cy + BOX_H / 2, centerX + BOX_W, cy + BOX_H / 2)} />
+                {box(centerX, cy, g.winner, isLast ? "fired" : undefined)}
+                {label(centerX, cy, g.label)}
+              </g>
+            );
+          })}
+        </g>
+      ),
+    };
+  };
+
   const feY0 = Math.max(fourthY + BOX_H, topHeight) + 70;
-  const feBlock = fifthEighth ? renderQuad(fifthEighth.semis, fifthEighth.final, fifthEighth.consolation, r1X, feY0, "fe", undefined, false) : null;
+  const feBlock = fifthEighth ? renderMirrored2(fifthEighth.east, fifthEighth.west, fifthEighth.final, fifthEighth.consolation, feY0, "fe", false) : null;
 
   const nsY0 = feBlock ? feY0 + feBlock.height + 60 : feY0;
-  // 9th-16th's own Round 1 splits into an upper group (feeds the "9th/11th"
-  // quad) and a lower group ("13th/15th" quad) — each quad's own semis
-  // already show these teams, so there's no separate "Round 1" list here.
-  const upperQuadY0 = nsY0;
-  const upperQuad = ninthSixteenth
-    ? renderQuad(ninthSixteenth.upperSemis, ninthSixteenth.upperFinal, ninthSixteenth.upperConsolation, r2X, upperQuadY0, "ns-up", undefined, false)
-    : null;
-  const lowerQuadY0 = upperQuad ? upperQuadY0 + upperQuad.height + 40 : upperQuadY0;
-  const lowerQuad = ninthSixteenth
-    ? renderQuad(ninthSixteenth.lowerSemis, ninthSixteenth.lowerFinal, ninthSixteenth.lowerConsolation, r2X, lowerQuadY0, "ns-low", undefined, fired)
-    : null;
+  const nsBlock = ninthSixteenth ? renderMirrored4(ninthSixteenth.east, ninthSixteenth.west, ninthSixteenth.cross, nsY0, "ns", fired) : null;
 
-  const totalHeight = Math.max(topHeight, (lowerQuad ? lowerQuadY0 + lowerQuad.height : nsY0)) + 20;
+  const totalHeight = Math.max(topHeight, (nsBlock ? nsY0 + nsBlock.height : nsY0)) + 20;
 
   return (
     <div className="overflow-x-auto">
@@ -1926,9 +1995,7 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
         </text>
 
         {feBlock && feBlock.el}
-
-        {upperQuad && upperQuad.el}
-        {lowerQuad && lowerQuad.el}
+        {nsBlock && nsBlock.el}
       </svg>
       <div className="flex justify-between text-xs uppercase mt-1" style={{ color: C.slate }}>
         <span>{eastName}</span>
