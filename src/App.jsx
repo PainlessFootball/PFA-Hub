@@ -1843,8 +1843,12 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
     const x1 = x0 + BOX_W + colGap, x2 = x1 + BOX_W + colGap;
     const winAY = mid1 - BOX_H / 2, winBY = mid2 - BOX_H / 2;
     const finalY = (winAY + winBY) / 2;
-    const pushDown = 110;
-    const loseAY = winAY + pushDown, loseBY = winBY + pushDown;
+    // Losers' column starts clear of BOTH winner boxes (not just offset from
+    // one of them) — winAY and winBY don't sit at the same height, so a
+    // single fixed offset from winAY alone let the two columns collide.
+    const loseGap = 40;
+    const loseAY = Math.max(winAY, winBY) + BOX_H + loseGap;
+    const loseBY = loseAY + BOX_H + gapQ;
     const consY = (loseAY + loseBY) / 2;
     const bottom = consY + BOX_H;
     return {
@@ -1935,9 +1939,9 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
           <>
             {nsR1.map((g, i) => (
               <g key={`ns-r1-${i}`}>
-                <Connector d={`M ${r1X + BOX_W} ${nsR1Y[i * 2] + BOX_H / 2} L ${r1X + BOX_W} ${nsR1Y[i * 2 + 1] + BOX_H / 2}`} />
-                {box(r1X, nsR1Y[i * 2], g.a)}
-                {box(r1X, nsR1Y[i * 2 + 1], g.b)}
+                <Connector d={`M ${r2X + BOX_W} ${nsR1Y[i * 2] + BOX_H / 2} L ${r2X + BOX_W} ${nsR1Y[i * 2 + 1] + BOX_H / 2}`} />
+                {box(r2X, nsR1Y[i * 2], g.a)}
+                {box(r2X, nsR1Y[i * 2 + 1], g.b)}
               </g>
             ))}
           </>
