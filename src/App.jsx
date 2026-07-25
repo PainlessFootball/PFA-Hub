@@ -98,10 +98,13 @@ const NFL_LEAGUE_ID = LEAGUE_HISTORY[CURRENT_SEASON].NFL;
 // Years available in the Standings page's season picker — driven straight off
 // LEAGUE_HISTORY, so adding a new year there (e.g. 2022, or next year's IDs
 // each summer) automatically shows up as a new button with no other changes.
-// Temporarily off — brackets and the draft-order panel are hidden site-wide
-// until this is revisited. Nothing below was deleted; flip this back to
-// true to bring the whole thing back exactly as it was.
-const SHOW_BRACKETS = false;
+// PFA's playoff format is a Full Classification Bracket (a.k.a. Consolation/
+// Placement bracket, related to the Monrad system): winners keep playing
+// winners, losers keep playing losers, splitting further each round, until
+// every team has a confirmed 1st-through-last rank — never single elimination.
+// The Championship and Consolation groups each run this as their own
+// separate tournament within the tier.
+const SHOW_BRACKETS = true;
 
 const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
   .map(Number)
