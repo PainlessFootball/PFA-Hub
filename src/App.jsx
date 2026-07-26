@@ -164,8 +164,8 @@ const findRowByName = (rows, name) => {
 // the sheet (game A top/bottom, game B top/bottom, game C, game D).
 const HISTORICAL_NFL_2025 = {
   playoffs: {
-    east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiA: "LA Rams", semiB: "Detroit", champ: "LA Rams", runnerUp: "Detroit" },
-    west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiA: "Tennessee", semiB: "Baltimore", champ: "Tennessee", runnerUp: "Baltimore" },
+    east: { name: "NFC", r1: ["San Francisco", "Arizona", "Philadelphia", "LA Rams", "Green Bay", "Seattle", "New Orleans", "Detroit"], semiAGame: { a: "San Francisco", b: "LA Rams", winner: "LA Rams" }, semiBGame: { a: "Green Bay", b: "Detroit", winner: "Detroit" }, champ: "LA Rams", runnerUp: "Detroit" },
+    west: { name: "AFC", r1: ["New England", "Tennessee", "LA Chargers", "Miami", "Baltimore", "NY Jets", "Jacksonville", "Pittsburgh"], semiAGame: { a: "Tennessee", b: "LA Chargers", winner: "Tennessee" }, semiBGame: { a: "Baltimore", b: "Pittsburgh", winner: "Baltimore" }, champ: "Tennessee", runnerUp: "Baltimore" },
     champion: "Tennessee", secondPlace: "LA Rams", thirdPlace: "Detroit", fourthPlace: "Baltimore",
     // The 4 semifinal losers stay within their own conference for one more
     // round (mirroring the championship bracket exactly), THEN cross at
@@ -207,8 +207,8 @@ const HISTORICAL_NFL_2025 = {
     },
   },
   consolation: {
-    east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiA: "Atlanta", semiB: "NY Giants", champ: "Atlanta", runnerUp: "NY Giants" },
-    west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiA: "Cincinnati", semiB: "Indianapolis", champ: "Cincinnati", runnerUp: "Indianapolis" },
+    east: { name: "NFC", r1: ["Dallas", "Atlanta", "Chicago", "Washington", "Minnesota", "Tampa Bay", "NY Giants", "Carolina"], semiAGame: { a: "Atlanta", b: "Chicago", winner: "Atlanta" }, semiBGame: { a: "Minnesota", b: "NY Giants", winner: "NY Giants" }, champ: "Atlanta", runnerUp: "NY Giants" },
+    west: { name: "AFC", r1: ["Cincinnati", "Denver", "Las Vegas", "Houston", "Indianapolis", "Kansas City", "Buffalo", "Cleveland"], semiAGame: { a: "Cincinnati", b: "Las Vegas", winner: "Cincinnati" }, semiBGame: { a: "Indianapolis", b: "Buffalo", winner: "Indianapolis" }, champ: "Cincinnati", runnerUp: "Indianapolis" },
     champion: "Cincinnati", secondPlace: "Atlanta", thirdPlace: "NY Giants", fourthPlace: "Indianapolis",
     fifthEighth: {
       east: { a: "Chicago", b: "Minnesota", winner: "Minnesota" },
@@ -1796,8 +1796,13 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
   const r1ys = [y0, y1, y2, y3, y4, y5, y6, y7];
   const gaMid = (y0 + y1) / 2 + BOX_H / 2, gbMid = (y2 + y3) / 2 + BOX_H / 2;
   const gcMid = (y4 + y5) / 2 + BOX_H / 2, gdMid = (y6 + y7) / 2 + BOX_H / 2;
-  const semiAY = (gaMid + gbMid) / 2 - BOX_H / 2, semiBY = (gcMid + gdMid) / 2 - BOX_H / 2;
-  const semiMid = (semiAY + semiBY) / 2 + BOX_H / 2;
+  // Each semifinal is a real matchup box — both teams shown, stacked —
+  // not just the winner. Pair A (fed by games A+B) is centered on the same
+  // point the single box used to sit at; pair B likewise.
+  const pairACenter = (gaMid + gbMid) / 2, pairBCenter = (gcMid + gdMid) / 2;
+  const semiAY = pairACenter - BOX_H - gap / 2, semiAY2 = semiAY + BOX_H + gap;
+  const semiBY = pairBCenter - BOX_H - gap / 2, semiBY2 = semiBY + BOX_H + gap;
+  const semiMid = (pairACenter + pairBCenter) / 2;
   // Champion + 2nd stack tight together (2nd is just the loser of the same
   // final game the champion won); 3rd + 4th stack the same way just below.
   const champY = semiMid - BOX_H - 20;
@@ -1813,25 +1818,34 @@ function ResolvedCascadeBracket({ east, west, eastName, westName, champion, seco
     const in3 = mirrored ? x3 + BOX_W : x3;
     const out3 = mirrored ? x3 : x3 + BOX_W;
     const centerIn = mirrored ? centerX + BOX_W : centerX;
+    // semiAGame.a is always "game A's winner", .b is always "game B's
+    // winner" — so which physical box (top=semiAY or bottom=semiAY2) is
+    // the semifinal's own winner depends on this side's specific result.
+    const semiAWinY = side.semiAGame.winner === side.semiAGame.a ? semiAY : semiAY2;
+    const semiBWinY = side.semiBGame.winner === side.semiBGame.a ? semiBY : semiBY2;
     return (
       <>
         <Connector d={`M ${out} ${y0 + BOX_H / 2} L ${out} ${y1 + BOX_H / 2}`} />
         <Connector d={elbowPath(out, gaMid, in2, semiAY + BOX_H / 2)} />
         <Connector d={`M ${out} ${y2 + BOX_H / 2} L ${out} ${y3 + BOX_H / 2}`} />
-        <Connector d={elbowPath(out, gbMid, in2, semiAY + BOX_H / 2)} />
+        <Connector d={elbowPath(out, gbMid, in2, semiAY2 + BOX_H / 2)} />
         <Connector d={`M ${out} ${y4 + BOX_H / 2} L ${out} ${y5 + BOX_H / 2}`} />
         <Connector d={elbowPath(out, gcMid, in2, semiBY + BOX_H / 2)} />
         <Connector d={`M ${out} ${y6 + BOX_H / 2} L ${out} ${y7 + BOX_H / 2}`} />
-        <Connector d={elbowPath(out, gdMid, in2, semiBY + BOX_H / 2)} />
-        <Connector d={elbowPath(out2, semiAY + BOX_H / 2, in3, champY + BOX_H / 2)} />
-        <Connector d={elbowPath(out2, semiBY + BOX_H / 2, in3, champY + BOX_H / 2)} />
+        <Connector d={elbowPath(out, gdMid, in2, semiBY2 + BOX_H / 2)} />
+        <Connector d={`M ${in2} ${semiAY + BOX_H / 2} L ${in2} ${semiAY2 + BOX_H / 2}`} />
+        <Connector d={`M ${in2} ${semiBY + BOX_H / 2} L ${in2} ${semiBY2 + BOX_H / 2}`} />
+        <Connector d={elbowPath(out2, semiAWinY + BOX_H / 2, in3, champY + BOX_H / 2)} />
+        <Connector d={elbowPath(out2, semiBWinY + BOX_H / 2, in3, champY + BOX_H / 2)} />
         <Connector d={elbowPath(out3, champY + BOX_H / 2, centerIn, champY + BOX_H / 2)} />
         <Connector d={elbowPath(out3, runnerY + BOX_H / 2, centerIn, runnerY + BOX_H / 2)} />
         {side.r1.map((entry, i) => (
           <BracketBox key={`r1-${i}`} x={x1} y={r1ys[i]} entry={findRowByName(side.rows, entry) || entry} />
         ))}
-        <BracketBox x={x2} y={semiAY} entry={findRowByName(side.rows, side.semiA) || side.semiA} />
-        <BracketBox x={x2} y={semiBY} entry={findRowByName(side.rows, side.semiB) || side.semiB} />
+        <BracketBox x={x2} y={semiAY} entry={findRowByName(side.rows, side.semiAGame.a) || side.semiAGame.a} />
+        <BracketBox x={x2} y={semiAY2} entry={findRowByName(side.rows, side.semiAGame.b) || side.semiAGame.b} />
+        <BracketBox x={x2} y={semiBY} entry={findRowByName(side.rows, side.semiBGame.a) || side.semiBGame.a} />
+        <BracketBox x={x2} y={semiBY2} entry={findRowByName(side.rows, side.semiBGame.b) || side.semiBGame.b} />
         <BracketBox x={x3} y={champY} entry={findRowByName(side.rows, side.champ) || side.champ} />
         <BracketBox x={x3} y={runnerY} entry={findRowByName(side.rows, side.runnerUp) || side.runnerUp} />
       </>
