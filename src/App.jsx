@@ -1689,19 +1689,21 @@ function Connector({ d }) {
 }
 
 // ---------------------------------------------------------------------------
-// PFA playoff bracket, rebuilt as a fixed HTML grid rather than hand-computed
-// SVG coordinates. The bracket sheet IS a spreadsheet — fixed columns (one per
-// week), fixed rows — so a grid maps onto it 1:1 and can't drift or overlap the
-// way free-floating coordinate math did.
+// PFA playoff bracket, built as a fixed grid rather than hand-computed SVG
+// coordinates. The bracket sheet IS a spreadsheet — fixed columns (one per
+// week), fixed rows — so a grid maps onto it 1:1 and can't drift or overlap
+// the way free-floating coordinate math did.
 //
-// Layout contract (shared by every section so columns line up):
+// Layout contract (shared by EVERY section so columns always line up):
 //   column x: 0 112 224 336 | 448 (centre) | 560 672 784 896   width 100, gap 12
 //   NFC weeks 14-17 run left->right; AFC weeks 14-17 run right->left;
-//   the two conferences only ever meet in the centre column (week 17).
+//   the two conferences meet only in the centre column (week 17).
 //   row unit 19px: a team box is a 19px colour bar (name) + 19px score cell.
 //
-// Every number below is transcribed from Lainey's real playoff sheets. Nothing
-// here is inferred.
+// The whole 996px-wide block auto-scales down to whatever width it's given, so
+// the full bracket is always visible without horizontal scrolling.
+//
+// Every number is transcribed from the real playoff sheets. Nothing inferred.
 // ---------------------------------------------------------------------------
 
 const TEAM_CLR = {
@@ -1713,31 +1715,31 @@ const TEAM_CLR = {
   "LA Chargers": ["#0080C6", "#FFC20E"], Miami: ["#008E97", "#FFFFFF"],
   Baltimore: ["#241773", "#9E7C0C"], "NY Jets": ["#125740", "#FFFFFF"],
   Jacksonville: ["#006778", "#D7A22A"], Pittsburgh: ["#101820", "#FFB612"],
-  Dallas: ["#041E42", "#FFFFFF"], Atlanta: ["#A71930", "#000000"],
+  Dallas: ["#041E42", "#FFFFFF"], Atlanta: ["#A71930", "#101820"],
   Chicago: ["#0B162A", "#C83803"], Washington: ["#5A1414", "#FFB612"],
-  Minnesota: ["#4F2683", "#FFC62F"], "Tampa Bay": ["#D50A0A", "#FF7900"],
+  Minnesota: ["#4F2683", "#FFC62F"], "Tampa Bay": ["#D50A0A", "#FFFFFF"],
   "NY Giants": ["#0B2265", "#FFFFFF"], Carolina: ["#0085CA", "#FFFFFF"],
-  Cincinnati: ["#FB4F14", "#000000"], Denver: ["#002244", "#FB4F14"],
-  "Las Vegas": ["#000000", "#A5ACAF"], Houston: ["#03202F", "#A71930"],
+  Cincinnati: ["#FB4F14", "#101820"], Denver: ["#002244", "#FB4F14"],
+  "Las Vegas": ["#101820", "#A5ACAF"], Houston: ["#03202F", "#A71930"],
   Indianapolis: ["#002C5F", "#FFFFFF"], "Kansas City": ["#E31837", "#FFB81C"],
-  Buffalo: ["#00338D", "#C60C30"], Cleveland: ["#311D00", "#FF3C00"],
+  Buffalo: ["#00338D", "#FFFFFF"], Cleveland: ["#311D00", "#FF3C00"],
 };
 
-const BW = 100, BH = 19;
+const BW = 100, BH = 19, GRID_W = 996;
 
 function GBox({ x, y, team, score, win }) {
   const clr = TEAM_CLR[team] || ["#2A3550", C.chalk];
   return (
     <div style={{ position: "absolute", left: x, top: y, width: BW }}>
       <div style={{
-        height: BH, lineHeight: `${BH}px`, fontSize: 11, fontWeight: 600, padding: "0 5px",
+        height: BH, lineHeight: `${BH}px`, fontSize: 11, fontWeight: 700, padding: "0 3px",
         background: clr[0], color: clr[1], whiteSpace: "nowrap", overflow: "hidden",
-        textOverflow: "ellipsis", boxSizing: "border-box",
+        textOverflow: "ellipsis", boxSizing: "border-box", textAlign: "center",
       }}>{team}</div>
       {score != null && (
         <div style={{
           height: BH, lineHeight: `${BH}px`, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
-          padding: "0 5px", background: "rgba(255,255,255,0.03)", boxSizing: "border-box",
+          background: "rgba(255,255,255,0.03)", boxSizing: "border-box", textAlign: "center",
           border: `1px solid ${C.line}`, borderTop: "none",
           color: win ? C.turf : C.slate, fontWeight: win ? 700 : 400,
         }}>{score}</div>
@@ -1746,6 +1748,7 @@ function GBox({ x, y, team, score, win }) {
   );
 }
 
+// A placement game's centre column: draft-pick note, winner bar, place label.
 function GPlace({ x, y, pick, text }) {
   return (
     <>
@@ -1764,9 +1767,9 @@ function GPlace({ x, y, pick, text }) {
   );
 }
 
-function GPaths({ w, h, d }) {
+function GPaths({ h, d }) {
   return (
-    <svg width={w} height={h} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden="true">
+    <svg width={GRID_W} height={h} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden="true">
       <g fill="none" stroke={C.line} strokeWidth="1">
         {d.map((p, i) => <path key={i} d={p} />)}
       </g>
@@ -1779,7 +1782,7 @@ const WK_COLS = [[0, "Week 14"], [112, "Week 15"], [224, "Week 16"], [336, "Week
 
 function GHeader({ banners }) {
   return (
-    <div style={{ position: "relative", width: 996, height: banners ? 46 : 24 }}>
+    <div style={{ position: "relative", width: GRID_W, height: banners ? 46 : 24 }}>
       {WK_COLS.map(([x, t]) => (
         <div key={x} style={{
           position: "absolute", left: x, top: 0, width: BW, height: 20, lineHeight: "20px",
@@ -1798,123 +1801,244 @@ function GHeader({ banners }) {
   );
 }
 
-// Renders one full season/group: the 16-team championship tree, then every
-// placement bracket below it, all on the same column grid.
+// Renders one group (championship half or consolation half) as a stack of
+// sections, all sharing the column grid above. Scales to fit its container.
 function GridBracket({ data }) {
+  const wrapRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(Math.min(1, w / GRID_W));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const innerH = data.sections.reduce((a, s) => a + (s.banners ? 46 : 24) + s.h + 24, 0);
+
   return (
-    <div style={{ overflowX: "auto" }}>
-      <GHeader banners={data.banners} />
-      <div style={{ position: "relative", width: 996, height: data.mainH }}>
-        <GPaths w={996} h={data.mainH} d={data.mainPaths} />
-        {data.mainBoxes.map((b, i) => <GBox key={i} x={b[0]} y={b[1]} team={b[2]} score={b[3]} win={b[4]} />)}
-        <div style={{
-          position: "absolute", left: 448, top: data.champY - 22, width: BW, textAlign: "center",
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: C.gold, textTransform: "uppercase",
-        }}>{data.champLabel}</div>
-        <div style={{ position: "absolute", left: 448, top: data.champY, width: BW, border: `2px solid ${C.gold}`, borderRadius: 3, overflow: "hidden" }}>
-          <GBox x={0} y={0} team={data.champTeam} />
-          <div style={{
-            height: BH, lineHeight: `${BH}px`, fontSize: 10, textAlign: "center",
-            background: "rgba(232,163,61,0.12)", color: C.gold, fontWeight: 700,
-          }}>{data.champSub}</div>
-        </div>
-      </div>
-      <div style={{ height: 20 }} />
-      <GHeader />
-      <div style={{ position: "relative", width: 996, height: data.placeH }}>
-        <GPaths w={996} h={data.placeH} d={data.placePaths} />
-        {data.placeBoxes.map((b, i) => <GBox key={i} x={b[0]} y={b[1]} team={b[2]} score={b[3]} win={b[4]} />)}
-        {data.placeWinners.map((b, i) => (
-          <div key={`w${i}`} style={{ position: "absolute", left: b[0], top: b[1], width: BW }}>
-            <GBox x={0} y={0} team={b[2]} />
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: innerH * scale }}>
+      <div style={{ width: GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
+        {data.sections.map((s, si) => (
+          <div key={si}>
+            <GHeader banners={s.banners} />
+            <div style={{ position: "relative", width: GRID_W, height: s.h }}>
+              <GPaths h={s.h} d={s.paths} />
+              {s.boxes.map((b, i) => <GBox key={i} x={b[0]} y={b[1]} team={b[2]} score={b[3]} win={b[4]} />)}
+              {(s.winners || []).map((b, i) => (
+                <div key={`w${i}`} style={{ position: "absolute", left: b[0], top: b[1], width: BW }}>
+                  <GBox x={0} y={0} team={b[2]} />
+                </div>
+              ))}
+              {(s.places || []).map((p, i) => <GPlace key={`p${i}`} x={p[0]} y={p[1]} pick={p[2]} text={p[3]} />)}
+              {s.champion && (
+                <>
+                  <div style={{
+                    position: "absolute", left: 448, top: s.champion.y - 22, width: BW, textAlign: "center",
+                    fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: C.gold, textTransform: "uppercase",
+                  }}>{s.champion.label}</div>
+                  <div style={{
+                    position: "absolute", left: 448, top: s.champion.y, width: BW,
+                    border: `2px solid ${C.gold}`, borderRadius: 3, overflow: "hidden",
+                  }}>
+                    <GBox x={0} y={0} team={s.champion.team} />
+                    <div style={{
+                      height: BH, lineHeight: `${BH}px`, fontSize: 10, textAlign: "center",
+                      background: "rgba(232,163,61,0.12)", color: C.gold, fontWeight: 700,
+                    }}>{s.champion.sub}</div>
+                  </div>
+                </>
+              )}
+              {s.footer && (
+                <div style={{
+                  position: "absolute", left: s.footer[0], top: s.footer[1], width: s.footer[2],
+                  padding: "5px 0", textAlign: "center", background: C.gold, borderRadius: 3,
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.ink }}>{s.footer[3]}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#7A3B00" }}>{s.footer[4]}</div>
+                </div>
+              )}
+            </div>
+            <div style={{ height: 24 }} />
           </div>
         ))}
-        {data.places.map((p, i) => <GPlace key={`p${i}`} x={p[0]} y={p[1]} pick={p[2]} text={p[3]} />)}
       </div>
     </div>
   );
 }
 
-// Real 2025 NFL playoff bracket, ranks 1-16. Box tuples are [x, y, team,
-// score, winner]; path strings are the connector elbows. Coordinates follow
-// the column/row contract documented on GridBracket above.
+// --- shared geometry: both halves use the identical bracket shape -----------
+const BR_BANNERS = [[0, 436, "NFC", "#1B3E8C"], [560, 436, "AFC", "#B22234"]];
+
+const BR_MAIN_PATHS = [
+  "M100 38 L106 38 L106 95 L112 95", "M100 152 L106 152 L106 95 L112 95",
+  "M100 266 L106 266 L106 323 L112 323", "M100 380 L106 380 L106 323 L112 323",
+  "M212 95 L218 95 L218 209 L224 209", "M212 323 L218 323 L218 209 L224 209",
+  "M324 209 L336 209", "M436 209 L448 209",
+  "M896 38 L890 38 L890 95 L884 95", "M896 152 L890 152 L890 95 L884 95",
+  "M896 266 L890 266 L890 323 L884 323", "M896 380 L890 380 L890 323 L884 323",
+  "M784 95 L778 95 L778 209 L772 209", "M784 323 L778 323 L778 209 L772 209",
+  "M672 209 L660 209", "M560 209 L548 209",
+];
+
+// week 15 -> week 16 feeders inside the 8-team placement bracket (identical
+// in both halves; only which box wins differs, and that's in the paths below)
+const BR_W15_FEEDERS = [
+  "M212 329 L218 329 L218 386 L224 386", "M212 367 L218 367 L218 386 L224 386",
+  "M212 443 L218 443 L218 424 L224 424", "M212 481 L218 481 L218 424 L224 424",
+  "M884 329 L878 329 L878 386 L872 386", "M884 367 L878 367 L878 386 L872 386",
+  "M884 443 L878 443 L878 424 L872 424", "M884 481 L878 481 L878 424 L872 424",
+];
+
+// --- 2025 NFL, ranks 1-16 (championship half) ------------------------------
 const NFL_2025_PLAYOFFS = {
-  banners: [[0, 436, "NFC", "#1B3E8C"], [560, 436, "AFC", "#B22234"]],
-  mainH: 418,
-  champY: 190, champLabel: "Champion", champTeam: "Tennessee", champSub: "PainBowl IV",
-  mainPaths: [
-    "M100 38 L106 38 L106 95 L112 95", "M100 152 L106 152 L106 95 L112 95",
-    "M100 266 L106 266 L106 323 L112 323", "M100 380 L106 380 L106 323 L112 323",
-    "M212 95 L218 95 L218 209 L224 209", "M212 323 L218 323 L218 209 L224 209",
-    "M324 209 L336 209", "M436 209 L448 209",
-    "M896 38 L890 38 L890 95 L884 95", "M896 152 L890 152 L890 95 L884 95",
-    "M896 266 L890 266 L890 323 L884 323", "M896 380 L890 380 L890 323 L884 323",
-    "M784 95 L778 95 L778 209 L772 209", "M784 323 L778 323 L778 209 L772 209",
-    "M672 209 L660 209", "M560 209 L548 209",
+  sections: [
+    {
+      banners: BR_BANNERS, h: 418, paths: BR_MAIN_PATHS,
+      champion: { y: 190, label: "Champion", team: "Tennessee", sub: "PainBowl IV" },
+      boxes: [
+        [0, 0, "San Francisco", "169.40", 1], [0, 38, "Arizona", "156.40"],
+        [0, 114, "Philadelphia", "157.55"], [0, 152, "LA Rams", "181.80", 1],
+        [0, 228, "Green Bay", "206.15", 1], [0, 266, "Seattle", "145.05"],
+        [0, 342, "New Orleans", "123.75"], [0, 380, "Detroit", "126.85", 1],
+        [112, 57, "San Francisco", "145.05"], [112, 95, "LA Rams", "207.30", 1],
+        [112, 285, "Green Bay", "187.75"], [112, 323, "Detroit", "220.50", 1],
+        [224, 171, "LA Rams", "275.75", 1], [224, 209, "Detroit", "109.15"],
+        [336, 190, "LA Rams", "178.40"],
+        [560, 190, "Tennessee", "210.60", 1],
+        [672, 171, "Tennessee", "236.90", 1], [672, 209, "Baltimore", "197.10"],
+        [784, 57, "Tennessee", "219.85", 1], [784, 95, "LA Chargers", "132.40"],
+        [784, 285, "Baltimore", "231.70", 1], [784, 323, "Pittsburgh", "116.80"],
+        [896, 0, "New England", "165.55"], [896, 38, "Tennessee", "200.40", 1],
+        [896, 114, "LA Chargers", "234.35", 1], [896, 152, "Miami", "113.60"],
+        [896, 228, "Baltimore", "211.60", 1], [896, 266, "NY Jets", "195.40"],
+        [896, 342, "Jacksonville", "160.00"], [896, 380, "Pittsburgh", "171.80", 1],
+      ],
+    },
+    {
+      h: 690,
+      paths: [
+        "M324 169 L330 169 L330 162 L336 162", "M324 207 L330 207 L330 248 L336 248",
+        "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
+        ...BR_W15_FEEDERS,
+        "M324 386 L336 386", "M324 424 L330 424 L330 457 L336 457",
+        "M672 386 L660 386", "M672 424 L666 424 L666 457 L660 457",
+        "M324 579 L336 578", "M324 617 L330 617 L330 649 L336 649",
+        "M672 579 L660 578", "M672 617 L666 617 L666 649 L660 649",
+      ],
+      boxes: [
+        [336, 33, "Detroit", "144.60", 1], [560, 33, "Baltimore", "102.80"],
+        [224, 150, "San Francisco", "242.20", 1], [224, 188, "Green Bay", "227.95"],
+        [672, 150, "LA Chargers", "154.35"], [672, 188, "Pittsburgh", "187.80", 1],
+        [336, 143, "San Francisco", "204.35", 1], [560, 143, "Pittsburgh", "175.15"],
+        [336, 229, "Green Bay", "192.40", 1], [560, 229, "LA Chargers", "146.20"],
+        [112, 310, "Arizona", "215.15"], [112, 348, "Philadelphia", "258.40", 1],
+        [112, 424, "Seattle", "176.60", 1], [112, 462, "New Orleans", "130.50"],
+        [784, 310, "New England", "146.90"], [784, 348, "Miami", "186.75", 1],
+        [784, 424, "NY Jets", "212.40", 1], [784, 462, "Jacksonville", "101.00"],
+        [224, 367, "Philadelphia", "181.50", 1], [224, 405, "Seattle", "157.70"],
+        [672, 367, "Miami", "178.80", 1], [672, 405, "NY Jets", "143.05"],
+        [336, 367, "Philadelphia", "129.65"], [560, 367, "Miami", "173.45", 1],
+        [336, 438, "Seattle", "123.80"], [560, 438, "NY Jets", "203.80", 1],
+        [224, 560, "Arizona", "180.05", 1], [224, 598, "New Orleans", "146.90"],
+        [672, 560, "New England", "184.60", 1], [672, 598, "Jacksonville", "106.80"],
+        [336, 559, "Arizona", "138.35"], [560, 559, "New England", "197.20", 1],
+        [336, 630, "New Orleans", "140.70", 1], [560, 630, "Jacksonville", "109.60"],
+      ],
+      winners: [
+        [448, 14, "Detroit"], [448, 124, "San Francisco"], [448, 210, "Green Bay"],
+        [448, 348, "Miami"], [448, 419, "NY Jets"],
+        [448, 540, "New England"], [448, 611, "New Orleans"],
+      ],
+      places: [
+        [448, 33, "29th pick", "3rd place"], [448, 143, "25th pick", "5th place"],
+        [448, 229, "27th pick", "7th place"], [448, 367, "17th pick", "9th place"],
+        [448, 438, "19th pick", "11th place"], [448, 559, "21st pick", "13th place"],
+        [448, 630, "23rd pick", "15th place"],
+      ],
+    },
   ],
-  mainBoxes: [
-    [0, 0, "San Francisco", "169.40", 1], [0, 38, "Arizona", "156.40"],
-    [0, 114, "Philadelphia", "157.55"], [0, 152, "LA Rams", "181.80", 1],
-    [0, 228, "Green Bay", "206.15", 1], [0, 266, "Seattle", "145.05"],
-    [0, 342, "New Orleans", "123.75"], [0, 380, "Detroit", "126.85", 1],
-    [112, 57, "San Francisco", "145.05"], [112, 95, "LA Rams", "207.30", 1],
-    [112, 285, "Green Bay", "187.75"], [112, 323, "Detroit", "220.50", 1],
-    [224, 171, "LA Rams", "275.75", 1], [224, 209, "Detroit", "109.15"],
-    [336, 190, "LA Rams", "178.40"],
-    [560, 190, "Tennessee", "210.60", 1],
-    [672, 171, "Tennessee", "236.90", 1], [672, 209, "Baltimore", "197.10"],
-    [784, 57, "Tennessee", "219.85", 1], [784, 95, "LA Chargers", "132.40"],
-    [784, 285, "Baltimore", "231.70", 1], [784, 323, "Pittsburgh", "116.80"],
-    [896, 0, "New England", "165.55"], [896, 38, "Tennessee", "200.40", 1],
-    [896, 114, "LA Chargers", "234.35", 1], [896, 152, "Miami", "113.60"],
-    [896, 228, "Baltimore", "211.60", 1], [896, 266, "NY Jets", "195.40"],
-    [896, 342, "Jacksonville", "160.00"], [896, 380, "Pittsburgh", "171.80", 1],
-  ],
-  placeH: 690,
-  placePaths: [
-    "M324 169 L330 169 L330 162 L336 162", "M324 207 L330 207 L330 248 L336 248",
-    "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
-    "M212 329 L218 329 L218 386 L224 386", "M212 367 L218 367 L218 386 L224 386",
-    "M212 443 L218 443 L218 424 L224 424", "M212 481 L218 481 L218 424 L224 424",
-    "M884 329 L878 329 L878 386 L872 386", "M884 367 L878 367 L878 386 L872 386",
-    "M884 443 L878 443 L878 424 L872 424", "M884 481 L878 481 L878 424 L872 424",
-    "M324 386 L336 386", "M324 424 L330 424 L330 457 L336 457",
-    "M672 386 L660 386", "M672 424 L666 424 L666 457 L660 457",
-    "M324 579 L336 578", "M324 617 L330 617 L330 649 L336 649",
-    "M672 579 L660 578", "M672 617 L666 617 L666 649 L660 649",
-  ],
-  placeBoxes: [
-    [336, 33, "Detroit", "144.60", 1], [560, 33, "Baltimore", "102.80"],
-    [224, 150, "San Francisco", "242.20", 1], [224, 188, "Green Bay", "227.95"],
-    [672, 150, "LA Chargers", "154.35"], [672, 188, "Pittsburgh", "187.80", 1],
-    [336, 143, "San Francisco", "204.35", 1], [560, 143, "Pittsburgh", "175.15"],
-    [336, 229, "Green Bay", "192.40", 1], [560, 229, "LA Chargers", "146.20"],
-    [112, 310, "Arizona", "215.15"], [112, 348, "Philadelphia", "258.40", 1],
-    [112, 424, "Seattle", "176.60", 1], [112, 462, "New Orleans", "130.50"],
-    [784, 310, "New England", "146.90"], [784, 348, "Miami", "186.75", 1],
-    [784, 424, "NY Jets", "212.40", 1], [784, 462, "Jacksonville", "101.00"],
-    [224, 367, "Philadelphia", "181.50", 1], [224, 405, "Seattle", "157.70"],
-    [672, 367, "Miami", "178.80", 1], [672, 405, "NY Jets", "143.05"],
-    [336, 367, "Philadelphia", "129.65"], [560, 367, "Miami", "173.45", 1],
-    [336, 438, "Seattle", "123.80"], [560, 438, "NY Jets", "203.80", 1],
-    [224, 560, "Arizona", "180.05", 1], [224, 598, "New Orleans", "146.90"],
-    [672, 560, "New England", "184.60", 1], [672, 598, "Jacksonville", "106.80"],
-    [336, 559, "Arizona", "138.35"], [560, 559, "New England", "197.20", 1],
-    [336, 630, "New Orleans", "140.70", 1], [560, 630, "Jacksonville", "109.60"],
-  ],
-  placeWinners: [
-    [448, 14, "Detroit"], [448, 124, "San Francisco"], [448, 210, "Green Bay"],
-    [448, 348, "Miami"], [448, 419, "NY Jets"],
-    [448, 540, "New England"], [448, 611, "New Orleans"],
-  ],
-  places: [
-    [448, 33, "29th pick", "3rd place"],
-    [448, 143, "25th pick", "5th place"],
-    [448, 229, "27th pick", "7th place"],
-    [448, 367, "17th pick", "9th place"],
-    [448, 438, "19th pick", "11th place"],
-    [448, 559, "21st pick", "13th place"],
-    [448, 630, "23rd pick", "15th place"],
+};
+
+// --- 2025 NFL, ranks 17-32 (consolation half) ------------------------------
+// Same bracket shape one tier down: the 17th-place game is this half's
+// championship, and the Relegation Bowl at the bottom fires the last coach.
+const NFL_2025_CONSOLATION = {
+  sections: [
+    {
+      banners: BR_BANNERS, h: 418, paths: BR_MAIN_PATHS,
+      winners: [[448, 171, "Cincinnati"]],
+      places: [[448, 190, "9th pick", "17th place"]],
+      boxes: [
+        [0, 0, "Dallas", "126.40"], [0, 38, "Atlanta", "132.50", 1],
+        [0, 114, "Chicago", "158.35", 1], [0, 152, "Washington", "129.45"],
+        [0, 228, "Minnesota", "116.10", 1], [0, 266, "Tampa Bay", "109.75"],
+        [0, 342, "NY Giants", "148.05", 1], [0, 380, "Carolina", "144.85"],
+        [112, 57, "Atlanta", "171.15", 1], [112, 95, "Chicago", "95.85"],
+        [112, 285, "Minnesota", "167.35"], [112, 323, "NY Giants", "227.40", 1],
+        [224, 171, "Atlanta", "171.75"], [224, 209, "NY Giants", "204.70"],
+        [336, 190, "Atlanta", "108.65"],
+        [560, 190, "Cincinnati", "175.90", 1],
+        [672, 171, "Cincinnati", "180.95", 1], [672, 209, "Indianapolis", "126.25"],
+        [784, 57, "Cincinnati", "189.45", 1], [784, 95, "Las Vegas", "157.00"],
+        [784, 285, "Indianapolis", "158.70", 1], [784, 323, "Buffalo", "139.90"],
+        [896, 0, "Cincinnati", "189.95", 1], [896, 38, "Denver", "68.20"],
+        [896, 114, "Las Vegas", "154.65", 1], [896, 152, "Houston", "109.90"],
+        [896, 228, "Indianapolis", "141.50", 1], [896, 266, "Kansas City", "135.10"],
+        [896, 342, "Buffalo", "216.15", 1], [896, 380, "Cleveland", "134.50"],
+      ],
+    },
+    {
+      h: 730,
+      paths: [
+        // 21st/23rd: NFC winner is the LOWER box here, so these cross the
+        // opposite way from the championship half's 5th/7th games.
+        "M324 169 L330 169 L330 248 L336 248", "M324 207 L330 207 L330 162 L336 162",
+        "M672 169 L666 169 L666 162 L660 162", "M672 207 L666 207 L666 248 L660 248",
+        ...BR_W15_FEEDERS,
+        "M324 424 L330 424 L330 386 L336 386", "M324 386 L330 386 L330 457 L336 457",
+        "M672 424 L666 424 L666 386 L660 386", "M672 386 L666 386 L666 457 L660 457",
+        "M324 617 L330 617 L330 578 L336 578", "M324 579 L330 579 L330 649 L336 649",
+        "M672 617 L666 617 L666 578 L660 578", "M672 579 L666 579 L666 649 L660 649",
+      ],
+      boxes: [
+        [336, 33, "NY Giants", "194.80", 1], [560, 33, "Indianapolis", "174.75"],
+        [224, 150, "Chicago", "105.90"], [224, 188, "Minnesota", "147.05", 1],
+        [672, 150, "Las Vegas", "117.60", 1], [672, 188, "Buffalo", "82.35"],
+        [336, 143, "Minnesota", "204.70", 1], [560, 143, "Las Vegas", "169.10"],
+        [336, 229, "Chicago", "157.60", 1], [560, 229, "Buffalo", "155.00"],
+        [112, 310, "Dallas", "165.85", 1], [112, 348, "Washington", "143.60"],
+        [112, 424, "Tampa Bay", "125.15"], [112, 462, "Carolina", "142.00", 1],
+        [784, 310, "Denver", "96.05"], [784, 348, "Houston", "100.90", 1],
+        [784, 424, "Kansas City", "136.10", 1], [784, 462, "Cleveland", "106.70"],
+        [224, 367, "Dallas", "177.90"], [224, 405, "Carolina", "179.60", 1],
+        [672, 367, "Houston", "84.30"], [672, 405, "Kansas City", "143.80", 1],
+        [336, 367, "Carolina", "146.55", 1], [560, 367, "Kansas City", "118.40"],
+        [336, 438, "Dallas", "171.60", 1], [560, 438, "Houston", "92.20"],
+        [224, 560, "Washington", "121.90"], [224, 598, "Tampa Bay", "129.35", 1],
+        [672, 560, "Denver", "90.15"], [672, 598, "Cleveland", "109.70", 1],
+        [336, 559, "Tampa Bay", "132.10", 1], [560, 559, "Cleveland", "94.40"],
+        [336, 630, "Washington", "153.00", 1], [560, 630, "Denver", "63.50"],
+      ],
+      winners: [
+        [448, 14, "NY Giants"], [448, 124, "Minnesota"], [448, 210, "Chicago"],
+        [448, 348, "Carolina"], [448, 419, "Dallas"],
+        [448, 540, "Tampa Bay"], [448, 611, "Washington"],
+      ],
+      places: [
+        [448, 33, "11th pick", "19th place"], [448, 143, "13th pick", "21st place"],
+        [448, 229, "15th pick", "23rd place"], [448, 367, "3rd pick", "25th place"],
+        [448, 438, "5th pick", "27th place"], [448, 559, "7th pick", "29th place"],
+        [448, 630, "2nd pick", "31st place"],
+      ],
+      footer: [336, 680, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
+    },
   ],
 };
 
@@ -3864,8 +3988,8 @@ export default function App() {
                         <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>
                           {g.label} {g.key === "playoffs" ? `— ranks 1–${half}` : `— ranks ${half + 1}–${order.length}`}
                         </div>
-                        {standingsSeason === 2025 && tierKey === "NFL" && g.key === "playoffs" ? (
-                          <GridBracket data={NFL_2025_PLAYOFFS} />
+                        {standingsSeason === 2025 && tierKey === "NFL" ? (
+                          <GridBracket data={g.key === "playoffs" ? NFL_2025_PLAYOFFS : NFL_2025_CONSOLATION} />
                         ) : r1 && r1[g.key] ? (
                           <CompletedBracketFlow
                             round1={r1[g.key]}
