@@ -1727,6 +1727,9 @@ const TEAM_CLR = {
 
 const BW = 100, BH = 19, GRID_W = 996;
 
+// Real artwork lives in the app's public/ folder, so it is served from the root.
+const PFA_MARK = "/pfa-logo.png";
+
 function GBox({ x, y, team, score, win, colors }) {
   const clr = (colors && colors[team]) || TEAM_CLR[team] || ["#2A3550", C.chalk];
   return (
@@ -1806,15 +1809,19 @@ const WK_COLS = [[0, "Week 14"], [112, "Week 15"], [224, "Week 16"], [336, "Week
 
 // Dashed placeholder for artwork that isn't in the app yet (league marks,
 // trophies). Keeps the space reserved so real images drop straight in.
-function GSlot({ x, y, w, h, label }) {
+function GSlot({ x, y, w, h, label, src }) {
   return (
     <div style={{
-      position: "absolute", left: x, top: y, width: w, height: h,
-      border: `1px dashed ${C.line}`, borderRadius: 4, display: "flex",
+      position: "absolute", left: x, top: y, width: w, height: h, display: "flex",
       alignItems: "center", justifyContent: "center", textAlign: "center",
+      border: src ? "none" : `1px dashed ${C.line}`, borderRadius: 4,
       fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
       color: C.slate, lineHeight: 1.3, padding: "0 4px", boxSizing: "border-box",
-    }}>{label}</div>
+    }}>
+      {src
+        ? <img src={src} alt={label} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        : label}
+    </div>
   );
 }
 
@@ -1869,7 +1876,7 @@ function GridBracket({ data }) {
             <GHeader banners={s.banners} logo={s.logo} />
             <div style={{ position: "relative", width: GRID_W, height: s.h }}>
               <GPaths h={s.h} d={s.paths} />
-              {(s.slots || []).map((sl, i) => <GSlot key={`s${i}`} x={sl[0]} y={sl[1]} w={sl[2]} h={sl[3]} label={sl[4]} />)}
+              {(s.slots || []).map((sl, i) => <GSlot key={`s${i}`} x={sl[0]} y={sl[1]} w={sl[2]} h={sl[3]} label={sl[4]} src={sl[5]} />)}
               {s.boxes.map((b, i) => <GBox key={i} x={b[0]} y={b[1]} team={b[2]} score={b[3]} win={b[4]} colors={data.colors} />)}
               {(s.winners || []).map((b, i) => (
                 <div key={`w${i}`} style={{ position: "absolute", left: b[0], top: b[1], width: BW }}>
@@ -1942,7 +1949,7 @@ const NFL_2025_PLAYOFFS = {
   sections: [
     {
       banners: BR_BANNERS, h: 418, paths: BR_MAIN_PATHS, logo: "NFL",
-      slots: [[448, 16, 100, 150, "Trophy"], [448, 250, 100, 100, "PFA mark"]],
+      slots: [[448, 16, 100, 150, "Trophy"], [448, 250, 100, 100, "PFA", PFA_MARK]],
       champion: { y: 190, label: "Champion", team: "Tennessee", sub: "PainBowl IV" },
       boxes: [
         [0, 0, "San Francisco", "169.40", 1], [0, 38, "Arizona", "156.40"],
@@ -2015,7 +2022,7 @@ const NFL_2025_CONSOLATION = {
   sections: [
     {
       banners: BR_BANNERS, h: 418, paths: BR_MAIN_PATHS, logo: "NFL",
-      slots: [[448, 30, 100, 110, "PFA mark"]],
+      slots: [[448, 30, 100, 110, "PFA", PFA_MARK]],
       winners: [[448, 171, "Cincinnati"]],
       places: [[448, 190, "9th pick", "17th place"]],
       boxes: [
@@ -2130,7 +2137,7 @@ const USFL_2025_PLAYOFFS = {
   sections: [
     {
       banners: USFL_BANNERS, h: 280, paths: USFL_MAIN_PATHS, logo: "USFL",
-      slots: [[448, 4, 100, 84, "Trophy"], [448, 176, 100, 96, "PFA mark"]],
+      slots: [[448, 4, 100, 84, "Trophy"], [448, 176, 100, 96, "PFA", PFA_MARK]],
       champion: { y: 114, label: "Champion", team: "Memphis", sub: "1st place" },
       boxes: [
         [0, 19, "New Jersey", "194.05"], [0, 57, "Philadelphia", "240.10", 1],
@@ -2180,7 +2187,7 @@ const USFL_2025_CONSOLATION = {
   sections: [
     {
       banners: USFL_CONSO_BANNERS, h: 280, paths: USFL_MAIN_PATHS, logo: "USFL",
-      slots: [[448, 4, 100, 70, "PFA mark"]],
+      slots: [[448, 4, 100, 70, "PFA", PFA_MARK]],
       winners: [[448, 95, "Detroit"]],
       places: [[448, 114, "3rd pick", "11th place"]],
       boxes: [
@@ -2227,11 +2234,134 @@ const USFL_2025_CONSOLATION = {
   ],
 };
 
+
+// --- 2025 XFL, 20 teams ------------------------------------------------------
+// Same shape as the USFL: one play-in per half in week 14, three byes into
+// week 15, and a three-week points series for 9th/19th. Reuses
+// USFL_MAIN_PATHS wholesale. Colours are scoped per league because XFL city
+// names collide with both the NFL and USFL.
+const XFL_CLR = {
+  "Tampa Bay": ["#7FA86A", "#F5D76E"], Memphis: ["#6B2737", "#FFFFFF"],
+  DC: ["#B02A2A", "#FFFFFF"], Seattle: ["#3E8E5A", "#F5A03C"],
+  Orlando: ["#D93B27", "#F5D76E"], Dallas: ["#6BA5D7", "#12305F"],
+  Birmingham: ["#E8B84B", "#12305F"], Brooklyn: ["#101820", "#E8B84B"],
+  LAX: ["#1F3A6E", "#FFFFFF"], Boston: ["#101820", "#E03C31"],
+  "New Jersey": ["#A8B4C4", "#12305F"], Chicago: ["#2B4FA8", "#FFFFFF"],
+  LAW: ["#F5A03C", "#C8102E"], Omaha: ["#E8791F", "#FFFFFF"],
+  Atlanta: ["#4B2569", "#D8C9A3"], "St Louis": ["#1F3A6E", "#FFFFFF"],
+  "Las Vegas": ["#7C1F1F", "#FFFFFF"], "New York": ["#101820", "#FFFFFF"],
+  "San Francisco": ["#E03C31", "#FFFFFF"], Houston: ["#12233A", "#E03C31"],
+};
+
+const XFL_BANNERS = [[0, 436, "XFL", "#CFE0C3"], [560, 436, "Championship", "#CFE0C3"]];
+const XFL_CONSO_BANNERS = [[0, 436, "XFL", "#CFE0C3"], [560, 436, "Consolation", "#CFE0C3"]];
+
+const XFL_2025_PLAYOFFS = {
+  colors: XFL_CLR,
+  sections: [
+    {
+      banners: XFL_BANNERS, h: 280, paths: USFL_MAIN_PATHS, logo: "XFL",
+      slots: [[448, 4, 100, 84, "Trophy"], [448, 176, 100, 96, "PFA", PFA_MARK]],
+      champion: { y: 114, label: "Champion", team: "Birmingham", sub: "1st place" },
+      boxes: [
+        [0, 19, "Tampa Bay", "125.75"], [0, 57, "Memphis", "246.50", 1],
+        [112, 0, "DC", "263.05", 1], [112, 38, "Memphis", "240.30"],
+        [112, 190, "Seattle", "238.85", 1], [112, 228, "Orlando", "200.15"],
+        [224, 19, "DC", "260.60", 1], [224, 209, "Seattle", "226.60"],
+        [336, 114, "DC", "168.05"],
+        [560, 114, "Birmingham", "199.80", 1],
+        [672, 19, "Birmingham", "168.70", 1], [672, 209, "Boston", "147.00"],
+        [784, 0, "Brooklyn", "217.00"], [784, 38, "Birmingham", "225.75", 1],
+        [784, 190, "LAX", "205.00"], [784, 228, "Boston", "210.00", 1],
+        [896, 19, "Dallas", "210.15"], [896, 57, "Birmingham", "217.25", 1],
+      ],
+    },
+    {
+      h: 420,
+      paths: [
+        "M324 169 L330 169 L330 162 L336 162", "M324 207 L330 207 L330 248 L336 248",
+        "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
+      ],
+      boxes: [
+        [336, 33, "Seattle", "173.10", 1], [560, 33, "Boston", "111.00"],
+        [224, 150, "Memphis", "240.65", 1], [224, 188, "Orlando", "166.55"],
+        [672, 150, "Brooklyn", "226.05"], [672, 188, "LAX", "231.80", 1],
+        [336, 143, "Memphis", "205.10"], [560, 143, "LAX", "286.60", 1],
+        [336, 229, "Orlando", "182.30", 1], [560, 229, "Brooklyn", "180.95"],
+        [112, 360, "Tampa Bay", "206.50"], [784, 360, "Dallas", "180.00"],
+      ],
+      series: [
+        [224, 341, "358.60", "Gm 2/3", "152.10"], [336, 341, "572.50", "Gm 3/3", "213.90", 1],
+        [560, 341, "565.80", "Gm 3/3", "194.20"], [672, 341, "371.60", "Gm 2/3", "191.60"],
+      ],
+      winners: [
+        [448, 14, "Seattle"], [448, 124, "LAX"], [448, 210, "Orlando"], [448, 341, "Tampa Bay"],
+      ],
+      places: [
+        [448, 33, "11th pick", "3rd place"], [448, 143, "13th pick", "5th place"],
+        [448, 229, "15th pick", "7th place"], [448, 360, "17th pick", "9th place"],
+      ],
+    },
+  ],
+};
+
+const XFL_2025_CONSOLATION = {
+  colors: XFL_CLR,
+  sections: [
+    {
+      banners: XFL_CONSO_BANNERS, h: 280, paths: USFL_MAIN_PATHS, logo: "XFL",
+      slots: [[448, 4, 100, 70, "PFA", PFA_MARK]],
+      winners: [[448, 95, "Omaha"]],
+      places: [[448, 114, "3rd pick", "11th place"]],
+      boxes: [
+        [0, 19, "New Jersey", "158.20", 1], [0, 57, "Chicago", "127.25"],
+        [112, 0, "LAW", "205.30", 1], [112, 38, "New Jersey", "166.40"],
+        [112, 190, "Omaha", "199.35", 1], [112, 228, "Atlanta", "177.15"],
+        [224, 19, "LAW", "175.15"], [224, 209, "Omaha", "236.10", 1],
+        [336, 114, "Omaha", "214.35", 1],
+        [560, 114, "St Louis", "197.10"],
+        [672, 19, "St Louis", "182.95", 1], [672, 209, "Houston", "117.00"],
+        [784, 0, "New York", "185.95"], [784, 38, "St Louis", "211.65", 1],
+        [784, 190, "San Francisco", "127.90"], [784, 228, "Houston", "145.70", 1],
+        [896, 19, "St Louis", "169.60", 1], [896, 57, "Las Vegas", "160.85"],
+      ],
+    },
+    {
+      h: 470,
+      paths: [
+        "M324 207 L330 207 L330 162 L336 162", "M324 169 L330 169 L330 248 L336 248",
+        "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
+      ],
+      boxes: [
+        [336, 33, "LAW", "163.10"], [560, 33, "Houston", "185.30", 1],
+        [224, 150, "New Jersey", "141.60"], [224, 188, "Atlanta", "210.90", 1],
+        [672, 150, "New York", "211.65"], [672, 188, "San Francisco", "213.60", 1],
+        [336, 143, "Atlanta", "206.20", 1], [560, 143, "San Francisco", "159.20"],
+        [336, 229, "New Jersey", "172.05"], [560, 229, "New York", "181.55", 1],
+        [112, 360, "Chicago", "172.95"], [784, 360, "Las Vegas", "171.10"],
+      ],
+      series: [
+        [224, 341, "323.60", "Gm 2/3", "150.65"], [336, 341, "459.10", "Gm 3/3", "135.50", 1],
+        [560, 341, "428.95", "Gm 3/3", "142.00"], [672, 341, "286.95", "Gm 2/3", "115.85"],
+      ],
+      winners: [
+        [448, 14, "Houston"], [448, 124, "Atlanta"], [448, 210, "New York"], [448, 341, "Chicago"],
+      ],
+      places: [
+        [448, 33, "5th pick", "13th place"], [448, 143, "7th pick", "15th place"],
+        [448, 229, "9th pick", "17th place"], [448, 360, "2nd pick", "19th place"],
+      ],
+      footer: [112, 420, 772, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
+    },
+  ],
+};
+
 // Tiers with a fully transcribed 2025 bracket. Adding a tier or season from
 // here on is a data-only change — no layout code to touch.
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
   USFL: { playoffs: USFL_2025_PLAYOFFS, consolation: USFL_2025_CONSOLATION },
+  XFL: { playoffs: XFL_2025_PLAYOFFS, consolation: XFL_2025_CONSOLATION },
 };
 
 // A from-scratch "completed bracket" visual for confirmed historical results —
