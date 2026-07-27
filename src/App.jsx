@@ -1930,10 +1930,12 @@ function GridBracket({ data }) {
                     border: `2px solid ${C.gold}`, borderRadius: 3, overflow: "hidden",
                   }}>
                     <GBox x={0} y={0} team={s.champion.team} colors={data.colors} />
-                    <div style={{
-                      height: BH, lineHeight: `${BH}px`, fontSize: 10, textAlign: "center",
-                      background: "rgba(232,163,61,0.12)", color: C.gold, fontWeight: 700,
-                    }}>{s.champion.sub}</div>
+                    {s.champion.sub && (
+                      <div style={{
+                        height: BH, lineHeight: `${BH}px`, fontSize: 10, textAlign: "center",
+                        background: "rgba(232,163,61,0.12)", color: C.gold, fontWeight: 700,
+                      }}>{s.champion.sub}</div>
+                    )}
                   </div>
                 </>
               )}
@@ -2523,7 +2525,7 @@ const SEC_2025_PLAYOFFS = {
     {
       banners: SEC_BANNERS, cols: WK_COLS_3, h: 200, paths: SEC_MAIN_PATHS, logo: "SEC",
       slots: [[448, 0, 100, 52, "Trophy", SEC_TROPHY], [448, 114, 100, 57, "PFA", PFA_MARK]],
-      champion: { y: 76, label: "Champion", team: "South Carolina", sub: "SEC 2025" },
+      champion: { y: 76, label: "Champion", team: "South Carolina" },
       boxes: [
         [112, 0, "South Carolina", "240.65", 1], [112, 38, "Miss State", "227.60"],
         [112, 114, "Arkansas", "236.60", 1], [112, 152, "Oklahoma", "231.75"],
