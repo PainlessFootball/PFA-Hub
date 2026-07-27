@@ -135,6 +135,18 @@ const HISTORICAL_FINAL_ORDER = {
       "Tampa Bay", "Dallas", "Omaha", "St Louis", "Houston", "LAW", "Atlanta", "San Francisco",
       "New York", "New Jersey", "Chicago", "Las Vegas",
     ],
+    SEC: [
+      "South Carolina", "Ole Miss", "Kentucky", "Arkansas", "Texas A&M", "Oklahoma", "Miss State", "Missouri",
+      "Florida", "Georgia", "Tennessee", "Vanderbilt", "Alabama", "Auburn", "Texas", "LSU",
+    ],
+    TEN: [
+      "Northwestern", "UCLA", "Washington", "Ohio State", "Cal", "Indiana", "Penn State", "Oregon",
+      "Purdue", "Michigan", "Wisconsin", "Illinois", "Maryland", "Utah", "USC", "Rutgers",
+    ],
+    SWAC: [
+      "Morgan St", "Miss Valley", "Jackson St", "PVAM", "Bethune", "Southern U", "Alcorn", "Florida A&M",
+      "Grambling", "SC St", "Alabama A&M", "NC Central", "Alabama St", "Pine Bluff", "TX Southern", "Norfolk St",
+    ],
   },
 };
 
