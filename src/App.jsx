@@ -1759,6 +1759,7 @@ const TIER_LOGOS = {
   USFL: USFL_MARK,
   SEC: SEC_MARK,
   TEN: TEN_MARK,
+  SWAC: SWAC_MARK,
 };
 
 
@@ -1784,7 +1785,9 @@ function GBox({ x, y, team, score, win, colors }) {
 }
 
 // A placement game's centre column: draft-pick note, winner bar, place label.
-function GPlace({ x, y, pick, text }) {
+function GPlace({ x, y, pick, text, w }) {
+  const cw = w || BW;
+  const cx = x + BW / 2 - cw / 2;
   return (
     <>
       {pick && (
@@ -1794,8 +1797,10 @@ function GPlace({ x, y, pick, text }) {
         }}>{pick}</div>
       )}
       <div style={{
-        position: "absolute", left: x, top: y, width: BW, height: BH * 2, lineHeight: `${BH * 2}px`,
-        textAlign: "center", fontSize: 11, fontWeight: 700, color: C.chalk,
+        position: "absolute", left: cx, top: y, width: cw, height: BH * 2,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+        textAlign: "center", fontSize: cw > BW ? 9 : 11, lineHeight: 1.15,
+        fontWeight: 700, color: C.chalk,
         background: "rgba(255,255,255,0.03)", border: `1px solid ${C.line}`, boxSizing: "border-box",
       }}>{text}</div>
     </>
@@ -1862,7 +1867,10 @@ function GSlot({ x, y, w, h, label, src }) {
 
 function GHeader({ banners, logo, logoSrc, cols }) {
   return (
-    <div style={{ position: "relative", width: GRID_W, height: banners ? 46 : 24 }}>
+    <div style={{
+      position: "relative", width: GRID_W,
+      height: banners ? (banners.some((b) => b[4]) ? 58 : 46) : 24,
+    }}>
       {logo && <GSlot x={448} y={0} w={100} h={46} label={logo} src={logoSrc} />}
       {(cols || WK_COLS).map(([x, t]) => (
         <div key={x} style={{
@@ -1871,12 +1879,17 @@ function GHeader({ banners, logo, logoSrc, cols }) {
           textTransform: "uppercase",
         }}>{t}</div>
       ))}
-      {banners && banners.map(([x, w, t, bg]) => (
-        <div key={t} style={{
-          position: "absolute", left: x, top: 24, width: w, height: 22, lineHeight: "22px",
-          textAlign: "center", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em",
-          color: "#fff", background: bg, borderRadius: 3,
-        }}>{t}</div>
+      {banners && banners.map(([x, w, t, bg, sub2]) => (
+        <div key={x} style={{
+          position: "absolute", left: x, top: 24, width: w, height: sub2 ? 34 : 22,
+          display: "flex", flexDirection: "column", justifyContent: "center",
+          textAlign: "center", color: "#fff", background: bg, borderRadius: 3,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", lineHeight: "14px" }}>{t}</div>
+          {sub2 && (
+            <div style={{ fontSize: 9, fontStyle: "italic", opacity: 0.85, lineHeight: "12px" }}>{sub2}</div>
+          )}
+        </div>
       ))}
     </div>
   );
@@ -1919,7 +1932,7 @@ function GridBracket({ data }) {
                 </div>
               ))}
               {(s.series || []).map((v, i) => <GSeries key={`v${i}`} x={v[0]} y={v[1]} cum={v[2]} label={v[3]} score={v[4]} win={v[5]} />)}
-              {(s.places || []).map((p, i) => <GPlace key={`p${i}`} x={p[0]} y={p[1]} pick={p[2]} text={p[3]} />)}
+              {(s.places || []).map((p, i) => <GPlace key={`p${i}`} x={p[0]} y={p[1]} pick={p[2]} text={p[3]} w={p[4]} />)}
               {s.champion && (
                 <>
                   <div style={{
@@ -2714,12 +2727,118 @@ const TEN_2025_BOWLS = {
   ],
 };
 
+
+// --- 2025 SWAC -------------------------------------------------------------
+// Two differences from SEC / Big Ten: East and West division banners, and the
+// 7th-place game carries a novelty name ("7-11 Seven Days A Week 7th Place
+// Super Savings Bowl") instead of the usual label. That bowl is NOT a week-18
+// exhibition -- it is the 7th-place game itself, so it stays inside the bracket
+// and its result sets the 7/8 placements normally.
+const SWAC_BANNERS = [
+  [112, 324, "Southwest Athletic Conference", "#111", "The SWAC Pack"],
+  [560, 324, "Championship", "#C8102E"],
+];
+const SWAC_CONSO_BANNERS = [[112, 324, "", "#111"], [560, 324, "Consolation", "#C8102E"]];
+const SWAC_BOWL_NAME = "7-11 Seven Days A Week 7th Place Super Savings Bowl";
+
+const SWAC_CLR = {
+  "Jackson St": ["#123B63", "#FFFFFF"], "Florida A&M": ["#F58220", "#154734"],
+  "Miss Valley": ["#1B4D2E", "#D2262C"], "Bethune": ["#7B2132", "#F0B323"],
+  "Morgan St": ["#12395B", "#F0A526"], "Alcorn": ["#4B2E83", "#F0B323"],
+  "PVAM": ["#6B3FA0", "#FFFFFF"], "Southern U": ["#6BAAE8", "#C8A620"],
+  "Alabama A&M": ["#6E1E2B", "#FFFFFF"], "Alabama St": ["#0A0A0A", "#C9A200"],
+  "SC St": ["#7B2635", "#6F9BD1"], "Norfolk St": ["#046A38", "#F0B323"],
+  "Grambling": ["#E3B23C", "#231F20"], "Pine Bluff": ["#C9A227", "#231F20"],
+  "TX Southern": ["#C4C6C8", "#5B0E2D"], "NC Central": ["#862633", "#C4C6C8"],
+};
+
+const SWAC_2025_PLAYOFFS = {
+  colors: SWAC_CLR,
+  logoSrc: SWAC_MARK,
+  sections: [
+    {
+      banners: SWAC_BANNERS, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: "SWAC",
+      slots: [[448, 0, 100, 52, "Trophy", SWAC_TROPHY], [448, 114, 100, 57, "PFA", PFA_MARK]],
+      champion: { y: 76, label: "Champion", team: "Morgan St" },
+      boxes: [
+        [112, 0, "Jackson St", "309.30", 1], [112, 38, "Florida A&M", "278.85"],
+        [112, 114, "Miss Valley", "249.25", 1], [112, 152, "Bethune", "166.85"],
+        [224, 19, "Jackson St", "227.00"], [224, 133, "Miss Valley", "253.30", 1],
+        [336, 76, "Miss Valley", "200.90"],
+        [560, 76, "Morgan St", "207.65", 1],
+        [672, 19, "Morgan St", "234.15", 1], [672, 133, "PVAM", "219.30"],
+        [784, 0, "Morgan St", "220.85", 1], [784, 38, "Alcorn", "164.80"],
+        [784, 114, "PVAM", "298.30", 1], [784, 152, "Southern U", "142.45"],
+      ],
+    },
+    {
+      cols: WK_COLS_3, h: 258, paths: R3_PLACE_PATHS,
+      slots: [[468, 172, 60, 34, "7-11", SEVEN_MARK]],
+      boxes: [
+        [336, 38, "Jackson St", "265.80", 1], [560, 38, "PVAM", "164.25"],
+        [224, 95, "Florida A&M", "162.65"], [224, 133, "Bethune", "247.45", 1],
+        [336, 114, "Bethune", "191.70", 1],
+        [560, 114, "Southern U", "158.55"],
+        [672, 95, "Alcorn", "161.40"], [672, 133, "Southern U", "211.00", 1],
+        [336, 209, "Florida A&M", "169.25"], [560, 209, "Alcorn", "238.85", 1],
+      ],
+      winners: [[448, 19, "Jackson St"], [448, 95, "Bethune"], [448, 190, "Alcorn"]],
+      places: [
+        [448, 38, "9th pick", "3rd place"], [448, 114, "11th pick", "5th place"],
+        [448, 209, "", SWAC_BOWL_NAME, 210],
+      ],
+    },
+  ],
+};
+
+const SWAC_2025_CONSOLATION = {
+  colors: SWAC_CLR,
+  logoSrc: SWAC_MARK,
+  sections: [
+    {
+      banners: SWAC_CONSO_BANNERS, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: "SWAC",
+      slots: [[448, 0, 100, 50, "PFA", PFA_MARK]],
+      winners: [[448, 57, "Grambling"]],
+      places: [[448, 76, "3rd pick", "9th place"]],
+      boxes: [
+        [112, 0, "Alabama A&M", "197.90", 1], [112, 38, "Alabama St", "179.75"],
+        [112, 114, "SC St", "234.00", 1], [112, 152, "Norfolk St", "209.85"],
+        [224, 19, "Alabama A&M", "201.65"], [224, 133, "SC St", "218.30", 1],
+        [336, 76, "SC St", "199.50"],
+        [560, 76, "Grambling", "208.60", 1],
+        [672, 19, "Grambling", "210.25", 1], [672, 133, "NC Central", "199.65"],
+        [784, 0, "Grambling", "270.05", 1], [784, 38, "Pine Bluff", "176.70"],
+        [784, 114, "TX Southern", "148.90"], [784, 152, "NC Central", "167.70", 1],
+      ],
+    },
+    {
+      cols: WK_COLS_3, h: 300, paths: R3_PLACE_PATHS,
+      boxes: [
+        [336, 38, "Alabama A&M", "246.20", 1], [560, 38, "NC Central", "139.90"],
+        [224, 95, "Alabama St", "182.95", 1], [224, 133, "Norfolk St", "166.80"],
+        [336, 114, "Alabama St", "170.60", 1],
+        [560, 114, "Pine Bluff", "154.40"],
+        [672, 95, "Pine Bluff", "213.20", 1], [672, 133, "TX Southern", "190.80"],
+        [336, 209, "Norfolk St", "113.30"], [560, 209, "TX Southern", "227.70", 1],
+      ],
+      winners: [[448, 19, "Alabama A&M"], [448, 95, "Alabama St"], [448, 190, "TX Southern"]],
+      places: [
+        [448, 38, "5th pick", "11th place"], [448, 114, "7th pick", "13th place"],
+        [448, 209, "2nd pick", "15th place"],
+      ],
+      footer: [336, 258, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
+    },
+  ],
+};
+
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
   USFL: { playoffs: USFL_2025_PLAYOFFS, consolation: USFL_2025_CONSOLATION },
   XFL: { playoffs: XFL_2025_PLAYOFFS, consolation: XFL_2025_CONSOLATION },
   SEC: { playoffs: SEC_2025_PLAYOFFS, consolation: SEC_2025_CONSOLATION, bowls: SEC_2025_BOWLS },
   TEN: { playoffs: TEN_2025_PLAYOFFS, consolation: TEN_2025_CONSOLATION, bowls: TEN_2025_BOWLS },
+
+  SWAC: { playoffs: SWAC_2025_PLAYOFFS, consolation: SWAC_2025_CONSOLATION },
 };
 
 // A from-scratch "completed bracket" visual for confirmed historical results —
