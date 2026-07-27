@@ -1758,6 +1758,7 @@ const TIER_LOGOS = {
   XFL: XFL_MARK,
   USFL: USFL_MARK,
   SEC: SEC_MARK,
+  TEN: TEN_MARK,
 };
 
 
@@ -2476,7 +2477,8 @@ const XFL_2025_CONSOLATION = {
 // Tiers with a fully transcribed 2025 bracket. Adding a tier or season from
 // here on is a data-only change — no layout code to touch.
 
-// --- SEC: 16 teams but only THREE rounds (weeks 15-17, no week 14) ----------
+// --- 3-round geometry: 16 teams, weeks 15-17, no week 14 -------------------
+// Shared by SEC, Big Ten and SWAC.
 // Narrower than the NFL shape, so it gets its own geometry. The centre column
 // stays at x=448 and the week-14 columns (0 / 896) simply go unused, which
 // keeps the champion box, league mark and placement labels on their existing
@@ -2496,7 +2498,7 @@ const SEC_CLR = {
   "Vanderbilt": ["#0A0A0A", "#CFAE70"], "Alabama": ["#9E1B32", "#FFFFFF"],
 };
 
-const SEC_MAIN_PATHS = [
+const R3_MAIN_PATHS = [
   "M212 19 L218 19 L218 38 L224 38", "M212 57 L218 57 L218 38 L224 38",
   "M212 133 L218 133 L218 152 L224 152", "M212 171 L218 171 L218 152 L224 152",
   "M324 38 L330 38 L330 95 L336 95", "M324 152 L330 152 L330 95 L336 95",
@@ -2509,7 +2511,7 @@ const SEC_MAIN_PATHS = [
 
 // placement section: the 5th/13th-place bracket's week-16 feeders, plus the
 // short runs from each week-17 box into the centre placement label
-const SEC_PLACE_PATHS = [
+const R3_PLACE_PATHS = [
   "M324 114 L330 114 L330 133 L336 133", "M324 152 L330 152 L330 133 L336 133",
   "M672 114 L666 114 L666 133 L660 133", "M672 152 L666 152 L666 133 L660 133",
   "M436 57 L448 57", "M560 57 L548 57",
@@ -2523,7 +2525,7 @@ const SEC_2025_PLAYOFFS = {
   logoSrc: SEC_MARK,
   sections: [
     {
-      banners: SEC_BANNERS, cols: WK_COLS_3, h: 200, paths: SEC_MAIN_PATHS, logo: "SEC",
+      banners: SEC_BANNERS, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: "SEC",
       slots: [[448, 0, 100, 52, "Trophy", SEC_TROPHY], [448, 114, 100, 57, "PFA", PFA_MARK]],
       champion: { y: 76, label: "Champion", team: "South Carolina" },
       boxes: [
@@ -2538,7 +2540,7 @@ const SEC_2025_PLAYOFFS = {
       ],
     },
     {
-      cols: WK_COLS_3, h: 258, paths: SEC_PLACE_PATHS,
+      cols: WK_COLS_3, h: 258, paths: R3_PLACE_PATHS,
       boxes: [
         [336, 38, "Arkansas", "213.70"], [560, 38, "Kentucky", "233.60", 1],
         [224, 95, "Miss State", "202.10"], [224, 133, "Oklahoma", "216.55", 1],
@@ -2562,7 +2564,7 @@ const SEC_2025_CONSOLATION = {
   logoSrc: SEC_MARK,
   sections: [
     {
-      banners: SEC_CONSO_BANNERS, cols: WK_COLS_3, h: 200, paths: SEC_MAIN_PATHS, logo: "SEC",
+      banners: SEC_CONSO_BANNERS, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: "SEC",
       slots: [[448, 0, 100, 50, "PFA", PFA_MARK]],
       winners: [[448, 57, "Florida"]],
       places: [[448, 76, "3rd pick", "9th place"]],
@@ -2578,7 +2580,7 @@ const SEC_2025_CONSOLATION = {
       ],
     },
     {
-      cols: WK_COLS_3, h: 300, paths: SEC_PLACE_PATHS,
+      cols: WK_COLS_3, h: 300, paths: R3_PLACE_PATHS,
       boxes: [
         [336, 38, "Tennessee", "204.70", 1], [560, 38, "Vanderbilt", "188.30"],
         [224, 95, "Texas", "136.30"], [224, 133, "Auburn", "172.15", 1],
@@ -2607,11 +2609,117 @@ const SEC_2025_BOWLS = {
   ],
 };
 
+
+// --- 2025 Big Ten ----------------------------------------------------------
+const TEN_BANNERS = [[112, 324, "BIG10 Conference", "#4F9BD9"], [560, 324, "Championship", "#4F9BD9"]];
+const TEN_CONSO_BANNERS = [[112, 324, "BIG10 Conference", "#4F9BD9"], [560, 324, "Consolation", "#4F9BD9"]];
+
+const TEN_CLR = {
+  "Northwestern": ["#4E2A84", "#FFFFFF"], "Oregon": ["#154733", "#FEE123"],
+  "Cal": ["#041E42", "#FDB515"], "Washington": ["#4B2E83", "#E8E3D3"],
+  "Indiana": ["#990000", "#EEEDEB"], "Ohio State": ["#BB0000", "#FFFFFF"],
+  "UCLA": ["#2D68C4", "#FFFFFF"], "Penn State": ["#041E42", "#FFFFFF"],
+  "Purdue": ["#0A0A0A", "#CEB888"], "Wisconsin": ["#C5050C", "#FFFFFF"],
+  "Utah": ["#CC0000", "#FFFFFF"], "Rutgers": ["#CC0033", "#FFFFFF"],
+  "Michigan": ["#00274C", "#FFCB05"], "Maryland": ["#E03A3E", "#FFD520"],
+  "Illinois": ["#E84A27", "#FFFFFF"], "USC": ["#990000", "#FFC72C"],
+};
+
+const TEN_2025_PLAYOFFS = {
+  colors: TEN_CLR,
+  logoSrc: TEN_MARK,
+  sections: [
+    {
+      banners: TEN_BANNERS, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: "B1G",
+      slots: [[448, 0, 100, 52, "Trophy", TEN_TROPHY], [448, 114, 100, 57, "PFA", PFA_MARK]],
+      champion: { y: 76, label: "Champion", team: "Northwestern" },
+      boxes: [
+        [112, 0, "Northwestern", "233.00", 1], [112, 38, "Oregon", "145.30"],
+        [112, 114, "Cal", "204.25"], [112, 152, "Washington", "213.95", 1],
+        [224, 19, "Northwestern", "273.20", 1], [224, 133, "Washington", "162.50"],
+        [336, 76, "Northwestern", "218.80", 1],
+        [560, 76, "UCLA", "131.55"],
+        [672, 19, "Ohio State", "202.70"], [672, 133, "UCLA", "237.70", 1],
+        [784, 0, "Indiana", "215.85"], [784, 38, "Ohio State", "236.35", 1],
+        [784, 114, "UCLA", "248.10", 1], [784, 152, "Penn State", "154.85"],
+      ],
+    },
+    {
+      cols: WK_COLS_3, h: 258, paths: R3_PLACE_PATHS,
+      boxes: [
+        [336, 38, "Washington", "237.60", 1], [560, 38, "Ohio State", "173.95"],
+        [224, 95, "Oregon", "217.90"], [224, 133, "Cal", "281.40", 1],
+        [336, 114, "Cal", "233.70", 1],
+        [560, 114, "Indiana", "185.55"],
+        [672, 95, "Indiana", "184.00", 1], [672, 133, "Penn State", "177.75"],
+        [336, 209, "Oregon", "188.65"], [560, 209, "Penn State", "198.05", 1],
+      ],
+      winners: [[448, 19, "Washington"], [448, 95, "Cal"], [448, 190, "Penn State"]],
+      places: [
+        [448, 38, "9th pick", "3rd place"], [448, 114, "11th pick", "5th place"],
+        [448, 209, "13th pick", "7th place"],
+      ],
+    },
+  ],
+};
+
+// NOTE: the 9th-place winner bar printed on Lainey's sheet said Michigan, but the
+// scores are Purdue 238.80 to Michigan 224.05. She confirmed the sheet was wrong
+// and Purdue took 9th, so the scores stand here.
+const TEN_2025_CONSOLATION = {
+  colors: TEN_CLR,
+  logoSrc: TEN_MARK,
+  sections: [
+    {
+      banners: TEN_CONSO_BANNERS, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: "B1G",
+      slots: [[448, 0, 100, 50, "PFA", PFA_MARK]],
+      winners: [[448, 57, "Purdue"]],
+      places: [[448, 76, "3rd pick", "9th place"]],
+      boxes: [
+        [112, 0, "Utah", "153.30"], [112, 38, "Wisconsin", "182.80", 1],
+        [112, 114, "Purdue", "318.00", 1], [112, 152, "Rutgers", "248.40"],
+        [224, 19, "Wisconsin", "181.65"], [224, 133, "Purdue", "219.45", 1],
+        [336, 76, "Purdue", "238.80", 1],
+        [560, 76, "Michigan", "224.05"],
+        [672, 19, "Michigan", "193.55", 1], [672, 133, "Illinois", "179.05"],
+        [784, 0, "Michigan", "216.40", 1], [784, 38, "Maryland", "214.70"],
+        [784, 114, "Illinois", "184.65", 1], [784, 152, "USC", "160.65"],
+      ],
+    },
+    {
+      cols: WK_COLS_3, h: 300, paths: R3_PLACE_PATHS,
+      boxes: [
+        [336, 38, "Wisconsin", "156.60", 1], [560, 38, "Illinois", "153.20"],
+        [224, 95, "Utah", "196.30", 1], [224, 133, "Rutgers", "108.60"],
+        [336, 114, "Utah", "182.95"],
+        [560, 114, "Maryland", "203.40", 1],
+        [672, 95, "Maryland", "212.55", 1], [672, 133, "USC", "201.45"],
+        [336, 209, "Rutgers", "169.80"], [560, 209, "USC", "208.50", 1],
+      ],
+      winners: [[448, 19, "Wisconsin"], [448, 95, "Maryland"], [448, 190, "USC"]],
+      places: [
+        [448, 38, "5th pick", "11th place"], [448, 114, "7th pick", "13th place"],
+        [448, 209, "2nd pick", "15th place"],
+      ],
+      footer: [336, 258, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
+    },
+  ],
+};
+
+const TEN_2025_BOWLS = {
+  header: "Week 18",
+  colors: TEN_CLR,
+  games: [
+    { name: "Indiana Bowl", logo: INDIANA_MARK, left: ["Purdue", "191.35"], right: ["Indiana", "191.80"] },
+  ],
+};
+
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
   USFL: { playoffs: USFL_2025_PLAYOFFS, consolation: USFL_2025_CONSOLATION },
   XFL: { playoffs: XFL_2025_PLAYOFFS, consolation: XFL_2025_CONSOLATION },
   SEC: { playoffs: SEC_2025_PLAYOFFS, consolation: SEC_2025_CONSOLATION, bowls: SEC_2025_BOWLS },
+  TEN: { playoffs: TEN_2025_PLAYOFFS, consolation: TEN_2025_CONSOLATION, bowls: TEN_2025_BOWLS },
 };
 
 // A from-scratch "completed bracket" visual for confirmed historical results —
