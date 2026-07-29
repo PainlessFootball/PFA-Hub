@@ -119,7 +119,7 @@ const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
 // change between seasons). Add more seasons/tiers here as they're confirmed.
 const HISTORICAL_FINAL_ORDER = {
   2025: {
-    XII: [
+    "BIG XII": [
       "OSU", "S Dakota", "Cincinnati", "Arizona", "Houston", "BYU", "Iowa State", "Denver",
       "Baylor", "TCU", "Kansas", "N Colorado", "W Virginia", "UCF", "Kansas State", "Texas Tech",
     ],
@@ -1779,7 +1779,7 @@ const TIER_LOGOS = {
   SEC: SEC_MARK,
   TEN: TEN_MARK,
   SWAC: SWAC_MARK,
-  XII: XII_MARK,
+  "BIG XII": XII_MARK,
 };
 
 
@@ -2954,7 +2954,7 @@ const GRID_BRACKETS = {
   TEN: { playoffs: TEN_2025_PLAYOFFS, consolation: TEN_2025_CONSOLATION, bowls: TEN_2025_BOWLS },
 
   SWAC: { playoffs: SWAC_2025_PLAYOFFS, consolation: SWAC_2025_CONSOLATION },
-  XII: { playoffs: XII_2025_PLAYOFFS, consolation: XII_2025_CONSOLATION },
+  "BIG XII": { playoffs: XII_2025_PLAYOFFS, consolation: XII_2025_CONSOLATION },
 };
 
 // A from-scratch "completed bracket" visual for confirmed historical results —
