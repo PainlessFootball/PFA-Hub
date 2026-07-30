@@ -119,6 +119,10 @@ const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
 // change between seasons). Add more seasons/tiers here as they're confirmed.
 const HISTORICAL_FINAL_ORDER = {
   2025: {
+    ACC: [
+      "Virginia Tech", "Duke", "Louisville", "Syracuse", "N Carolina", "Notre Dame", "Clemson", "Virginia",
+      "SMU", "GA Tech", "Wake Forest", "Pittsburgh", "Florida St", "Miami", "NC State", "Boston College",
+    ],
     "BIG XII": [
       "OSU", "S Dakota", "Cincinnati", "Arizona", "Houston", "BYU", "Iowa State", "Denver",
       "Baylor", "TCU", "Kansas", "N Colorado", "W Virginia", "UCF", "Kansas State", "Texas Tech",
@@ -1741,7 +1745,7 @@ const TEAM_CLR = {
   Buffalo: ["#00338D", "#FFFFFF"], Cleveland: ["#311D00", "#FF3C00"],
 };
 
-const BW = 100, BH = 19, GRID_W = 996;
+const BW = 100, BH = 19, GRID_W = 996, HEADER_GAP = 8;
 
 // PFA shield, embedded as a data URI so the logo travels inside App.jsx —
 // no public/ folder and no second file to upload. Swap this string if the
@@ -1899,11 +1903,11 @@ function GHeader({ banners, logo, logoSrc, cols }) {
           textTransform: "uppercase",
         }}>{t}</div>
       ))}
-      {banners && banners.map(([x, w, t, bg, sub2]) => (
+      {banners && banners.map(([x, w, t, bg, sub2, fg]) => (
         <div key={x} style={{
           position: "absolute", left: x, top: 24, width: w, height: sub2 ? 34 : 22,
           display: "flex", flexDirection: "column", justifyContent: "center",
-          textAlign: "center", color: "#fff", background: bg, borderRadius: 3,
+          textAlign: "center", color: fg || "#fff", background: bg, borderRadius: 3,
         }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", lineHeight: "14px" }}>{t}</div>
           {sub2 && (
@@ -1934,7 +1938,7 @@ function GridBracket({ data }) {
     return () => ro.disconnect();
   }, []);
 
-  const innerH = data.sections.reduce((a, s) => a + (s.banners ? 46 : 24) + s.h + 24, 0);
+  const innerH = data.sections.reduce((a, s) => a + (s.banners ? 46 : 24) + HEADER_GAP + s.h + 24, 0);
 
   return (
     <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: innerH * scale }}>
@@ -1942,7 +1946,7 @@ function GridBracket({ data }) {
         {data.sections.map((s, si) => (
           <div key={si}>
             <GHeader banners={s.banners} logo={s.logo} logoSrc={s.logoSrc || data.logoSrc} cols={s.cols} />
-            <div style={{ position: "relative", width: GRID_W, height: s.h }}>
+            <div style={{ position: "relative", width: GRID_W, height: s.h, marginTop: HEADER_GAP }}>
               <GPaths h={s.h} d={s.paths} />
               {(s.slots || []).map((sl, i) => <GSlot key={`s${i}`} x={sl[0]} y={sl[1]} w={sl[2]} h={sl[3]} label={sl[4]} src={sl[5]} />)}
               {s.boxes.map((b, i) => <GBox key={i} x={b[0]} y={b[1]} team={b[2]} score={b[3]} win={b[4]} colors={data.colors} />)}
@@ -2402,8 +2406,8 @@ const XFL_CLR = {
   "San Francisco": ["#E03C31", "#FFFFFF"], Houston: ["#12233A", "#E03C31"],
 };
 
-const XFL_BANNERS = [[0, 436, "XFL", "#CFE0C3"], [560, 436, "Championship", "#CFE0C3"]];
-const XFL_CONSO_BANNERS = [[0, 436, "XFL", "#CFE0C3"], [560, 436, "Consolation", "#CFE0C3"]];
+const XFL_BANNERS = [[0, 436, "XFL", "#CFE0C3", undefined, "#000"], [560, 436, "Championship", "#CFE0C3", undefined, "#000"]];
+const XFL_CONSO_BANNERS = [[0, 436, "XFL", "#CFE0C3", undefined, "#000"], [560, 436, "Consolation", "#CFE0C3", undefined, "#000"]];
 
 const XFL_2025_PLAYOFFS = {
   colors: XFL_CLR,
@@ -2551,6 +2555,101 @@ const R3_PLACE_PATHS = [
   "M436 133 L448 133", "M560 133 L548 133",
   "M436 228 L448 228", "M560 228 L548 228",
 ];
+
+// ===========================================================================
+// R3 BRACKET TEMPLATE (16 teams, 3 rounds, weeks 15-17)
+// ---------------------------------------------------------------------------
+// SEC, TEN, SWAC and BIG XII were each verified to use the SAME 30 box
+// coordinate pairs, in the SAME order, in BOTH halves. R3 geometry was never
+// a per-tier choice, so it must not be hand-typed again -- these builders
+// emit it. A new R3 tier is DATA ONLY.
+//
+// Games are written in bracket order as [teamA, scoreA, teamB, scoreB] and
+// the WINNER IS DERIVED from the two scores, so a win flag can no longer
+// disagree with the numbers printed beside it (the Big Ten 9th-place bug).
+// ===========================================================================
+
+const r3Won = (sa, sb) => parseFloat(sa) > parseFloat(sb);
+const r3Winner = (g) => (r3Won(g[1], g[3]) ? g[0] : g[2]);
+const r3Loser = (g) => (r3Won(g[1], g[3]) ? g[2] : g[0]);
+
+// one game as two boxes at arbitrary positions
+function r3Split(x1, y1, x2, y2, g) {
+  const [a, sa, b, sb] = g;
+  const aw = r3Won(sa, sb);
+  return [[x1, y1, a, sa, aw ? 1 : 0], [x2, y2, b, sb, aw ? 0 : 1]];
+}
+// one game as two stacked boxes
+const r3Stack = (x, y, g) => r3Split(x, y, x, y + 38, g);
+
+const R3_CHAMP_PICKS = [["9th pick", "3rd place"], ["11th pick", "5th place"], ["13th pick", "7th place"]];
+const R3_CONSO_PICKS = [["5th pick", "11th place"], ["7th pick", "13th place"], ["2nd pick", "15th place"]];
+
+function r3MainBoxes({ wk15, semis, final }) {
+  const [g1, g2, g3, g4] = wk15;
+  return [
+    ...r3Stack(112, 0, g1), ...r3Stack(112, 114, g2),
+    ...r3Split(224, 19, 224, 133, semis[0]),
+    ...r3Split(336, 76, 560, 76, final),
+    ...r3Split(672, 19, 672, 133, semis[1]),
+    ...r3Stack(784, 0, g3), ...r3Stack(784, 114, g4),
+  ];
+}
+
+// The 5th/13th-place sub-bracket: the four week-15 LOSERS enter at week 16,
+// so they have no week-15 game of their own.
+function r3PlaceSection({ upper, mid, lower, picks, footer }) {
+  const s = {
+    cols: WK_COLS_3, h: footer ? 300 : 258, paths: R3_PLACE_PATHS,
+    boxes: [
+      ...r3Split(336, 38, 560, 38, upper),
+      ...r3Stack(224, 95, mid.leftQual),
+      ...r3Split(336, 114, 560, 114, mid.final),
+      ...r3Stack(672, 95, mid.rightQual),
+      ...r3Split(336, 209, 560, 209, lower),
+    ],
+    winners: [[448, 19, r3Winner(upper)], [448, 95, r3Winner(mid.final)], [448, 190, r3Winner(lower)]],
+    places: [[448, 38, ...picks[0]], [448, 114, ...picks[1]], [448, 209, ...picks[2]]],
+  };
+  if (footer) s.footer = footer;
+  return s;
+}
+
+// ranks 1-8
+function r3ChampHalf(o) {
+  return {
+    colors: o.colors, logoSrc: o.logoSrc,
+    sections: [
+      {
+        banners: o.banners, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: o.logo,
+        slots: [[448, 0, 100, 52, "Trophy", o.trophy], [448, 114, 100, 57, "PFA", PFA_MARK]],
+        champion: { y: 76, label: o.championLabel || "Champion", team: r3Winner(o.final) },
+        boxes: r3MainBoxes(o),
+      },
+      r3PlaceSection({ upper: o.third, mid: o.fifth, lower: o.seventh, picks: R3_CHAMP_PICKS }),
+    ],
+  };
+}
+
+// ranks 9-16
+function r3ConsoHalf(o) {
+  return {
+    colors: o.colors, logoSrc: o.logoSrc,
+    sections: [
+      {
+        banners: o.banners, cols: WK_COLS_3, h: 200, paths: R3_MAIN_PATHS, logo: o.logo,
+        slots: [[448, 0, 100, 50, "PFA", PFA_MARK]],
+        winners: [[448, 57, r3Winner(o.final)]],
+        places: [[448, 76, "3rd pick", "9th place"]],
+        boxes: r3MainBoxes(o),
+      },
+      r3PlaceSection({
+        upper: o.eleventh, mid: o.thirteenth, lower: o.fifteenth,
+        picks: R3_CONSO_PICKS, footer: o.footer,
+      }),
+    ],
+  };
+}
 
 // --- 2025 SEC, ranks 1-8 (championship half) --------------------------------
 const SEC_2025_PLAYOFFS = {
@@ -2946,6 +3045,73 @@ const XII_2025_CONSOLATION = {
   ],
 };
 
+// --- 2025 ACC ---------------------------------------------------------------
+// First tier built on the R3 template: data only, no coordinates.
+//
+// ARTWORK PENDING. ACC_MARK / ACC_TROPHY are not embedded yet, so the league
+// mark and trophy render as labelled dashed placeholders and ACC is
+// deliberately absent from TIER_LOGOS. That omission is INTENTIONAL and is
+// NOT the Big XII registry-key bug -- do not "fix" it by inventing a key.
+const ACC_BANNERS = [[112, 324, "Atlantic Coast Conference", "#013CA6"], [560, 324, "Championship", "#013CA6"]];
+const ACC_CONSO_BANNERS = [[112, 324, "", "#013CA6"], [560, 324, "Consolation", "#013CA6"]];
+
+const ACC_CLR = {
+  "Duke": ["#012169", "#FFFFFF"], "Notre Dame": ["#0C2340", "#C99700"],
+  "Syracuse": ["#F76900", "#000E54"], "Virginia": ["#232D4B", "#F84C1E"],
+  "Virginia Tech": ["#630031", "#CF4420"], "N Carolina": ["#7BAFD4", "#FFFFFF"],
+  "Louisville": ["#AD0000", "#FFFFFF"], "Clemson": ["#F56600", "#522D80"],
+  "Florida St": ["#782F40", "#CEB888"], "GA Tech": ["#B3A369", "#003057"],
+  "Pittsburgh": ["#003594", "#FFB81C"], "Boston College": ["#98002E", "#BC9B6A"],
+  "Wake Forest": ["#9E7E38", "#000000"], "NC State": ["#CC0000", "#FFFFFF"],
+  "SMU": ["#C8102E", "#FFFFFF"], "Miami": ["#005030", "#F47321"],
+};
+
+// The ACC championship game has no proper name (like SEC / TEN / BIG XII).
+const ACC_2025_PLAYOFFS = r3ChampHalf({
+  colors: ACC_CLR, logo: "ACC", banners: ACC_BANNERS,
+  wk15: [
+    ["Duke", "325.20", "Notre Dame", "271.30"],
+    ["Syracuse", "152.10", "Virginia", "134.95"],
+    ["Virginia Tech", "228.40", "N Carolina", "189.80"],
+    ["Louisville", "227.35", "Clemson", "189.45"],
+  ],
+  semis: [
+    ["Duke", "266.40", "Syracuse", "162.60"],
+    ["Virginia Tech", "338.30", "Louisville", "234.10"],
+  ],
+  final: ["Duke", "210.85", "Virginia Tech", "239.65"],
+  third: ["Syracuse", "168.75", "Louisville", "199.50"],
+  fifth: {
+    leftQual: ["Notre Dame", "299.60", "Virginia", "218.25"],
+    rightQual: ["N Carolina", "219.15", "Clemson", "185.45"],
+    final: ["Notre Dame", "252.75", "N Carolina", "253.40"],
+  },
+  seventh: ["Virginia", "142.90", "Clemson", "209.30"],
+});
+
+const ACC_2025_CONSOLATION = r3ConsoHalf({
+  colors: ACC_CLR, logo: "ACC", banners: ACC_CONSO_BANNERS,
+  wk15: [
+    ["Florida St", "242.65", "GA Tech", "252.55"],
+    ["Pittsburgh", "257.80", "Boston College", "214.95"],
+    ["Wake Forest", "201.05", "NC State", "105.40"],
+    ["SMU", "254.40", "Miami", "228.85"],
+  ],
+  semis: [
+    ["GA Tech", "234.55", "Pittsburgh", "164.25"],
+    ["Wake Forest", "165.25", "SMU", "169.75"],
+  ],
+  final: ["GA Tech", "151.90", "SMU", "165.95"],
+  eleventh: ["Pittsburgh", "160.15", "Wake Forest", "214.00"],
+  thirteenth: {
+    leftQual: ["Florida St", "248.25", "Boston College", "156.60"],
+    rightQual: ["NC State", "164.40", "Miami", "219.40"],
+    final: ["Florida St", "264.35", "Miami", "163.10"],
+  },
+  fifteenth: ["Boston College", "198.15", "NC State", "201.10"],
+  footer: [336, 258, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
+});
+
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
   USFL: { playoffs: USFL_2025_PLAYOFFS, consolation: USFL_2025_CONSOLATION },
@@ -2955,6 +3121,7 @@ const GRID_BRACKETS = {
 
   SWAC: { playoffs: SWAC_2025_PLAYOFFS, consolation: SWAC_2025_CONSOLATION },
   "BIG XII": { playoffs: XII_2025_PLAYOFFS, consolation: XII_2025_CONSOLATION },
+  ACC: { playoffs: ACC_2025_PLAYOFFS, consolation: ACC_2025_CONSOLATION },
 };
 
 // A from-scratch "completed bracket" visual for confirmed historical results —
