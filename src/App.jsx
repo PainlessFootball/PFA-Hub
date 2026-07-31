@@ -578,28 +578,37 @@ function ordinal(n) {
   return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
 }
 
-// Builds the "which placement game sets which draft pick (and CP, for
-// 16-team leagues)" data — one row per rankLabel, each representing a game
-// that decides two consecutive final ranks (its winner and its loser).
-// Each outcome carries its own ineligible/fired status so the panel can
-// show it directly rather than as a separate blanket note.
-function placementInfoRows(rankLabels, pickTable, startRank, tKeyForCP) {
-  const totalTeams = pickTable.length;
-  const buildOutcome = (rank) => {
-    const pick = pickTable[rank - 1];
-    if (pick === undefined) return null;
-    const entry = { pick, fired: rank === totalTeams };
-    if (tKeyForCP) {
-      entry.cp = cpForPlace16(tKeyForCP, rank);
-      entry.ineligible = !entry.fired && !promotionEligible16(rank);
+// Builds the reference rows shown beside a bracket: one per final place,
+// carrying that place's coaching points (16-team leagues only, the others
+// have no CP table yet) plus whether it can still take a promotion. Draft
+// picks used to live here too; they now read off the bracket's place cells.
+// When there is no CP to show, consecutive places that would render
+// identically collapse into a band ("22nd - 31st") rather than repeating.
+function placementInfoRows(size, tKeyForCP) {
+  const hasCP = !!tKeyForCP && size === 16;
+  const rows = [];
+  for (let place = 1; place <= size; place++) {
+    const fired = place === size;
+    rows.push({
+      place,
+      label: ordinal(place),
+      cp: hasCP ? cpForPlace16(tKeyForCP, place) : undefined,
+      fired,
+      ineligible: !fired && !promotionEligible(size, place),
+    });
+  }
+  if (hasCP) return rows;
+  const bands = [];
+  for (const r of rows) {
+    const last = bands[bands.length - 1];
+    if (last && last.fired === r.fired && last.ineligible === r.ineligible) {
+      last.to = r.place;
+      last.label = `${ordinal(last.from)} \u2013 ${ordinal(r.place)}`;
+    } else {
+      bands.push({ ...r, from: r.place, to: r.place });
     }
-    return entry;
-  };
-  return rankLabels.map((label, i) => {
-    const winRank = startRank + i * 2;
-    const loseRank = winRank + 1;
-    return { label, win: buildOutcome(winRank), lose: buildOutcome(loseRank) };
-  });
+  }
+  return bands;
 }
 
 // Coaching points by final place, for the 10 sixteen-team leagues. Places
@@ -620,35 +629,43 @@ const CHAMPION_CP_16 = {
 const cpForPlace16 = (tKey, place) =>
   place <= 10 ? CHAMPION_CP_16[tKey] - CP_OFFSETS_1_10[place - 1] : CP_TAIL_16[place - 11];
 
-// Last 5 places in a 16-team league are ineligible for promotion, per the
-// Rules doc — confirmed again by both CP tables (ranks 12-16 both show
-// "ineligible for promotion").
-const promotionEligible16 = (place) => place <= 11;
+// Ineligible for a promotion or demotion: the last 5 places in a 16-team
+// league, the last 7 in a 20-team league, the last 11 in the 32-team NFL --
+// straight off the Rules page, so the panel and the rules cannot drift.
+// Confirmed for 16 by both CP tables (ranks 12-16 read "ineligible").
+const promotionEligible = (size, place) =>
+  size >= 32 ? place <= size - 11 : size >= 20 ? place <= size - 7 : place <= size - 5;
 
-// Compact reference panel meant to sit beside a bracket rather than as a
-// paragraph underneath it.
-function PlacementInfoPanel({ rows }) {
-  const hasCP = rows.some((r) => r.win && r.win.cp !== undefined);
-  const outcomeLine = (entry) => {
-    if (!entry) return null;
-    const status = entry.fired ? "FIRED" : entry.ineligible ? "INELIGIBLE" : null;
-    return (
-      <div style={{ color: status ? C.ember : C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>
-        {ordinal(entry.pick)} pick{entry.cp !== undefined ? ` · ${entry.cp} CP` : ""}{status ? ` - ${status}` : ""}
-      </div>
-    );
-  };
+// Compact reference box meant to sit beside a bracket rather than as a
+// paragraph underneath it. One box for the whole tier -- it used to be split
+// per bracket half and headed "Draft Order".
+function PlacementInfoPanel({ rows, title }) {
   return (
     <div className="shrink-0 rounded-sm p-3 text-xs" style={{ background: C.panel, border: `1px solid ${C.line}`, minWidth: "12rem" }}>
       <div className="uppercase tracking-wider mb-2" style={{ color: C.slate, fontSize: "0.65rem", letterSpacing: "0.08em" }}>
-        Draft Order{hasCP ? " & Coaching Points" : ""}
+        {title}
       </div>
-      <div className="space-y-2">
+      <div>
         {rows.map((r) => (
-          <div key={r.label}>
-            <div className="font-semibold mb-0.5" style={{ color: C.chalk }}>{r.label}</div>
-            {outcomeLine(r.win)}
-            {outcomeLine(r.lose)}
+          <div
+            key={r.label}
+            className="flex items-baseline justify-between gap-2"
+            style={{ padding: "1px 0", color: r.fired ? C.ember : r.ineligible ? C.slate : C.chalk }}
+          >
+            <span>{r.label}</span>
+            <span className="whitespace-nowrap">
+              {r.cp !== undefined && (
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{r.cp} CP</span>
+              )}
+              {(r.fired || r.ineligible) && (
+                <span style={{ fontSize: "0.55rem", letterSpacing: "0.04em", marginLeft: r.cp !== undefined ? 4 : 0 }}>
+                  {r.fired ? "FIRED" : "inelig."}
+                </span>
+              )}
+              {r.cp === undefined && !r.fired && !r.ineligible && (
+                <span style={{ fontSize: "0.55rem", letterSpacing: "0.04em" }}>eligible</span>
+              )}
+            </span>
           </div>
         ))}
       </div>
@@ -1766,6 +1783,10 @@ const TEAM_CLR = {
 };
 
 const BW = 100, BH = 19, GRID_W = 996, HEADER_GAP = 8;
+// Bracket outlines and connectors read too dark against the ink background.
+// They get their own line colour rather than the app-wide C.line, which is
+// also used by panels, tables and the season picker and should not change.
+const BR_LINE = "#46608A";
 
 // PFA shield, embedded as a data URI so the logo travels inside App.jsx —
 // no public/ folder and no second file to upload. Swap this string if the
@@ -1844,7 +1865,7 @@ function GBox({ x, y, team, score, win, colors }) {
         <div style={{
           height: BH, lineHeight: `${BH}px`, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
           background: "rgba(255,255,255,0.03)", boxSizing: "border-box", textAlign: "center",
-          border: `1px solid ${C.line}`, borderTop: "none",
+          border: `1px solid ${BR_LINE}`, borderTop: "none",
           color: win ? C.turf : C.slate, fontWeight: win ? 700 : 400,
         }}>{score}</div>
       )}
@@ -1852,26 +1873,29 @@ function GBox({ x, y, team, score, win, colors }) {
   );
 }
 
-// A placement game's centre column: draft-pick note, winner bar, place label.
-function GPlace({ x, y, pick, text, w }) {
-  const cw = w || BW;
-  const cx = x + BW / 2 - cw / 2;
+// A placement game's centre column: one box carrying both the place label and
+// the draft pick it awards. The pick used to float on its own row above the
+// winner bar and the label used to widen for long names -- but the cell sits
+// between the two week-17 score boxes, so widening it to 210px made it span
+// 393-603 and run straight through both of them. It now stays BW wide, steps
+// its face down by label length and grows DOWNWARD instead.
+function GPlace({ x, y, pick, text }) {
+  const len = (text || "").length;
+  const fs = len > 40 ? 8 : len > 22 ? 9 : 11;
   return (
-    <>
+    <div style={{
+      position: "absolute", left: x, top: y, width: BW, minHeight: BH * 2,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      padding: "2px 3px", textAlign: "center", boxSizing: "border-box",
+      background: "rgba(255,255,255,0.03)", border: `1px solid ${BR_LINE}`,
+    }}>
+      <div style={{ fontSize: fs, lineHeight: 1.15, fontWeight: 700, color: C.chalk }}>{text}</div>
       {pick && (
         <div style={{
-          position: "absolute", left: x, top: y - 33, width: BW, height: 14, lineHeight: "14px",
-          textAlign: "center", fontSize: 10, fontStyle: "italic", color: C.slate,
+          fontSize: 9, lineHeight: 1.2, fontStyle: "italic", color: C.slate, marginTop: 1,
         }}>{pick}</div>
       )}
-      <div style={{
-        position: "absolute", left: cx, top: y, width: cw, height: BH * 2,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
-        textAlign: "center", fontSize: cw > BW ? 9 : 11, lineHeight: 1.15,
-        fontWeight: 700, color: C.chalk,
-        background: "rgba(255,255,255,0.03)", border: `1px solid ${C.line}`, boxSizing: "border-box",
-      }}>{text}</div>
-    </>
+    </div>
   );
 }
 
@@ -1887,12 +1911,12 @@ function GSeries({ x, y, cum, label, score, win }) {
       }}>{cum}</div>
       <div style={{
         height: BH, lineHeight: `${BH}px`, fontSize: 11, fontWeight: 700, textAlign: "center",
-        color: C.slate, background: C.panelHi, border: `1px solid ${C.line}`, boxSizing: "border-box",
+        color: C.slate, background: C.panelHi, border: `1px solid ${BR_LINE}`, boxSizing: "border-box",
       }}>{label}</div>
       <div style={{
         height: BH, lineHeight: `${BH}px`, fontSize: 11, textAlign: "center",
         fontFamily: "'IBM Plex Mono', monospace", color: C.slate,
-        background: "rgba(255,255,255,0.03)", border: `1px solid ${C.line}`,
+        background: "rgba(255,255,255,0.03)", border: `1px solid ${BR_LINE}`,
         borderTop: "none", boxSizing: "border-box",
       }}>{score}</div>
     </div>
@@ -1902,7 +1926,7 @@ function GSeries({ x, y, cum, label, score, win }) {
 function GPaths({ h, d }) {
   return (
     <svg width={GRID_W} height={h} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden="true">
-      <g fill="none" stroke={C.line} strokeWidth="1">
+      <g fill="none" stroke={BR_LINE} strokeWidth="1">
         {d.map((p, i) => <path key={i} d={p} />)}
       </g>
     </svg>
@@ -1922,7 +1946,7 @@ function GSlot({ x, y, w, h, label, src }) {
     <div style={{
       position: "absolute", left: x, top: y, width: w, height: h, display: "flex",
       alignItems: "center", justifyContent: "center", textAlign: "center",
-      border: src ? "none" : `1px dashed ${C.line}`, borderRadius: 4,
+      border: src ? "none" : `1px dashed ${BR_LINE}`, borderRadius: 4,
       fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
       color: C.slate, lineHeight: 1.3, padding: "0 4px", boxSizing: "border-box",
     }}>
@@ -2001,20 +2025,28 @@ function GridBracket({ data }) {
                 </div>
               ))}
               {(s.series || []).map((v, i) => <GSeries key={`v${i}`} x={v[0]} y={v[1]} cum={v[2]} label={v[3]} score={v[4]} win={v[5]} />)}
-              {(s.places || []).map((p, i) => <GPlace key={`p${i}`} x={p[0]} y={p[1]} pick={p[2]} text={p[3]} w={p[4]} />)}
+              {(s.places || []).map((p, i) => <GPlace key={`p${i}`} x={p[0]} y={p[1]} pick={p[2]} text={p[3]} />)}
               {s.champion && (
                 <>
                   <div style={{
                     position: "absolute", left: 448, top: s.champion.y - 22, width: BW, textAlign: "center",
                     fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: C.gold, textTransform: "uppercase",
                   }}>{s.champion.label}</div>
+                  {/* GBox is position:absolute, so it contributes no height --
+                      this wrapper used to collapse to its own 4px border and the
+                      champion's name was invisible in every league. It now has an
+                      explicit height, and sits 2px out on each side so the gold
+                      ring surrounds the BW-wide bar instead of widening it. */}
                   <div style={{
-                    position: "absolute", left: 448, top: s.champion.y, width: BW,
+                    position: "absolute", left: 448 - 2, top: s.champion.y - 2, width: BW + 4,
+                    height: BH + (s.champion.sub ? BH : 0) + 4,
                     border: `2px solid ${C.gold}`, borderRadius: 3, overflow: "hidden",
+                    boxSizing: "border-box",
                   }}>
                     <GBox x={0} y={0} team={s.champion.team} colors={data.colors} />
                     {s.champion.sub && (
                       <div style={{
+                        position: "absolute", left: 0, top: BH, width: BW,
                         height: BH, lineHeight: `${BH}px`, fontSize: 10, textAlign: "center",
                         background: "rgba(232,163,61,0.12)", color: C.gold, fontWeight: 700,
                       }}>{s.champion.sub}</div>
@@ -2061,7 +2093,7 @@ function GBowls({ data }) {
     );
   };
   return (
-    <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px dashed ${C.line}` }}>
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px dashed ${BR_LINE}` }}>
       <div style={{
         textAlign: "center", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase",
         color: C.slate, marginBottom: 12,
@@ -2086,7 +2118,7 @@ function GBowls({ data }) {
                   <div style={{
                     height: BH, lineHeight: `${BH}px`, fontSize: 11, textAlign: "center",
                     fontFamily: "'IBM Plex Mono', monospace", background: "rgba(255,255,255,0.03)",
-                    border: `1px solid ${C.line}`, borderTop: "none", boxSizing: "border-box",
+                    border: `1px solid ${BR_LINE}`, borderTop: "none", boxSizing: "border-box",
                     color: win === g.left[0] ? C.turf : C.slate, fontWeight: win === g.left[0] ? 700 : 400,
                   }}>{g.left[1]}</div>
                 </div>
@@ -2094,14 +2126,14 @@ function GBowls({ data }) {
                   width: w, minHeight: BH * 2, display: "flex", alignItems: "center",
                   justifyContent: "center", textAlign: "center", fontSize: g.name.length <= 40 ? 11 : 10,
                   fontWeight: 700, lineHeight: 1.15, color: C.gold, padding: "2px 5px",
-                  background: "rgba(255,255,255,0.03)", border: `1px solid ${C.line}`, boxSizing: "border-box",
+                  background: "rgba(255,255,255,0.03)", border: `1px solid ${BR_LINE}`, boxSizing: "border-box",
                 }}>{g.name}</div>
                 <div style={{ width: BW }}>
                   <Bar team={g.right[0]} w={BW} />
                   <div style={{
                     height: BH, lineHeight: `${BH}px`, fontSize: 11, textAlign: "center",
                     fontFamily: "'IBM Plex Mono', monospace", background: "rgba(255,255,255,0.03)",
-                    border: `1px solid ${C.line}`, borderTop: "none", boxSizing: "border-box",
+                    border: `1px solid ${BR_LINE}`, borderTop: "none", boxSizing: "border-box",
                     color: win === g.right[0] ? C.turf : C.slate, fontWeight: win === g.right[0] ? 700 : 400,
                   }}>{g.right[1]}</div>
                 </div>
@@ -2949,7 +2981,7 @@ const SWAC_2025_PLAYOFFS = {
       winners: [[448, 19, "Jackson St"], [448, 95, "Bethune"], [448, 190, "Alcorn"]],
       places: [
         [448, 38, "9th pick", "3rd place"], [448, 114, "11th pick", "5th place"],
-        [448, 209, "", SWAC_BOWL_NAME, 210],
+        [448, 209, "", SWAC_BOWL_NAME],
       ],
     },
   ],
@@ -4546,35 +4578,16 @@ export default function App() {
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
   const bracket = mode === "live" ? computeBracket(tierKey) : null;
 
-  // Draft-order panels, computed once here instead of inline next to each
-  // bracket — moved to the left column (under the tier ladder) to give the
-  // brackets themselves more room.
-  const placementPanels = !bracket
+  // One reference panel for the whole tier, computed here and rendered in the
+  // left column under the tier ladder. Only the ten 16-team leagues have a CP
+  // table; the others show promotion eligibility alone, so the heading follows
+  // whatever the box can actually show.
+  const placementPanel = !bracket
     ? null
-    : bracket.format === "division-playin"
-    ? {
-        playoffs: placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place"], DRAFT_PICKS_20, 1),
-        consolation:
-          bracket.consolation && bracket.consolation.length > 0
-            ? placementInfoRows(["11th Place", "13th Place", "15th Place", "17th Place", "19th Place"], DRAFT_PICKS_20, 11)
-            : null,
-      }
-    : bracket.format === "conference-top4"
-    ? {
-        playoffs: placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1, tierKey),
-        consolation: placementInfoRows(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9, tierKey),
-      }
-    : bracket.format === "conference-division"
-    ? {
-        playoffs: placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place", "9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_32, 1),
-        consolation: placementInfoRows(["17th Place", "19th Place", "21st Place", "23rd Place", "25th Place", "27th Place", "29th Place", "31st Place"], DRAFT_PICKS_32, 17),
-      }
-    : bracket.format === "top8-cascade" || bracket.format === "division-only"
-    ? {
-        playoffs: placementInfoRows(["Championship", "3rd Place", "5th Place", "7th Place"], DRAFT_PICKS_16, 1, tierKey),
-        consolation: placementInfoRows(["9th Place", "11th Place", "13th Place", "15th Place"], DRAFT_PICKS_16, 9, tierKey),
-      }
-    : null;
+    : {
+        rows: placementInfoRows(tier.size, tier.size === 16 ? tierKey : null),
+        title: tier.size === 16 ? "Coaching Points" : "Promotion Eligibility",
+      };
 
   // Fetch Sleeper's real bracket results for whichever tier/season is on
   // screen, so computeBracket can fill in actual winners instead of only
@@ -5368,13 +5381,9 @@ export default function App() {
                 sets both next season's draft order and each team's coaching points for the season — see the breakdown
                 below.
               </div>
-              {SHOW_BRACKETS && placementPanels && (
-                <div className="hidden lg:block mt-4 space-y-4">
-                  <div className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                    Draft Order
-                  </div>
-                  {placementPanels.playoffs && <PlacementInfoPanel rows={placementPanels.playoffs} />}
-                  {placementPanels.consolation && <PlacementInfoPanel rows={placementPanels.consolation} />}
+              {SHOW_BRACKETS && placementPanel && (
+                <div className="hidden lg:block mt-4">
+                  <PlacementInfoPanel rows={placementPanel.rows} title={placementPanel.title} />
                 </div>
               )}
             </aside>
