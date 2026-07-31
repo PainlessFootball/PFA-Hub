@@ -1878,18 +1878,22 @@ function GBox({ x, y, team, score, win, colors }) {
 // winner bar and the label used to widen for long names -- but the cell sits
 // between the two week-17 score boxes, so widening it to 210px made it span
 // 393-603 and run straight through both of them. It now stays BW wide, steps
-// its face down by label length and grows DOWNWARD instead.
+// its face down by label length and grows DOWNWARD instead. A label past 40
+// characters is a novelty bowl name rather than a "3rd place" label, so it
+// also gets a taller floor (BH*3), real padding and looser leading -- at the
+// ordinary BH*2 the wrapped text sat hard against the box edges.
 function GPlace({ x, y, pick, text }) {
   const len = (text || "").length;
-  const fs = len > 40 ? 8 : len > 22 ? 9 : 11;
+  const long = len > 40;
+  const fs = long ? 8 : len > 22 ? 9 : 11;
   return (
     <div style={{
-      position: "absolute", left: x, top: y, width: BW, minHeight: BH * 2,
+      position: "absolute", left: x, top: y, width: BW, minHeight: long ? BH * 3 : BH * 2,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "2px 3px", textAlign: "center", boxSizing: "border-box",
+      padding: long ? 5 : "2px 3px", textAlign: "center", boxSizing: "border-box",
       background: "rgba(255,255,255,0.03)", border: `1px solid ${BR_LINE}`,
     }}>
-      <div style={{ fontSize: fs, lineHeight: 1.15, fontWeight: 700, color: C.chalk }}>{text}</div>
+      <div style={{ fontSize: fs, lineHeight: long ? 1.3 : 1.15, fontWeight: 700, color: C.chalk }}>{text}</div>
       {pick && (
         <div style={{
           fontSize: 9, lineHeight: 1.2, fontStyle: "italic", color: C.slate, marginTop: 1,
@@ -2968,8 +2972,8 @@ const SWAC_2025_PLAYOFFS = {
       ],
     },
     {
-      cols: WK_COLS_3, h: 258, paths: R3_PLACE_PATHS,
-      slots: [[468, 172, 60, 34, "7-11", SEVEN_MARK]],
+      cols: WK_COLS_3, h: 282, paths: R3_PLACE_PATHS,
+      slots: [[468, 154, 60, 34, "7-11", SEVEN_MARK]],
       boxes: [
         [336, 38, "Jackson St", "265.80", 1], [560, 38, "PVAM", "164.25"],
         [224, 95, "Florida A&M", "162.65"], [224, 133, "Bethune", "247.45", 1],
