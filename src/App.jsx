@@ -2714,15 +2714,24 @@ const R3_PLACE_PATHS = [
 // disagree with the numbers printed beside it (the Big Ten 9th-place bug).
 // ===========================================================================
 
-const r3Won = (sa, sb) => parseFloat(sa) > parseFloat(sb);
-const r3Winner = (g) => (r3Won(g[1], g[3]) ? g[0] : g[2]);
-const r3Loser = (g) => (r3Won(g[1], g[3]) ? g[2] : g[0]);
+// A game only counts as PLAYED when both scores parse as numbers AND one is
+// strictly higher. Without this, a blank game (2026 brackets), a 0.00-0.00 and
+// a genuine tie all fall through `>` as false and silently flag the SECOND
+// team as the winner — which would have shown a green winning score in every
+// empty pairing and named a blank team champion.
+const r3Num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+const r3Played = (sa, sb) => { const a = r3Num(sa), b = r3Num(sb); return a !== null && b !== null && a !== b; };
+const r3Won = (sa, sb) => r3Played(sa, sb) && r3Num(sa) > r3Num(sb);
+const r3Winner = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[0] : g[2]) : "");
+const r3Loser = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[2] : g[0]) : "");
 
 // one game as two boxes at arbitrary positions
 function r3Split(x1, y1, x2, y2, g) {
   const [a, sa, b, sb] = g;
+  const played = r3Played(sa, sb);
   const aw = r3Won(sa, sb);
-  return [[x1, y1, a, sa, aw ? 1 : 0], [x2, y2, b, sb, aw ? 0 : 1]];
+  // Unplayed: neither side is flagged, so no false green winner.
+  return [[x1, y1, a, sa, played && aw ? 1 : 0], [x2, y2, b, sb, played && !aw ? 1 : 0]];
 }
 // one game as two stacked boxes
 const r3Stack = (x, y, g) => r3Split(x, y, x, y + 38, g);
@@ -2758,6 +2767,79 @@ function r3PlaceSection({ upper, mid, lower, picks, footer }) {
   };
   if (footer) s.footer = footer;
   return s;
+}
+
+// ===========================================================================
+// LIVE-SEEDED R3 BRACKETS (current season)
+// The 2025 brackets are static data — the scores were transcribed by hand. A
+// current-season bracket cannot be, because the seeds move every time a game
+// is played, so it is BUILT AT RENDER TIME from the live standings and filled
+// in as results arrive. Same geometry, same template, empty games.
+// ===========================================================================
+
+// Grid slot order is [left-top, left-bottom, right-top, right-bottom]. The
+// pairings themselves are BRACKET_PAIRS_R1; what this fixes is which HALF each
+// sits in, so the 1 and 2 seeds are in opposite halves and can only meet in
+// the final. Confirmed against Lainey's sheets 2026-08-01.
+const R3_SEED_SLOTS = [[1, 8], [4, 5], [2, 7], [3, 6]];
+
+const r3Blank = ["", "", "", ""];
+
+// Live standings carry full team names ("South Carolina Gamecocks"); the
+// bracket's colour maps and 100px boxes use the short form ("South Carolina").
+// Match on the LONGEST colour key that prefixes the name, so "Texas A&M
+// Aggies" resolves to "Texas A&M" rather than "Texas". Falls back to the full
+// name, which still renders — just wider and in the default colour.
+function r3ShortName(full, colors) {
+  const norm = (v) => String(v || "").replace(/\s*&\s*/g, "&").trim();
+  const t = norm(full);
+  let best = "";
+  Object.keys(colors || {}).forEach((k) => {
+    if (t.startsWith(norm(k)) && k.length > best.length) best = k;
+  });
+  return best || full;
+}
+
+// Which tiers render a live R3 bracket. SEC first as the test run; the others
+// need their own short-name check before being added.
+const R3_LIVE = {
+  SEC: {
+    colors: SEC_CLR, logoSrc: SEC_MARK, trophy: SEC_TROPHY, logo: "SEC",
+    banners: SEC_BANNERS, consoBanners: SEC_CONSO_BANNERS,
+  },
+};
+
+// seeds: the tier's 8 ranked rows for this half, index 0 = the 1 seed.
+function r3LiveHalf(cfg, seeds, half) {
+  const name = (n) => {
+    const row = seeds[n - 1];
+    return row ? r3ShortName(row.team, cfg.colors) : "";
+  };
+  const o = {
+    colors: cfg.colors, logoSrc: cfg.logoSrc, logo: cfg.logo,
+    banners: half === "playoffs" ? cfg.banners : cfg.consoBanners,
+    trophy: cfg.trophy,
+    wk15: R3_SEED_SLOTS.map(([a, b]) => [name(a), "", name(b), ""]),
+    semis: [r3Blank, r3Blank],
+    final: r3Blank,
+    third: r3Blank, seventh: r3Blank,
+    eleventh: r3Blank, fifteenth: r3Blank,
+    fifth: { leftQual: r3Blank, rightQual: r3Blank, final: r3Blank },
+    thirteenth: { leftQual: r3Blank, rightQual: r3Blank, final: r3Blank },
+  };
+  if (half === "playoffs") return r3ChampHalf(o);
+  o.footer = [336, 258, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"];
+  return r3ConsoHalf(o);
+}
+
+// Returns { playoffs, consolation } for a live-seeded tier, or null.
+function buildR3Live(tierKey, bracket) {
+  const cfg = R3_LIVE[tierKey];
+  if (!cfg || !bracket || !bracket.playoffSeeds) return null;
+  return {
+    playoffs: r3LiveHalf(cfg, bracket.playoffSeeds, "playoffs"),
+    consolation: r3LiveHalf(cfg, bracket.consolationSeeds || [], "consolation"),
+  };
 }
 
 // ranks 1-8
@@ -4645,6 +4727,9 @@ export default function App() {
   const rows = mode === "live" ? liveRows : demoRows;
   const pairs = mode === "live" && leagueId ? matchupsCache[leagueId] : null;
   const bracket = mode === "live" ? computeBracket(tierKey) : null;
+  // Declared AFTER `bracket` on purpose — it reads it. (See the TDZ note: a
+  // const that reads another const must sit below it.)
+  const liveGrid = buildR3Live(tierKey, bracket);
 
   // One reference panel for the whole tier, computed here and rendered in the
   // left column under the tier ladder. Only the ten 16-team leagues have a CP
@@ -5672,7 +5757,29 @@ export default function App() {
                 );
               })()}
 
-              {SHOW_BRACKETS && bracket && !(HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey]) && (
+              {SHOW_BRACKETS && liveGrid && !(HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey]) && (
+                <div className="mt-6 space-y-8">
+                  <div>
+                    <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                      Playoff Bracket — {standingsSeason}
+                    </div>
+                    <p className="text-xs" style={{ color: C.slate }}>
+                      Seeded from the current standings and re-seeded as results come in — scores fill in
+                      once the playoff weeks are played.
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Championship — ranks 1–8</div>
+                    <GridBracket data={liveGrid.playoffs} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-2" style={{ color: C.gold }}>Consolation — ranks 9–16</div>
+                    <GridBracket data={liveGrid.consolation} />
+                  </div>
+                </div>
+              )}
+
+              {SHOW_BRACKETS && bracket && !liveGrid && !(HISTORICAL_FINAL_ORDER[standingsSeason] && HISTORICAL_FINAL_ORDER[standingsSeason][tierKey]) && (
                 <div className="mt-6">
                   <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
                     Playoff Bracket
