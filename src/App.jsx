@@ -1081,13 +1081,18 @@ const median = (arr) => {
 };
 const average = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 
-// ── Logo: uses /pfa-logo.png from the public folder; SVG shield fallback ──
+// ── Logo: the nav shield. Uses the same PFA_MARK file as the brackets
+// (public/art/pfa-mark.png) rather than a second copy of the same art, so
+// there is only ever one PFA shield to keep up to date. The drawn SVG shield
+// below is the fallback if that file is ever missing.
+// PFA_MARK is declared further down the file, which is fine: this only reads
+// it at render time, long after the module has finished evaluating.
 function Logo({ size = 52 }) {
   const [imgOk, setImgOk] = useState(true);
   if (imgOk) {
     return (
       <img
-        src="/pfa-logo.png"
+        src={PFA_MARK}
         alt="PFA"
         style={{ height: size, width: "auto" }}
         onError={() => setImgOk(false)}
