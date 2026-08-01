@@ -281,7 +281,7 @@ const CAREER_STATS = {
   "babba10101": [{ "tierKey": "IVY", "team": "Penn Quakers", "stats": { "Career CP": "655.40", "Career Avg CP": "163.85", "Record": "39-29", "Win %": "57.4%", "Total Points": "14686.30", "Avg Pts / Season": "210.13", "Alliance High Score": "1", "Alliance Low Score": "3", "League High Score": "2", "League Low Score": "3", "Best Manager": "8", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
   "bbclives": [{ "tierKey": "ACC", "team": "Miami Hurricanes", "stats": { "Career CP": "422.28", "Career Avg CP": "105.57", "Record": "28-40", "Win %": "41.2%", "Total Points": "13260.65", "Avg Pts / Season": "189.77", "Alliance High Score": "0", "Alliance Low Score": "4", "League High Score": "0", "League Low Score": "4", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "bblew52": [{ "tierKey": "SEC", "team": "Georgia Bulldogs", "stats": { "Career CP": "681.30", "Career Avg CP": "170.32", "Record": "33-35", "Win %": "48.5%", "Total Points": "14132.75", "Avg Pts / Season": "201.86", "Alliance High Score": "1", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "10", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
-  "beardmantv": [{ "tierKey": "SEC", "team": "Auburn TIGERS", "stats": { "Career CP": "547.81", "Career Avg CP": "136.95", "Record": "34-34", "Win %": "50.0%", "Total Points": "14220.20", "Avg Pts / Season": "203.52", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "2", "League Low Score": "5", "Best Manager": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" } }],
+  "beardmantv": [{ "tierKey": "SEC", "team": "Auburn Tigers", "stats": { "Career CP": "547.81", "Career Avg CP": "136.95", "Record": "34-34", "Win %": "50.0%", "Total Points": "14220.20", "Avg Pts / Season": "203.52", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "2", "League Low Score": "5", "Best Manager": "-3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" } }],
   "beaster303": [{ "tierKey": "USFL", "team": "Michigan Panthers", "stats": { "Career CP": "306.02", "Career Avg CP": "76.51", "Record": "28-40", "Win %": "41.2%", "Total Points": "12838.70", "Avg Pts / Season": "183.75", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "5", "League Low Score": "1", "Best Manager": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "beaverius": [{ "tierKey": "SUN", "team": "Louisiana Ragin' Cajuns", "stats": { "Career CP": "346.32", "Career Avg CP": "86.58", "Record": "28-40", "Win %": "41.2%", "Total Points": "12763.65", "Avg Pts / Season": "182.32", "Alliance High Score": "0", "Alliance Low Score": "6", "League High Score": "2", "League Low Score": "6", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
   "benchedballers": [{ "tierKey": "NFL", "team": "Indianapolis Colts", "stats": { "Career CP": "809.54", "Career Avg CP": "202.38", "Record": "43-25", "Win %": "63.2%", "Total Points": "12852.80", "Avg Pts / Season": "184.22", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "3", "League Low Score": "0", "Best Manager": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" } }],
@@ -314,7 +314,7 @@ const CAREER_STATS = {
   "dbgiants": [{ "tierKey": "SOCO", "team": "Murray State Racers", "stats": { "Career CP": "188.03", "Career Avg CP": "47.01", "Record": "22-29", "Win %": "43.1%", "Total Points": "9395.45", "Avg Pts / Season": "177.76", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "0", "League Low Score": "5", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "diego777": [{ "tierKey": "NFL", "team": "Pittsburgh Steelers", "stats": { "Career CP": "847.38", "Career Avg CP": "211.85", "Record": "44-24", "Win %": "64.7%", "Total Points": "13959.70", "Avg Pts / Season": "200.01", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "2", "League Low Score": "0", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" } }],
   "dilly314": [{ "tierKey": "IVY", "team": "Georgetown Hoyas", "stats": { "Career CP": "699.04", "Career Avg CP": "174.76", "Record": "40-28", "Win %": "58.8%", "Total Points": "14803.20", "Avg Pts / Season": "211.76", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "5", "League Low Score": "0", "Best Manager": "8", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }],
-  "dirtybyrd30": [{ "tierKey": "USFL", "team": "Chicago Blitz", "stats": { "Career CP": "811.22", "Career Avg CP": "202.80", "Record": "50-18", "Win %": "73.5%", "Total Points": "16752.30", "Avg Pts / Season": "239.39", "Alliance High Score": "2", "Alliance Low Score": "1", "League High Score": "12", "League Low Score": "1", "Best Manager": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" } }, { "tierKey": "XFL", "team": "Dallas Renegades", "stats": { "Career CP": "136.58", "Career Avg CP": "34.15", "Record": "9-8", "Win %": "52.9%", "Total Points": "3572.95", "Avg Pts / Season": "99.25", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "SWAC", "team": "Jackston State Tigers", "stats": { "Career CP": "811.22", "Career Avg CP": "202.80", "Record": "50-18", "Win %": "73.5%", "Total Points": "16752.30", "Avg Pts / Season": "239.39", "Alliance High Score": "2", "Alliance Low Score": "1", "League High Score": "12", "League Low Score": "1", "Best Manager": "2", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "4" } }],
+  "dirtybyrd30": [{ "tierKey": "USFL", "team": "Chicago Blitz", "stats": { "Career CP": "811.22", "Career Avg CP": "202.80", "Record": "50-18", "Win %": "73.5%", "Total Points": "16752.30", "Avg Pts / Season": "239.39", "Alliance High Score": "2", "Alliance Low Score": "1", "League High Score": "12", "League Low Score": "1", "Best Manager": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" } }, { "tierKey": "XFL", "team": "Dallas Renegades", "stats": { "Career CP": "136.58", "Career Avg CP": "34.15", "Record": "9-8", "Win %": "52.9%", "Total Points": "3572.95", "Avg Pts / Season": "99.25", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "SWAC", "team": "Jackson State Tigers", "stats": { "Career CP": "811.22", "Career Avg CP": "202.80", "Record": "50-18", "Win %": "73.5%", "Total Points": "16752.30", "Avg Pts / Season": "239.39", "Alliance High Score": "2", "Alliance Low Score": "1", "League High Score": "12", "League Low Score": "1", "Best Manager": "2", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "4" } }],
   "djmooremvp": [{ "tierKey": "GLIAC", "team": "Purdue NW Pride", "stats": { "Career CP": "257.08", "Career Avg CP": "64.27", "Record": "19-32", "Win %": "37.3%", "Total Points": "9621.60", "Avg Pts / Season": "181.42", "Alliance High Score": "0", "Alliance Low Score": "8", "League High Score": "1", "League Low Score": "8", "Best Manager": "5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" } }],
   "dleggett": [{ "tierKey": "BIG XII", "team": "West Virgnia Mountaineers", "stats": { "Career CP": "576.83", "Career Avg CP": "144.21", "Record": "36-32", "Win %": "52.9%", "Total Points": "13445.55", "Avg Pts / Season": "192.40", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "3", "League Low Score": "1", "Best Manager": "5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
   "dommez": [{ "tierKey": "SUN", "team": "Old Dominion Monarchs", "stats": { "Career CP": "35.70", "Career Avg CP": "8.92", "Record": "5-12", "Win %": "29.4%", "Total Points": "3068.70", "Avg Pts / Season": "85.24", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "0", "League Low Score": "1", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
@@ -351,7 +351,7 @@ const CAREER_STATS = {
   "iloveolave": [{ "tierKey": "SWAC", "team": "Princeton Tigers", "stats": { "Career CP": "92.71", "Career Avg CP": "23.18", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "88.90", "Alliance High Score": "0", "Alliance Low Score": "4", "League High Score": "0", "League Low Score": "4", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "jamie04": [{ "tierKey": "BIG XII", "team": "Houston Cougars", "stats": { "Career CP": "248.88", "Career Avg CP": "62.22", "Record": "20-14", "Win %": "58.8%", "Total Points": "7230.95", "Avg Pts / Season": "206.71", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "3", "League Low Score": "1", "Best Manager": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }, { "tierKey": "SOCO", "team": "Tennessee Martin Skyhawks", "stats": { "Career CP": "258.19", "Career Avg CP": "64.55", "Record": "18-16", "Win %": "52.9%", "Total Points": "7330.60", "Avg Pts / Season": "209.47", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "3", "League Low Score": "1", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }],
   "jaquise": [{ "tierKey": "SOCO", "team": "Austin Peay Governors", "stats": { "Career CP": "566.33", "Career Avg CP": "141.58", "Record": "40-28", "Win %": "58.8%", "Total Points": "15087.00", "Avg Pts / Season": "215.64", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "8", "League Low Score": "0", "Best Manager": "4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "0" } }],
-  "jay21177": [{ "tierKey": "IVY", "team": "Yale bulldogs", "stats": { "Career CP": "499.67", "Career Avg CP": "124.92", "Record": "27-41", "Win %": "39.7%", "Total Points": "13596.25", "Avg Pts / Season": "194.64", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "1", "League Low Score": "5", "Best Manager": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
+  "jay21177": [{ "tierKey": "IVY", "team": "Yale Bulldogs", "stats": { "Career CP": "499.67", "Career Avg CP": "124.92", "Record": "27-41", "Win %": "39.7%", "Total Points": "13596.25", "Avg Pts / Season": "194.64", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "1", "League Low Score": "5", "Best Manager": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
   "jjbinc int": [{ "tierKey": "SOCO", "team": "VMI Keydets", "stats": { "Career CP": "182.33", "Career Avg CP": "45.58", "Record": "16-18", "Win %": "47.1%", "Total Points": "6624.60", "Avg Pts / Season": "189.62", "Alliance High Score": "1", "Alliance Low Score": "6", "League High Score": "2", "League Low Score": "6", "Best Manager": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "GLIAC", "team": "Lake Superior Lakers", "stats": { "Career CP": "102.13", "Career Avg CP": "25.53", "Record": "12-22", "Win %": "35.3%", "Total Points": "6631.95", "Avg Pts / Season": "190.08", "Alliance High Score": "1", "Alliance Low Score": "19", "League High Score": "17", "League Low Score": "19", "Best Manager": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "jjbinc l": [{ "tierKey": "FLHS", "team": "—", "stats": { "Career CP": "263.08", "Career Avg CP": "65.77", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "204.26", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "3", "League Low Score": "0", "Best Manager": "1", "Conference Wins": "1", "Division Wins": "2", "Playoff Wins": "1" } }],
   "jmullen175": [{ "tierKey": "ACC", "team": "—", "stats": { "Career CP": "106.56", "Career Avg CP": "26.64", "Record": "9-8", "Win %": "52.9%", "Total Points": "3413.95", "Avg Pts / Season": "94.83", "Alliance High Score": "0", "Alliance Low Score": "2", "League High Score": "1", "League Low Score": "2", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
@@ -878,7 +878,7 @@ const CLUB_300 = [
   { coach: "FoggyBuckets", team: "Pittsburgh Maulers", conf: "USFL", pts: 344.8, week: 1, year: 2023 },
   { coach: "OlaveGarden18", team: "Morgan State Bears", conf: "SWAC", pts: 344.35, week: 12, year: 2024 },
   { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 342.45, week: 2, year: 2022 },
-  { coach: "DirtyByrd30", team: "Jackston State Tigers", conf: "SWAC", pts: 342.1, week: 4, year: 2025 },
+  { coach: "DirtyByrd30", team: "Jackson State Tigers", conf: "SWAC", pts: 342.1, week: 4, year: 2025 },
   { coach: "CrazyKirt", team: "UCLA Bruins", conf: "TEN", pts: 339.95, week: 12, year: 2024 },
   { coach: "PwnRangr", team: "West Carolina Catamounts", conf: "SOCO", pts: 339.1, week: 7, year: 2025 },
   { coach: "RedPhoenix437", team: "Los Angeles Express", conf: "USFL", pts: 338.05, week: 7, year: 2025 },
@@ -1859,18 +1859,46 @@ const TIER_LOGOS = {
   FLHS: FLHS_MARK,
 };
 
-// The 46px league mark beside the Standings heading. Falls back to the tier
-// key as text if the tier has no mark or the file is missing.
-function TierMark({ tierKey }) {
+// A league mark, used beside the Standings heading and in the Directory
+// league bands. Falls back to the tier key as text if the tier has no mark or
+// the file is missing. Sizes are maxima — the art keeps its own aspect ratio
+// and is never stretched or upscaled past its natural size.
+function TierMark({ tierKey, maxW = 40, maxH = 40 }) {
   const [failedSrc, setFailedSrc] = useState(null);
   const src = TIER_LOGOS[tierKey];
   if (!src || failedSrc === src) return tierKey;
   return (
     <img src={src} alt={tierKey} onError={() => setFailedSrc(src)}
-         style={{ maxWidth: 40, maxHeight: 40, objectFit: "contain" }} />
+         style={{ maxWidth: maxW, maxHeight: maxH, objectFit: "contain" }} />
   );
 }
 
+// A Directory league band — the same shape as a bracket banner: mark on the
+// left, conference name centred, tier key on the right. Sits above that
+// league's block of coach cards.
+function DirBand({ tier, count }) {
+  return (
+    <div className="flex items-center gap-2.5 px-3 mb-2.5"
+         style={{ background: C.panelHi, borderRadius: 3, height: 46 }}>
+      <div style={{ width: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+        <TierMark tierKey={tier.key} maxW={56} maxH={38} />
+      </div>
+      <div className="flex-1 min-w-0 text-center">
+        <div className="uppercase truncate" style={{
+          fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+          fontSize: 15, letterSpacing: "0.15em", lineHeight: "15px", color: C.chalk,
+        }}>{tier.name}</div>
+        <div style={{ fontSize: 9.5, fontStyle: "italic", lineHeight: "13px", color: C.slate }}>
+          Tier {tier.tier} · {count} {count === 1 ? "coach" : "coaches"}
+        </div>
+      </div>
+      <div className="text-right" style={{
+        fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+        fontSize: 13, letterSpacing: "0.12em", color: C.gold, width: 56, flexShrink: 0,
+      }}>{tier.key}</div>
+    </div>
+  );
+}
 
 function GBox({ x, y, team, score, win, colors }) {
   const clr = (colors && colors[team]) || TEAM_CLR[team] || ["#2A3550", C.chalk];
@@ -4981,6 +5009,40 @@ export default function App() {
     if (mode === "live" && leagueId && row.rosterId) ensureDraftDataLoaded(leagueId);
   };
 
+  // ── Directory grouping ───────────────────────────────────────────────────
+  // Coaches who hold more than one team carry a tag on the end of the name
+  // ("pwnrangr l3", "rifelife520 int2"). Each tagged name is a SEPARATE coach,
+  // never merged with its base name — the tag is only split out so the sort
+  // keeps one person's teams together and so the tag can render as a badge.
+  const dirGroups = useMemo(() => {
+    const splitTag = (name) => {
+      const m = /^(.*?)\s+((?:int|l)\d*)$/i.exec(name || "");
+      return m ? { base: m[1], tag: m[2].toLowerCase() } : { base: name || "", tag: "" };
+    };
+    // Sort on base name, then tag letters, then tag number as a NUMBER so a
+    // future "l10" lands after "l2" instead of before it.
+    const sortKey = (c) => {
+      const { base, tag } = splitTag(c.name);
+      const digits = tag.replace(/\D/g, "");
+      return [base.toLowerCase(), tag.replace(/\d/g, ""), digits ? parseInt(digits, 10) : -1];
+    };
+    const cmp = (a, b) => {
+      const ka = sortKey(a), kb = sortKey(b);
+      return ka[0].localeCompare(kb[0]) || ka[1].localeCompare(kb[1]) || ka[2] - kb[2];
+    };
+    const byTier = new Map();
+    filteredDirectory.forEach((c) => {
+      if (!byTier.has(c.tierKey)) byTier.set(c.tierKey, []);
+      byTier.get(c.tierKey).push(c);
+    });
+    // Ladder order (tier 1 down to 13), same as Standings — not alphabetical.
+    // Tiers with no coach after filtering drop out entirely.
+    return TIERS.filter((t) => byTier.has(t.key)).map((t) => ({
+      tier: t,
+      coaches: byTier.get(t.key).sort(cmp).map((c) => ({ ...c, ...splitTag(c.name) })),
+    }));
+  }, [filteredDirectory]);
+
   const filteredDirectory = useMemo(() => {
     const q = dirQuery.trim().toLowerCase();
     if (!q) return coachDirectory;
@@ -5906,32 +5968,43 @@ export default function App() {
                 Directory populates from live Sleeper data — currently showing sample NFL coaches only.
               </div>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {filteredDirectory.map((c, i) => (
-                <button
-                  type="button"
-                  key={(c.userId || c.name) + i}
-                  onClick={() => openCoachProfile(c.name)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-left transition-colors"
-                  style={{ background: C.panel, border: `1px solid ${C.line}` }}
-                >
-                  <Avatar name={c.name} avatar={c.avatar} size={38} />
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">
-                      {c.name}
-                      <TrophyBadges name={c.name} size={12} />
-                    </div>
-                    <div className="text-xs truncate" style={{ color: C.slate }}>{c.team}</div>
-                    <div className="text-xs uppercase tracking-wider" style={{ color: C.gold }}>{c.tierKey}</div>
-                  </div>
-                </button>
-              ))}
-              {filteredDirectory.length === 0 && (
-                <div className="col-span-full py-10 text-center text-sm" style={{ color: C.slate }}>
-                  No coaches match that search.
+            {dirGroups.map((g) => (
+              <div key={g.tier.key} className="mb-6">
+                <DirBand tier={g.tier} count={g.coaches.length} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {g.coaches.map((c, i) => (
+                    <button
+                      type="button"
+                      key={(c.userId || c.name) + i}
+                      onClick={() => openCoachProfile(c.name)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-left transition-colors"
+                      style={{ background: C.panel, border: `1px solid ${C.line}` }}
+                    >
+                      <Avatar name={c.name} avatar={c.avatar} size={38} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">
+                          {c.base}
+                          {c.tag && (
+                            <span className="uppercase" style={{
+                              fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: C.gold,
+                              border: `1px solid ${C.goldDim}`, borderRadius: 2,
+                              padding: "0 3px", marginLeft: 5, verticalAlign: 1,
+                            }}>{c.tag}</span>
+                          )}
+                          <TrophyBadges name={c.name} size={12} />
+                        </div>
+                        <div className="text-xs truncate" style={{ color: C.slate }}>{c.team}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            ))}
+            {dirGroups.length === 0 && (
+              <div className="py-10 text-center text-sm" style={{ color: C.slate }}>
+                No coaches match that search.
+              </div>
+            )}
           </section>
         )}
 
