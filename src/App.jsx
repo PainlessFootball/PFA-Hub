@@ -3661,6 +3661,11 @@ const GLIAC_CLR = {
   "Wayne State": ["#0C5449", "#FFCB05"], "N Michigan": ["#285C4D", "#B4975A"],
   "Ferris State": ["#C8102E", "#FFC72C"], "Purdue NW": ["#000000", "#B1946C"],
   "Northwood": ["#7EA6D8", "#0A2240"], "Lake Superior": ["#FDB913", "#003F87"],
+  // Added 2026-08-01: she confirmed Morgan State genuinely plays in GLIAC now.
+  // SWAC keeps its own "Morgan St" key (2025 championship data is historical
+  // and untouched) — colours are scoped per league, so both can coexist.
+  // Real brand colours per Morgan State's own toolkit (morgan.edu/toolkit).
+  "Morgan State": ["#1B4383", "#F47937"],
 };
 
 // No championship-game name and no week-18 bowls on the GLIAC sheets.
