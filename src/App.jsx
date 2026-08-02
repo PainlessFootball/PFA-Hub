@@ -2266,6 +2266,21 @@ const BR_W15_FEEDERS = [
 //   topWinnerY/topPick/topLabel (renders a plain rank label, e.g. "17th
 //   place" for the consolation half — a rank isn't a trophy) }.
 // ===========================================================================
+// A game only counts as PLAYED when both scores parse as numbers AND one is
+// strictly higher. Without this, a blank game (2026 brackets), a 0.00-0.00 and
+// a genuine tie all fall through `>` as false and silently flag the SECOND
+// team as the winner — which would have shown a green winning score in every
+// empty pairing and named a blank team champion.
+// MUST be declared here, before brWinner/brLoser/brSplit below — those are
+// called by brChampHalf, which NFL_2025_PLAYOFFS invokes immediately at
+// module load (not deferred to render), so a later declaration throws
+// "Cannot access before initialization" the instant the module evaluates,
+// blanking the entire page before React ever mounts. esbuild's syntax check
+// does not catch this; only running the module does.
+const r3Num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+const r3Played = (sa, sb) => { const a = r3Num(sa), b = r3Num(sb); return a !== null && b !== null && a !== b; };
+const r3Won = (sa, sb) => r3Played(sa, sb) && r3Num(sa) > r3Num(sb);
+
 const brBlank = ["", "", "", ""];
 const brWinner = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[0] : g[2]) : "");
 const brLoser  = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[2] : g[0]) : "");
@@ -2779,14 +2794,6 @@ const R3_PLACE_PATHS = [
 // disagree with the numbers printed beside it (the Big Ten 9th-place bug).
 // ===========================================================================
 
-// A game only counts as PLAYED when both scores parse as numbers AND one is
-// strictly higher. Without this, a blank game (2026 brackets), a 0.00-0.00 and
-// a genuine tie all fall through `>` as false and silently flag the SECOND
-// team as the winner — which would have shown a green winning score in every
-// empty pairing and named a blank team champion.
-const r3Num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
-const r3Played = (sa, sb) => { const a = r3Num(sa), b = r3Num(sb); return a !== null && b !== null && a !== b; };
-const r3Won = (sa, sb) => r3Played(sa, sb) && r3Num(sa) > r3Num(sb);
 const r3Winner = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[0] : g[2]) : "");
 const r3Loser = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[2] : g[0]) : "");
 
