@@ -2241,152 +2241,217 @@ const BR_W15_FEEDERS = [
 ];
 
 // --- 2025 NFL, ranks 1-16 (championship half) ------------------------------
-const NFL_2025_PLAYOFFS = {
-  sections: [
-    {
-      banners: BR_BANNERS, h: 418, paths: BR_MAIN_PATHS, logo: "NFL", logoSrc: NFL_MARK,
-      slots: [[448, 16, 100, 150, "Trophy", NFL_TROPHY], [448, 250, 100, 100, "PFA", PFA_MARK]],
-      champion: { y: 190, label: "Champion", team: "Tennessee", sub: "PainBowl IV" },
-      boxes: [
-        [0, 0, "San Francisco", "169.40", 1], [0, 38, "Arizona", "156.40"],
-        [0, 114, "Philadelphia", "157.55"], [0, 152, "LA Rams", "181.80", 1],
-        [0, 228, "Green Bay", "206.15", 1], [0, 266, "Seattle", "145.05"],
-        [0, 342, "New Orleans", "123.75"], [0, 380, "Detroit", "126.85", 1],
-        [112, 57, "San Francisco", "145.05"], [112, 95, "LA Rams", "207.30", 1],
-        [112, 285, "Green Bay", "187.75"], [112, 323, "Detroit", "220.50", 1],
-        [224, 171, "LA Rams", "275.75", 1], [224, 209, "Detroit", "109.15"],
-        [336, 190, "LA Rams", "178.40"],
-        [560, 190, "Tennessee", "210.60", 1],
-        [672, 171, "Tennessee", "236.90", 1], [672, 209, "Baltimore", "197.10"],
-        [784, 57, "Tennessee", "219.85", 1], [784, 95, "LA Chargers", "132.40"],
-        [784, 285, "Baltimore", "231.70", 1], [784, 323, "Pittsburgh", "116.80"],
-        [896, 0, "New England", "165.55"], [896, 38, "Tennessee", "200.40", 1],
-        [896, 114, "LA Chargers", "234.35", 1], [896, 152, "Miami", "113.60"],
-        [896, 228, "Baltimore", "211.60", 1], [896, 266, "NY Jets", "148.05"],
-        [896, 342, "Jacksonville", "160.00"], [896, 380, "Pittsburgh", "171.80", 1],
-      ],
-    },
-    {
-      h: 690,
-      paths: [
-        "M324 169 L330 169 L330 162 L336 162", "M324 207 L330 207 L330 248 L336 248",
-        "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
-        ...BR_W15_FEEDERS,
-        "M324 386 L336 386", "M324 424 L330 424 L330 457 L336 457",
-        "M672 386 L666 386 L666 457 L660 457", "M672 424 L666 424 L666 386 L660 386",
-        "M324 579 L336 578", "M324 617 L330 617 L330 649 L336 649",
-        "M672 579 L660 578", "M672 617 L666 617 L666 649 L660 649",
-      ],
-      boxes: [
-        [336, 33, "Detroit", "144.60", 1], [560, 33, "Baltimore", "102.80"],
-        [224, 150, "San Francisco", "242.20", 1], [224, 188, "Green Bay", "227.95"],
-        [672, 150, "LA Chargers", "154.35"], [672, 188, "Pittsburgh", "187.80", 1],
-        [336, 143, "San Francisco", "204.35", 1], [560, 143, "Pittsburgh", "175.15"],
-        [336, 229, "Green Bay", "192.40", 1], [560, 229, "LA Chargers", "146.20"],
-        [112, 310, "Arizona", "215.15"], [112, 348, "Philadelphia", "258.40", 1],
-        [112, 424, "Seattle", "176.60", 1], [112, 462, "New Orleans", "130.50"],
-        [784, 310, "New England", "146.90"], [784, 348, "Miami", "186.75", 1],
-        [784, 424, "NY Jets", "227.40", 1], [784, 462, "Jacksonville", "101.00"],
-        [224, 367, "Philadelphia", "181.50", 1], [224, 405, "Seattle", "157.70"],
-        [672, 367, "Miami", "178.80"], [672, 405, "NY Jets", "204.70", 1],
-        [336, 367, "Philadelphia", "129.65"], [560, 367, "NY Jets", "194.80", 1],
-        [336, 438, "Seattle", "123.80"], [560, 438, "Miami", "173.45", 1],
-        [224, 560, "Arizona", "180.05", 1], [224, 598, "New Orleans", "146.90"],
-        [672, 560, "New England", "184.60", 1], [672, 598, "Jacksonville", "106.80"],
-        [336, 559, "Arizona", "138.35"], [560, 559, "New England", "197.20", 1],
-        [336, 630, "New Orleans", "140.70", 1], [560, 630, "Jacksonville", "109.60"],
-      ],
-      winners: [
-        [448, 14, "Detroit"], [448, 124, "San Francisco"], [448, 210, "Green Bay"],
-        [448, 348, "NY Jets"], [448, 419, "Miami"],
-        [448, 540, "New England"], [448, 611, "New Orleans"],
-      ],
-      places: [
-        [448, 33, "29th pick", "3rd place"], [448, 143, "25th pick", "5th place"],
-        [448, 229, "27th pick", "7th place"], [448, 367, "17th pick", "9th place"],
-        [448, 438, "19th pick", "11th place"], [448, 559, "21st pick", "13th place"],
-        [448, 630, "23rd pick", "15th place"],
-      ],
-    },
+// ===========================================================================
+// BR TEMPLATE — the NFL-shape bracket (8 seeds/conference, 4 real rounds to
+// a champion, plus a full mirrored losers' ladder down to 15th/16th place).
+// Verified byte-for-byte against BOTH real 2025 halves before being written:
+// every routing rule (who plays whom at every tier) was checked participant-
+// by-participant against NFL_2025_PLAYOFFS/CONSOLATION's own hand-authored
+// boxes. Box positions below are a FIXED layout — confirmed identical
+// between both real 2025 halves — not computed per season, exactly like
+// R3_MAIN_PATHS/R3_SEED_SLOTS.
+//
+// `conf` shape (one conference, e.g. NFC), each game a [team,score,team,score]:
+//   r1:     [g1,g2,g3,g4]  wild card: seed(1v8),(4v5),(3v6),(2v7)
+//   r2:     [g5,g6]        divisional: winner(g1)vwinner(g2), winner(g3)vwinner(g4)
+//   r3:     g7             conf championship: winner(g5) v winner(g6)
+//   lr1:    [g8,g9]        losers' wild card: loser(g1)vloser(g2), loser(g3)vloser(g4)
+//   lr2w:   g10            winner(g8) v winner(g9)  -> feeds 9th place
+//   lr2l:   g11            loser(g8)  v loser(g9)   -> feeds 13th place
+//   r2lose: g12            loser(g5)  v loser(g6)   -> feeds 5th/7th place
+// `o` (one half) = { east: conf, west: conf, champ,third,fifth,seventh,
+//   ninth,eleventh,thirteenth,fifteenth (8 cross-conference games),
+//   banners, brMainPaths, ladderPaths, logo, logoSrc, champSlots, ladderH,
+//   places, footer, and EITHER championSub (renders a trophy box) OR
+//   topWinnerY/topPick/topLabel (renders a plain rank label, e.g. "17th
+//   place" for the consolation half — a rank isn't a trophy) }.
+// ===========================================================================
+const brBlank = ["", "", "", ""];
+const brWinner = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[0] : g[2]) : "");
+const brLoser  = (g) => (r3Played(g[1], g[3]) ? (r3Won(g[1], g[3]) ? g[2] : g[0]) : "");
+function brSplit(x1, y1, x2, y2, g) {
+  const [a, sa, b, sb] = g;
+  const played = r3Played(sa, sb);
+  const aw = r3Won(sa, sb);
+  return [[x1, y1, a, sa, played && aw ? 1 : 0], [x2, y2, b, sb, played && !aw ? 1 : 0]];
+}
+const brStack = (x, y, g) => brSplit(x, y, x, y + 38, g);
+
+const BR_R1_Y = [0, 38, 114, 152, 228, 266, 342, 380];
+const BR_R2_Y = [57, 95, 285, 323];
+const BR_R3_Y = [171, 209];
+const BR_FINAL_Y = 190;
+
+// One conference's own R1->R2->R3 ladder (14 boxes). The finalist itself
+// (feeding the cross-conference final) is built separately in brChampHalf.
+function brMainSide(conf, side) {
+  const [x0, x1, x2] = side === "east" ? [0, 112, 224] : [896, 784, 672];
+  return [
+    ...brStack(x0, BR_R1_Y[0], conf.r1[0]), ...brStack(x0, BR_R1_Y[2], conf.r1[1]),
+    ...brStack(x0, BR_R1_Y[4], conf.r1[2]), ...brStack(x0, BR_R1_Y[6], conf.r1[3]),
+    ...brStack(x1, BR_R2_Y[0], conf.r2[0]), ...brStack(x1, BR_R2_Y[2], conf.r2[1]),
+    ...brStack(x2, BR_R3_Y[0], conf.r3),
+  ];
+}
+
+// One conference's own placement ladder (20 boxes, feeds 5th/7th/9th/11th/
+//13th/15th). 3rd place needs no within-conference game — only one candidate
+// per side already exists (the conf-championship loser) — so it isn't built
+// here; it's a cross-conference game assembled directly in brChampHalf.
+function brLadderSide(conf, side) {
+  const [x0, x1] = side === "east" ? [112, 224] : [784, 672];
+  return [
+    ...brSplit(x1, 150, x1, 188, conf.r2lose),
+    ...brSplit(x0, 310, x0, 348, conf.lr1[0]), ...brSplit(x0, 424, x0, 462, conf.lr1[1]),
+    ...brSplit(x1, 367, x1, 405, conf.lr2w), ...brSplit(x1, 560, x1, 598, conf.lr2l),
+  ];
+}
+
+function brChampHalf(o) {
+  const eastMain = brMainSide(o.east, "east");
+  const westMain = brMainSide(o.west, "west");
+  const finalists = brSplit(336, BR_FINAL_Y, 560, BR_FINAL_Y, o.champ);
+  const eastLadder = brLadderSide(o.east, "east");
+  const westLadder = brLadderSide(o.west, "west");
+  const boxes = [
+    ...eastMain, ...westMain, ...finalists,
+  ];
+  const ladderBoxes = [
+    ...brSplit(336, 33, 560, 33, o.third), ...eastLadder, ...westLadder,
+    ...brSplit(336, 143, 560, 143, o.fifth), ...brSplit(336, 229, 560, 229, o.seventh),
+    ...brSplit(336, 367, 560, 367, o.ninth), ...brSplit(336, 438, 560, 438, o.eleventh),
+    ...brSplit(336, 559, 560, 559, o.thirteenth), ...brSplit(336, 630, 560, 630, o.fifteenth),
+  ];
+  const section1 = {
+    banners: o.banners, h: 418, paths: o.brMainPaths, logo: o.logo, logoSrc: o.logoSrc,
+    slots: o.champSlots, boxes,
+  };
+  if (o.championSub !== undefined) {
+    section1.champion = { y: BR_FINAL_Y, label: "Champion", team: brWinner(o.champ), sub: o.championSub };
+  } else {
+    section1.winners = [[448, o.topWinnerY ?? 171, brWinner(o.champ)]];
+    section1.places = [[448, (o.topWinnerY ?? 171) + 19, o.topPick, o.topLabel]];
+  }
+  return {
+    sections: [
+      section1,
+      {
+        h: o.ladderH, paths: o.ladderPaths, boxes: ladderBoxes,
+        winners: [
+          [448, 14, brWinner(o.third)], [448, 124, brWinner(o.fifth)], [448, 210, brWinner(o.seventh)],
+          [448, 348, brWinner(o.ninth)], [448, 419, brWinner(o.eleventh)],
+          [448, 540, brWinner(o.thirteenth)], [448, 611, brWinner(o.fifteenth)],
+        ],
+        places: o.places, footer: o.footer,
+      },
+    ],
+  };
+}
+
+const NFL_2025_PLAYOFFS = brChampHalf({
+  east: {
+    r1: [["San Francisco", "169.40", "Arizona", "156.40"], ["Philadelphia", "157.55", "LA Rams", "181.80"],
+         ["Green Bay", "206.15", "Seattle", "145.05"], ["New Orleans", "123.75", "Detroit", "126.85"]],
+    r2: [["San Francisco", "145.05", "LA Rams", "207.30"], ["Green Bay", "187.75", "Detroit", "220.50"]],
+    r3: ["LA Rams", "275.75", "Detroit", "109.15"],
+    lr1: [["Arizona", "215.15", "Philadelphia", "258.40"], ["Seattle", "176.60", "New Orleans", "130.50"]],
+    lr2w: ["Philadelphia", "181.50", "Seattle", "157.70"],
+    lr2l: ["Arizona", "180.05", "New Orleans", "146.90"],
+    r2lose: ["San Francisco", "242.20", "Green Bay", "227.95"],
+  },
+  west: {
+    r1: [["New England", "165.55", "Tennessee", "200.40"], ["LA Chargers", "234.35", "Miami", "113.60"],
+         ["Baltimore", "211.60", "NY Jets", "148.05"], ["Jacksonville", "160.00", "Pittsburgh", "171.80"]],
+    r2: [["Tennessee", "219.85", "LA Chargers", "132.40"], ["Baltimore", "231.70", "Pittsburgh", "116.80"]],
+    r3: ["Tennessee", "236.90", "Baltimore", "197.10"],
+    lr1: [["New England", "146.90", "Miami", "186.75"], ["NY Jets", "227.40", "Jacksonville", "101.00"]],
+    lr2w: ["Miami", "178.80", "NY Jets", "204.70"],
+    lr2l: ["New England", "184.60", "Jacksonville", "106.80"],
+    r2lose: ["LA Chargers", "154.35", "Pittsburgh", "187.80"],
+  },
+  champ: ["LA Rams", "178.40", "Tennessee", "210.60"],
+  third: ["Detroit", "144.60", "Baltimore", "102.80"],
+  fifth: ["San Francisco", "204.35", "Pittsburgh", "175.15"],
+  seventh: ["Green Bay", "192.40", "LA Chargers", "146.20"],
+  ninth: ["Philadelphia", "129.65", "NY Jets", "194.80"],
+  eleventh: ["Seattle", "123.80", "Miami", "173.45"],
+  thirteenth: ["Arizona", "138.35", "New England", "197.20"],
+  fifteenth: ["New Orleans", "140.70", "Jacksonville", "109.60"],
+  banners: BR_BANNERS, brMainPaths: BR_MAIN_PATHS, logo: "NFL", logoSrc: NFL_MARK,
+  championSub: "PainBowl IV",
+  champSlots: [[448, 16, 100, 150, "Trophy", NFL_TROPHY], [448, 250, 100, 100, "PFA", PFA_MARK]],
+  ladderH: 690,
+  ladderPaths: [
+    "M212 95 L218 95 L218 209 L224 209", "M212 323 L218 323 L218 209 L224 209",
+    "M324 169 L330 169 L330 162 L336 162", "M324 207 L330 207 L330 248 L336 248",
+    "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
+    ...BR_W15_FEEDERS,
+    "M324 386 L330 386 L330 457 L336 457", "M324 424 L330 424 L330 386 L336 386",
+    "M672 386 L666 386 L666 457 L660 457", "M672 424 L666 424 L666 386 L660 386",
+    "M324 579 L330 579 L330 649 L336 649", "M324 617 L330 617 L330 578 L336 578",
+    "M672 579 L666 579 L666 649 L660 649", "M672 617 L666 617 L666 578 L660 578",
   ],
-};
+  places: [
+    [448, 33, "29th pick", "3rd place"], [448, 143, "25th pick", "5th place"],
+    [448, 229, "27th pick", "7th place"], [448, 367, "17th pick", "9th place"],
+    [448, 438, "19th pick", "11th place"], [448, 559, "21st pick", "13th place"],
+    [448, 630, "23rd pick", "15th place"],
+  ],
+});
 
 // --- 2025 NFL, ranks 17-32 (consolation half) ------------------------------
 // Same bracket shape one tier down: the 17th-place game is this half's
 // championship, and the Relegation Bowl at the bottom fires the last coach.
-const NFL_2025_CONSOLATION = {
-  sections: [
-    {
-      banners: BR_BANNERS, h: 418, paths: BR_MAIN_PATHS, logo: "NFL", logoSrc: NFL_MARK,
-      slots: [[448, 30, 100, 110, "PFA", PFA_MARK]],
-      winners: [[448, 171, "Cincinnati"]],
-      places: [[448, 190, "9th pick", "17th place"]],
-      boxes: [
-        [0, 0, "Dallas", "126.40"], [0, 38, "Atlanta", "132.50", 1],
-        [0, 114, "Chicago", "158.35", 1], [0, 152, "Washington", "129.45"],
-        [0, 228, "Minnesota", "116.10", 1], [0, 266, "Tampa Bay", "109.75"],
-        [0, 342, "NY Giants", "195.40", 1], [0, 380, "Carolina", "144.85"],
-        [112, 57, "Atlanta", "171.15", 1], [112, 95, "Chicago", "95.85"],
-        [112, 285, "Minnesota", "167.35"], [112, 323, "NY Giants", "212.40", 1],
-        [224, 171, "Atlanta", "171.75", 1], [224, 209, "NY Giants", "143.05"],
-        [336, 190, "Atlanta", "108.65"],
-        [560, 190, "Cincinnati", "175.90", 1],
-        [672, 171, "Cincinnati", "180.95", 1], [672, 209, "Indianapolis", "126.25"],
-        [784, 57, "Cincinnati", "189.45", 1], [784, 95, "Las Vegas", "157.00"],
-        [784, 285, "Indianapolis", "158.70", 1], [784, 323, "Buffalo", "139.90"],
-        [896, 0, "Cincinnati", "189.95", 1], [896, 38, "Denver", "68.20"],
-        [896, 114, "Las Vegas", "154.65", 1], [896, 152, "Houston", "109.90"],
-        [896, 228, "Indianapolis", "141.50", 1], [896, 266, "Kansas City", "135.10"],
-        [896, 342, "Buffalo", "216.15", 1], [896, 380, "Cleveland", "134.50"],
-      ],
-    },
-    {
-      h: 730,
-      paths: [
-        // 21st/23rd: NFC winner is the LOWER box here, so these cross the
-        // opposite way from the championship half's 5th/7th games.
-        "M324 169 L330 169 L330 248 L336 248", "M324 207 L330 207 L330 162 L336 162",
-        "M672 169 L666 169 L666 162 L660 162", "M672 207 L666 207 L666 248 L660 248",
-        ...BR_W15_FEEDERS,
-        "M324 424 L330 424 L330 386 L336 386", "M324 386 L330 386 L330 457 L336 457",
-        "M672 424 L666 424 L666 386 L660 386", "M672 386 L666 386 L666 457 L660 457",
-        "M324 617 L330 617 L330 578 L336 578", "M324 579 L330 579 L330 649 L336 649",
-        "M672 617 L666 617 L666 578 L660 578", "M672 579 L666 579 L666 649 L660 649",
-      ],
-      boxes: [
-        [336, 33, "NY Giants", "203.80", 1], [560, 33, "Indianapolis", "174.75"],
-        [224, 150, "Chicago", "105.90"], [224, 188, "Minnesota", "147.05", 1],
-        [672, 150, "Las Vegas", "117.60", 1], [672, 188, "Buffalo", "82.35"],
-        [336, 143, "Minnesota", "204.70", 1], [560, 143, "Las Vegas", "169.10"],
-        [336, 229, "Chicago", "157.60", 1], [560, 229, "Buffalo", "155.00"],
-        [112, 310, "Dallas", "165.85", 1], [112, 348, "Washington", "143.60"],
-        [112, 424, "Tampa Bay", "125.15"], [112, 462, "Carolina", "142.00", 1],
-        [784, 310, "Denver", "96.05"], [784, 348, "Houston", "100.90", 1],
-        [784, 424, "Kansas City", "136.10", 1], [784, 462, "Cleveland", "106.70"],
-        [224, 367, "Dallas", "177.90"], [224, 405, "Carolina", "179.60", 1],
-        [672, 367, "Houston", "84.30"], [672, 405, "Kansas City", "143.80", 1],
-        [336, 367, "Carolina", "146.55", 1], [560, 367, "Kansas City", "118.40"],
-        [336, 438, "Dallas", "171.60", 1], [560, 438, "Houston", "92.20"],
-        [224, 560, "Washington", "121.90"], [224, 598, "Tampa Bay", "129.35", 1],
-        [672, 560, "Denver", "90.15"], [672, 598, "Cleveland", "109.70", 1],
-        [336, 559, "Tampa Bay", "132.10", 1], [560, 559, "Cleveland", "94.40"],
-        [336, 630, "Washington", "153.00", 1], [560, 630, "Denver", "63.50"],
-      ],
-      winners: [
-        [448, 14, "NY Giants"], [448, 124, "Minnesota"], [448, 210, "Chicago"],
-        [448, 348, "Carolina"], [448, 419, "Dallas"],
-        [448, 540, "Tampa Bay"], [448, 611, "Washington"],
-      ],
-      places: [
-        [448, 33, "11th pick", "19th place"], [448, 143, "13th pick", "21st place"],
-        [448, 229, "15th pick", "23rd place"], [448, 367, "3rd pick", "25th place"],
-        [448, 438, "5th pick", "27th place"], [448, 559, "7th pick", "29th place"],
-        [448, 630, "2nd pick", "31st place"],
-      ],
-      footer: [336, 680, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
-    },
+const NFL_2025_CONSOLATION = brChampHalf({
+  east: {
+    r1: [["Dallas", "126.40", "Atlanta", "132.50"], ["Chicago", "158.35", "Washington", "129.45"],
+         ["Minnesota", "116.10", "Tampa Bay", "109.75"], ["NY Giants", "195.40", "Carolina", "144.85"]],
+    r2: [["Atlanta", "171.15", "Chicago", "95.85"], ["Minnesota", "167.35", "NY Giants", "212.40"]],
+    r3: ["Atlanta", "171.75", "NY Giants", "143.05"],
+    lr1: [["Dallas", "165.85", "Washington", "143.60"], ["Tampa Bay", "125.15", "Carolina", "142.00"]],
+    lr2w: ["Dallas", "177.90", "Carolina", "179.60"],
+    lr2l: ["Washington", "121.90", "Tampa Bay", "129.35"],
+    r2lose: ["Chicago", "105.90", "Minnesota", "147.05"],
+  },
+  west: {
+    r1: [["Cincinnati", "189.95", "Denver", "68.20"], ["Las Vegas", "154.65", "Houston", "109.90"],
+         ["Indianapolis", "141.50", "Kansas City", "135.10"], ["Buffalo", "216.15", "Cleveland", "134.50"]],
+    r2: [["Cincinnati", "189.45", "Las Vegas", "157.00"], ["Indianapolis", "158.70", "Buffalo", "139.90"]],
+    r3: ["Cincinnati", "180.95", "Indianapolis", "126.25"],
+    lr1: [["Denver", "96.05", "Houston", "100.90"], ["Kansas City", "136.10", "Cleveland", "106.70"]],
+    lr2w: ["Houston", "84.30", "Kansas City", "143.80"],
+    lr2l: ["Denver", "90.15", "Cleveland", "109.70"],
+    r2lose: ["Las Vegas", "117.60", "Buffalo", "82.35"],
+  },
+  champ: ["Atlanta", "108.65", "Cincinnati", "175.90"],
+  third: ["NY Giants", "203.80", "Indianapolis", "174.75"],
+  fifth: ["Minnesota", "204.70", "Las Vegas", "169.10"],
+  seventh: ["Chicago", "157.60", "Buffalo", "155.00"],
+  ninth: ["Carolina", "146.55", "Kansas City", "118.40"],
+  eleventh: ["Dallas", "171.60", "Houston", "92.20"],
+  thirteenth: ["Tampa Bay", "132.10", "Cleveland", "94.40"],
+  fifteenth: ["Washington", "153.00", "Denver", "63.50"],
+  banners: BR_BANNERS, brMainPaths: BR_MAIN_PATHS, logo: "NFL", logoSrc: NFL_MARK,
+  topWinnerY: 171, topPick: "9th pick", topLabel: "17th place",
+  champSlots: [[448, 30, 100, 110, "PFA", PFA_MARK]],
+  ladderH: 730,
+  ladderPaths: [
+    "M324 169 L330 169 L330 248 L336 248", "M324 207 L330 207 L330 162 L336 162",
+    "M672 169 L666 169 L666 162 L660 162", "M672 207 L666 207 L666 248 L660 248",
+    ...BR_W15_FEEDERS,
+    "M324 424 L330 424 L330 386 L336 386", "M324 386 L330 386 L330 457 L336 457",
+    "M672 424 L666 424 L666 386 L660 386", "M672 386 L666 386 L666 457 L660 457",
+    "M324 617 L330 617 L330 578 L336 578", "M324 579 L330 579 L330 649 L336 649",
+    "M672 617 L666 617 L666 578 L660 578", "M672 579 L666 579 L666 649 L660 649",
   ],
-};
+  places: [
+    [448, 33, "11th pick", "19th place"], [448, 143, "13th pick", "21st place"],
+    [448, 229, "15th pick", "23rd place"], [448, 367, "3rd pick", "25th place"],
+    [448, 438, "5th pick", "27th place"], [448, 559, "7th pick", "29th place"],
+    [448, 630, "2nd pick", "31st place"],
+  ],
+  footer: [336, 680, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
+});
 
 // --- 2025 USFL, 20 teams -----------------------------------------------------
 // Unusual shape vs the NFL: only ONE game per half in week 14 (a play-in);
@@ -3869,6 +3934,114 @@ const R3_LIVE = {
   },
 };
 
+// ===========================================================================
+// LIVE-SEEDED BR BRACKETS (current season) — same idea as R3_LIVE, but for
+// the bigger NFL-shape template. Only round 1 (the 8 real seeds/conference)
+// is known before games are played; everything downstream is blank, exactly
+// like R3_LIVE's flat tiers.
+// ===========================================================================
+
+// Fixed draft-pick/place labels for this bracket shape — same every season,
+// tied to final rank, not to any particular team, so they're shared
+// constants rather than per-season data (same idea as R3_CHAMP_PICKS).
+const BR_CHAMP_PLACES = [
+  [448, 33, "29th pick", "3rd place"], [448, 143, "25th pick", "5th place"],
+  [448, 229, "27th pick", "7th place"], [448, 367, "17th pick", "9th place"],
+  [448, 438, "19th pick", "11th place"], [448, 559, "21st pick", "13th place"],
+  [448, 630, "23rd pick", "15th place"],
+];
+const BR_CONSO_PLACES = [
+  [448, 33, "11th pick", "19th place"], [448, 143, "13th pick", "21st place"],
+  [448, 229, "15th pick", "23rd place"], [448, 367, "3rd pick", "25th place"],
+  [448, 438, "5th pick", "27th place"], [448, 559, "7th pick", "29th place"],
+  [448, 630, "2nd pick", "31st place"],
+];
+// One canonical connector-elbow direction for the placement ladder. The real
+// 2025 halves use DIFFERENT elbow directions from each other at points where
+// it happened to look tidier for that season's particular winner — proven
+// cosmetic-only (GBox positions never depend on it), and with no winner yet
+// to hand-tune around, every live/future season uses this one consistent set.
+const BR_LADDER_PATHS_LIVE = [
+  "M324 169 L330 169 L330 162 L336 162", "M324 207 L330 207 L330 248 L336 248",
+  "M672 207 L666 207 L666 162 L660 162", "M672 169 L666 169 L666 248 L660 248",
+  ...BR_W15_FEEDERS,
+  "M324 386 L330 386 L330 457 L336 457", "M324 424 L330 424 L330 386 L336 386",
+  "M672 386 L666 386 L666 457 L660 457", "M672 424 L666 424 L666 386 L660 386",
+  "M324 579 L330 579 L330 649 L336 649", "M324 617 L330 617 L330 578 L336 578",
+  "M672 579 L666 579 L666 649 L660 649", "M672 617 L666 617 L666 578 L660 578",
+];
+
+const BR_LIVE = {
+  NFL: {
+    colors: TEAM_CLR, logoSrc: NFL_MARK, trophy: NFL_TROPHY, logo: "NFL",
+    banners: BR_BANNERS,
+    // Real live team names are full ("Los Angeles Rams", "New York Jets");
+    // the bracket's short forms ("LA Rams", "NY Jets") aren't a prefix of
+    // those, so — same as GLIAC's Ohio Northern — they need an explicit
+    // alias rather than the token-expansion trick used for N/S/E/W/etc.
+    // "Oakland Raiders" and "Cleveland Browns 20" are two more live team
+    // names that don't match any TEAM_CLR key at all (a roster naming
+    // choice, and a stray Sleeper suffix); aliased to their real franchise/
+    // city so they still render sensibly instead of falling back full-width.
+    aliases: {
+      "Los Angeles Rams": "LA Rams", "Los Angeles Chargers": "LA Chargers",
+      "New York Jets": "NY Jets", "New York Giants": "NY Giants",
+      "Oakland Raiders": "Las Vegas", "Cleveland Browns 20": "Cleveland",
+    },
+  },
+};
+
+// One conference's round-1 seeds (up to 8, index 0 = the conference's own
+// #1 seed) placed via BRACKET_PAIRS_R1 — the SAME pairing convention the
+// pre-existing live NFLBracket component already uses. Everything past
+// round 1 is blank; nobody has played yet.
+function brLiveConf(cfg, seeds) {
+  const nm = (n) => {
+    const row = seeds[n - 1];
+    return row ? r3ShortName(row.team, cfg.colors, cfg.aliases) : "";
+  };
+  return {
+    r1: BRACKET_PAIRS_R1.map(([a, b]) => [nm(a), "", nm(b), ""]),
+    r2: [brBlank, brBlank], r3: brBlank,
+    lr1: [brBlank, brBlank], lr2w: brBlank, lr2l: brBlank, r2lose: brBlank,
+  };
+}
+
+function brLiveHalf(cfg, group, half) {
+  const o = {
+    east: brLiveConf(cfg, group.east || []), west: brLiveConf(cfg, group.west || []),
+    champ: brBlank, third: brBlank, fifth: brBlank, seventh: brBlank,
+    ninth: brBlank, eleventh: brBlank, thirteenth: brBlank, fifteenth: brBlank,
+    banners: cfg.banners, brMainPaths: BR_MAIN_PATHS, logo: cfg.logo, logoSrc: cfg.logoSrc,
+    ladderPaths: BR_LADDER_PATHS_LIVE,
+  };
+  if (half === "playoffs") {
+    o.championSub = "";   // no championship-game nickname known yet — renders no sub-line
+    o.champSlots = [[448, 16, 100, 150, "Trophy", cfg.trophy], [448, 250, 100, 100, "PFA", PFA_MARK]];
+    o.ladderH = 690;
+    o.places = BR_CHAMP_PLACES;
+  } else {
+    o.topWinnerY = 171; o.topPick = "9th pick"; o.topLabel = "17th place";
+    o.champSlots = [[448, 30, 100, 110, "PFA", PFA_MARK]];
+    o.ladderH = 730;
+    o.places = BR_CONSO_PLACES;
+    o.footer = [336, 680, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"];
+  }
+  return brChampHalf(o);
+}
+
+// Returns { playoffs, consolation } for a live-seeded BR-shape tier, or null.
+function buildBRLive(tierKey, bracket) {
+  const cfg = BR_LIVE[tierKey];
+  if (!cfg || !bracket || !bracket.playoffGroup) return null;
+  const { east, west } = bracket.playoffGroup;
+  if (!((east && east.length) || (west && west.length))) return null;
+  return {
+    playoffs: brLiveHalf(cfg, bracket.playoffGroup, "playoffs"),
+    consolation: brLiveHalf(cfg, bracket.consolationGroup || { east: [], west: [] }, "consolation"),
+  };
+}
+
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
   USFL: { playoffs: USFL_2025_PLAYOFFS, consolation: USFL_2025_CONSOLATION },
@@ -4869,7 +5042,7 @@ export default function App() {
   const bracket = mode === "live" ? computeBracket(tierKey) : null;
   // Declared AFTER `bracket` on purpose — it reads it. (See the TDZ note: a
   // const that reads another const must sit below it.)
-  const liveGrid = buildR3Live(tierKey, bracket);
+  const liveGrid = buildR3Live(tierKey, bracket) || buildBRLive(tierKey, bracket);
 
   // One reference panel for the whole tier, computed here and rendered in the
   // left column under the tier ladder. Only the ten 16-team leagues have a CP
