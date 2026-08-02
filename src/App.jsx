@@ -2798,6 +2798,7 @@ const r3Blank = ["", "", "", ""];
 const R3_TOKEN_EXPAND = {
   N: "NORTH", S: "SOUTH", E: "EAST", W: "WEST",
   GA: "GEORGIA", ST: "STATE", MISS: "MISSISSIPPI", CAL: "CALIFORNIA",
+  TENN: "TENNESSEE",
 };
 function r3Tokens(v) {
   const split = String(v || "").replace(/([a-z])([A-Z])/g, "$1 $2");   // GeorgiaTech
@@ -2839,14 +2840,68 @@ function r3LiveHalf(cfg, seeds, half) {
   return r3ConsoHalf(o);
 }
 
+// ── conference-top4 tiers (SUN/SOCO/IVY/SWAC/GLIAC) ───────────────────────
+// Unlike the merged 1-8 seed list above, each side of THIS bracket already IS
+// one whole conference — they are separate brackets that only meet at the
+// final, exactly the mirrored-halves rule the 2025 sheets were built on.
+// Confirmed structurally from SUN's own 2025 data before writing this: its
+// wk15 left-column pair (GA State v JMU, then App State v Arlington) both
+// feed the SAME wk16 semis[0] slot, so they must be one conference's own
+// 1v4-and-2v3 mini-bracket, not a cross-conference seed list. Which
+// conference sits left is `east` (computeBracket's division-1 group) —
+// confirmed against every 2025 banner's own sub-line, where banners[0]
+// (left) always names the same conference as `east`.
+function r3ConfWk15(eastRows, westRows, cfg) {
+  const nm = (rows, n) => {
+    const row = rows[n - 1];
+    return row ? r3ShortName(row.team, cfg.colors, cfg.aliases) : "";
+  };
+  return [
+    [nm(eastRows, 1), "", nm(eastRows, 4), ""],   // left-top:     east 1 v 4
+    [nm(eastRows, 2), "", nm(eastRows, 3), ""],   // left-bottom:  east 2 v 3
+    [nm(westRows, 1), "", nm(westRows, 4), ""],   // right-top:    west 1 v 4
+    [nm(westRows, 2), "", nm(westRows, 3), ""],   // right-bottom: west 2 v 3
+  ];
+}
+function r3LiveHalfConf(cfg, group, half) {
+  const o = {
+    colors: cfg.colors, logoSrc: cfg.logoSrc, logo: cfg.logo,
+    banners: half === "playoffs" ? cfg.banners : cfg.consoBanners,
+    trophy: cfg.trophy,
+    wk15: r3ConfWk15(group.east || [], group.west || [], cfg),
+    semis: [r3Blank, r3Blank],
+    final: r3Blank,
+    third: r3Blank, seventh: r3Blank,
+    eleventh: r3Blank, fifteenth: r3Blank,
+    fifth: { leftQual: r3Blank, rightQual: r3Blank, final: r3Blank },
+    thirteenth: { leftQual: r3Blank, rightQual: r3Blank, final: r3Blank },
+  };
+  if (half === "playoffs") return r3ChampHalf(o);
+  o.footer = [336, 258, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"];
+  return r3ConsoHalf(o);
+}
+
 // Returns { playoffs, consolation } for a live-seeded tier, or null.
+// Branches on which shape computeBracket returned for this format: a flat
+// 1-8 `playoffSeeds` list (top8-cascade) or an `{east, west}` `playoffGroup`
+// (conference-top4). Unsupported formats (FLHS, NFL, USFL/XFL) return null
+// and fall through to the old seeding-only renderer, unchanged.
 function buildR3Live(tierKey, bracket) {
   const cfg = R3_LIVE[tierKey];
-  if (!cfg || !bracket || !bracket.playoffSeeds) return null;
-  return {
-    playoffs: r3LiveHalf(cfg, bracket.playoffSeeds, "playoffs"),
-    consolation: r3LiveHalf(cfg, bracket.consolationSeeds || [], "consolation"),
-  };
+  if (!cfg || !bracket) return null;
+  if (bracket.playoffSeeds) {
+    return {
+      playoffs: r3LiveHalf(cfg, bracket.playoffSeeds, "playoffs"),
+      consolation: r3LiveHalf(cfg, bracket.consolationSeeds || [], "consolation"),
+    };
+  }
+  if (bracket.playoffGroup) {
+    return {
+      playoffs: r3LiveHalfConf(cfg, bracket.playoffGroup, "playoffs"),
+      consolation: r3LiveHalfConf(cfg, bracket.consolationGroup || { east: [], west: [] }, "consolation"),
+    };
+  }
+  return null;
 }
 
 // ranks 1-8
@@ -3757,6 +3812,41 @@ const R3_LIVE = {
   ACC: {
     colors: ACC_CLR, logoSrc: ACC_MARK, trophy: ACC_TROPHY, logo: "ACC",
     banners: ACC_BANNERS, consoBanners: ACC_CONSO_BANNERS,
+  },
+  SUN: {
+    colors: SUN_CLR, logoSrc: SUN_MARK, trophy: SUN_TROPHY, logo: "Sun Belt",
+    banners: SUN_BANNERS, consoBanners: SUN_CONSO_BANNERS,
+    aliases: { "James Madison Dukes": "JMU", "USM Golden Eagles": "S Miss" },
+  },
+  SOCO: {
+    colors: SOCO_CLR, logoSrc: SOCO_MARK, trophy: SOCO_TROPHY, logo: "SoCon",
+    banners: SOCO_BANNERS, consoBanners: SOCO_CONSO_BANNERS,
+    // "Chatanooga" is a live misspelling of Chattanooga (missing a "t") — not
+    // something to silently "fix" in their data, just cover it here so the
+    // bracket still renders that team's real colour rather than the default.
+    aliases: { "Chatanooga Mocs": "Chattanooga", "Tennessee Martin Skyhawks": "Martin" },
+  },
+  IVY: {
+    colors: IVY_CLR, logoSrc: IVY_MARK, trophy: IVY_TROPHY, logo: "Ivy",
+    banners: IVY_BANNERS, consoBanners: IVY_CONSO_BANNERS,
+  },
+  SWAC: {
+    colors: SWAC_CLR, logoSrc: SWAC_MARK, trophy: SWAC_TROPHY, logo: "SWAC",
+    banners: SWAC_BANNERS, consoBanners: SWAC_CONSO_BANNERS,
+    aliases: { "S.C. State Bulldogs": "SC St" },
+    // "Princeton Tigers" appears in SWAC's live data — Princeton is an Ivy
+    // school with no SWAC colour key. Same class as the known Arkansas/Big
+    // Ten and Morgan State/GLIAC cross-tier errors; NOT guessed at here.
+  },
+  GLIAC: {
+    colors: GLIAC_CLR, logoSrc: GLIAC_MARK, trophy: GLIAC_TROPHY, logo: "GLIAC",
+    banners: GLIAC_BANNERS, consoBanners: GLIAC_CONSO_BANNERS,
+    // Live name has its words reversed ("Northern Ohio" vs the real "Ohio
+    // Northern") but is unambiguously the same school (Polar Bears is Ohio
+    // Northern's actual mascot).
+    aliases: { "Northern Ohio Polar Bears": "Ohio N" },
+    // "Morgan State Bears" appears in GLIAC's live data — Morgan State is a
+    // SWAC school with no GLIAC colour key. NOT guessed at here.
   },
 };
 
