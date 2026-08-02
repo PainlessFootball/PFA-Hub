@@ -1903,16 +1903,23 @@ function DirBand({ tier, count }) {
 
 function GBox({ x, y, team, score, win, colors }) {
   const clr = (colors && colors[team]) || TEAM_CLR[team] || ["#2A3550", C.chalk];
+  // Two teams of one matchup are stacked 38px apart (see r3Stack/brStack) and
+  // used to render with zero gap between them -- one continuous colour block
+  // with no visual break between team A's box and team B's below it.
+  // Shrinking each row 2px keeps the pair's total footprint 4px under the
+  // 38px slot the next box starts at, opening a small gap between the two
+  // teams without moving a single x/y coordinate anywhere else in the file.
+  const rowH = BH - 2;
   return (
     <div style={{ position: "absolute", left: x, top: y, width: BW }}>
       <div style={{
-        height: BH, lineHeight: `${BH}px`, fontSize: 11, fontWeight: 700, padding: "0 3px",
+        height: rowH, lineHeight: `${rowH}px`, fontSize: 11, fontWeight: 700, padding: "0 3px",
         background: clr[0], color: clr[1], whiteSpace: "nowrap", overflow: "hidden",
         textOverflow: "ellipsis", boxSizing: "border-box", textAlign: "center",
       }}>{team}</div>
       {score != null && (
         <div style={{
-          height: BH, lineHeight: `${BH}px`, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
+          height: rowH, lineHeight: `${rowH}px`, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
           background: "rgba(255,255,255,0.03)", boxSizing: "border-box", textAlign: "center",
           border: `1px solid ${BR_LINE}`, borderTop: "none",
           color: win ? C.turf : C.slate, fontWeight: win ? 700 : 400,
