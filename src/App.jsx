@@ -2889,13 +2889,13 @@ function r3LiveHalfConf(cfg, group, half) {
 function buildR3Live(tierKey, bracket) {
   const cfg = R3_LIVE[tierKey];
   if (!cfg || !bracket) return null;
-  if (bracket.playoffSeeds) {
+  if (bracket.playoffSeeds && bracket.playoffSeeds.length > 0) {
     return {
       playoffs: r3LiveHalf(cfg, bracket.playoffSeeds, "playoffs"),
       consolation: r3LiveHalf(cfg, bracket.consolationSeeds || [], "consolation"),
     };
   }
-  if (bracket.playoffGroup) {
+  if (bracket.playoffGroup && (bracket.playoffGroup.east?.length || bracket.playoffGroup.west?.length)) {
     return {
       playoffs: r3LiveHalfConf(cfg, bracket.playoffGroup, "playoffs"),
       consolation: r3LiveHalfConf(cfg, bracket.consolationGroup || { east: [], west: [] }, "consolation"),
@@ -3852,6 +3852,20 @@ const R3_LIVE = {
     aliases: { "Northern Ohio Polar Bears": "Ohio N" },
     // "Morgan State Bears" appears in GLIAC's live data — Morgan State is a
     // SWAC school with no GLIAC colour key. NOT guessed at here.
+  },
+  // FLHS is "division-only" (same flat playoffSeeds shape as top8-cascade —
+  // it just derives its 8 seeds from 4 real districts first). Confirmed it
+  // genuinely HAS districts (FLHS_DISTRICTS: 13/14/15/16) before wiring this
+  // in — the 2025 static bracket's missing division sub-lines were a DISPLAY
+  // choice, not an absence of the underlying division field, so this needed
+  // checking rather than assuming.
+  FLHS: {
+    colors: FLHS_CLR, logoSrc: FLHS_MARK, trophy: FLHS_TROPHY, logo: "FLHS",
+    banners: FLHS_BANNERS, consoBanners: FLHS_CONSO_BANNERS,
+    // "Miss State Bulldogs" / "Norfolk State Spartans" appear in FLHS's live
+    // data — same secondary-tier-record pattern as Arkansas/Princeton/Morgan
+    // State (a coach's other, non-FLHS team, carried in CAREER_STATS). Not
+    // Florida schools, correctly has no FLHS colour key, nothing to add.
   },
 };
 
