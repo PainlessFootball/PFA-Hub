@@ -2786,16 +2786,32 @@ const R3_SEED_SLOTS = [[1, 8], [4, 5], [2, 7], [3, 6]];
 const r3Blank = ["", "", "", ""];
 
 // Live standings carry full team names ("South Carolina Gamecocks"); the
-// bracket's colour maps and 100px boxes use the short form ("South Carolina").
-// Match on the LONGEST colour key that prefixes the name, so "Texas A&M
-// Aggies" resolves to "Texas A&M" rather than "Texas". Falls back to the full
-// name, which still renders — just wider and in the default colour.
-function r3ShortName(full, colors) {
-  const norm = (v) => String(v || "").replace(/\s*&\s*/g, "&").trim();
-  const t = norm(full);
+// bracket's colour maps and 100px boxes use a short form that is often an
+// ABBREVIATION, not a prefix — "N Colorado", "GA Tech", "W Virginia", "Penn
+// State" vs "Penn St. Nittany Lions". So compare normalised TOKENS: upper-case,
+// punctuation stripped, a leading "THE" dropped ("THE Ohio State Buckeyes"),
+// run-together caps split ("GeorgiaTech" -> "Georgia Tech"), and the usual
+// abbreviations expanded. A colour key matches when its tokens are a prefix of
+// the team's tokens; the longest such key wins.
+// Unmatched names are NOT an error — they fall back to the full name, which
+// still renders, just wider and in the default colour.
+const R3_TOKEN_EXPAND = {
+  N: "NORTH", S: "SOUTH", E: "EAST", W: "WEST",
+  GA: "GEORGIA", ST: "STATE", MISS: "MISSISSIPPI", CAL: "CALIFORNIA",
+};
+function r3Tokens(v) {
+  const split = String(v || "").replace(/([a-z])([A-Z])/g, "$1 $2");   // GeorgiaTech
+  return split.toUpperCase().replace(/&/g, " AND ").replace(/[^A-Z0-9 ]/g, " ")
+    .split(/\s+/).filter((t) => t && t !== "THE")
+    .map((t) => R3_TOKEN_EXPAND[t] || t);
+}
+function r3ShortName(full, colors, aliases) {
+  if (aliases && aliases[full]) return aliases[full];
+  const ft = r3Tokens(full);
   let best = "";
   Object.keys(colors || {}).forEach((k) => {
-    if (t.startsWith(norm(k)) && k.length > best.length) best = k;
+    const kt = r3Tokens(k);
+    if (kt.length && kt.every((t, i) => ft[i] === t) && k.length > best.length) best = k;
   });
   return best || full;
 }
@@ -2807,13 +2823,28 @@ const R3_LIVE = {
     colors: SEC_CLR, logoSrc: SEC_MARK, trophy: SEC_TROPHY, logo: "SEC",
     banners: SEC_BANNERS, consoBanners: SEC_CONSO_BANNERS,
   },
+  TEN: {
+    colors: TEN_CLR, logoSrc: TEN_MARK, trophy: TEN_TROPHY, logo: "BIG10",
+    banners: TEN_BANNERS, consoBanners: TEN_CONSO_BANNERS,
+  },
+  "BIG XII": {
+    colors: XII_CLR, logoSrc: XII_MARK, trophy: XII_TROPHY, logo: "BIG XII",
+    banners: XII_BANNERS, consoBanners: XII_CONSO_BANNERS,
+    // "West Virgnia Mountaineers" is misspelled in the source data; without
+    // this it renders as the full misspelled name in the default colour.
+    aliases: { "West Virgnia Mountaineers": "W Virginia" },
+  },
+  ACC: {
+    colors: ACC_CLR, logoSrc: ACC_MARK, trophy: ACC_TROPHY, logo: "ACC",
+    banners: ACC_BANNERS, consoBanners: ACC_CONSO_BANNERS,
+  },
 };
 
 // seeds: the tier's 8 ranked rows for this half, index 0 = the 1 seed.
 function r3LiveHalf(cfg, seeds, half) {
   const name = (n) => {
     const row = seeds[n - 1];
-    return row ? r3ShortName(row.team, cfg.colors) : "";
+    return row ? r3ShortName(row.team, cfg.colors, cfg.aliases) : "";
   };
   const o = {
     colors: cfg.colors, logoSrc: cfg.logoSrc, logo: cfg.logo,
