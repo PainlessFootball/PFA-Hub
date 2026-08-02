@@ -2816,30 +2816,6 @@ function r3ShortName(full, colors, aliases) {
   return best || full;
 }
 
-// Which tiers render a live R3 bracket. SEC first as the test run; the others
-// need their own short-name check before being added.
-const R3_LIVE = {
-  SEC: {
-    colors: SEC_CLR, logoSrc: SEC_MARK, trophy: SEC_TROPHY, logo: "SEC",
-    banners: SEC_BANNERS, consoBanners: SEC_CONSO_BANNERS,
-  },
-  TEN: {
-    colors: TEN_CLR, logoSrc: TEN_MARK, trophy: TEN_TROPHY, logo: "BIG10",
-    banners: TEN_BANNERS, consoBanners: TEN_CONSO_BANNERS,
-  },
-  "BIG XII": {
-    colors: XII_CLR, logoSrc: XII_MARK, trophy: XII_TROPHY, logo: "BIG XII",
-    banners: XII_BANNERS, consoBanners: XII_CONSO_BANNERS,
-    // "West Virgnia Mountaineers" is misspelled in the source data; without
-    // this it renders as the full misspelled name in the default colour.
-    aliases: { "West Virgnia Mountaineers": "W Virginia" },
-  },
-  ACC: {
-    colors: ACC_CLR, logoSrc: ACC_MARK, trophy: ACC_TROPHY, logo: "ACC",
-    banners: ACC_BANNERS, consoBanners: ACC_CONSO_BANNERS,
-  },
-};
-
 // seeds: the tier's 8 ranked rows for this half, index 0 = the 1 seed.
 function r3LiveHalf(cfg, seeds, half) {
   const name = (n) => {
@@ -3759,6 +3735,30 @@ const FLHS_2025_CONSOLATION = r3ConsoHalf({
   fifteenth: ["Miami Senior", "143.85", "Stoneman", "192.20"],
   footer: [336, 258, 324, "Relegation Bowl", "LAST PLACE COACH IS FIRED"],
 });
+
+// Which tiers render a live R3 bracket. SEC first as the test run; the others
+// need their own short-name check before being added.
+const R3_LIVE = {
+  SEC: {
+    colors: SEC_CLR, logoSrc: SEC_MARK, trophy: SEC_TROPHY, logo: "SEC",
+    banners: SEC_BANNERS, consoBanners: SEC_CONSO_BANNERS,
+  },
+  TEN: {
+    colors: TEN_CLR, logoSrc: TEN_MARK, trophy: TEN_TROPHY, logo: "BIG10",
+    banners: TEN_BANNERS, consoBanners: TEN_CONSO_BANNERS,
+  },
+  "BIG XII": {
+    colors: XII_CLR, logoSrc: XII_MARK, trophy: XII_TROPHY, logo: "BIG XII",
+    banners: XII_BANNERS, consoBanners: XII_CONSO_BANNERS,
+    // "West Virgnia Mountaineers" is misspelled in the source data; without
+    // this it renders as the full misspelled name in the default colour.
+    aliases: { "West Virgnia Mountaineers": "W Virginia" },
+  },
+  ACC: {
+    colors: ACC_CLR, logoSrc: ACC_MARK, trophy: ACC_TROPHY, logo: "ACC",
+    banners: ACC_BANNERS, consoBanners: ACC_CONSO_BANNERS,
+  },
+};
 
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
