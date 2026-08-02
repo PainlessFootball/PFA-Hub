@@ -1801,6 +1801,7 @@ const BR_LINE = "#46608A";
 // Each path must match a real file exactly (lowercase, hyphens); if one is
 // missing the image degrades to its dashed placeholder rather than breaking.
 const PFA_MARK = "/art/pfa-mark.png";
+const CLUB_300_MARK = "/art/club-300-mark.png";
 const NFL_MARK = "/art/nfl-mark.png";
 const NFL_TROPHY = "/art/nfl-trophy.png";
 const XFL_MARK = "/art/xfl-mark.png";
@@ -1870,6 +1871,20 @@ function TierMark({ tierKey, maxW = 40, maxH = 40 }) {
   if (!src || failedSrc === src) return tierKey;
   return (
     <img src={src} alt={tierKey} onError={() => setFailedSrc(src)}
+         style={{ maxWidth: maxW, maxHeight: maxH, objectFit: "contain" }} />
+  );
+}
+
+// The 300 Club's own mark, beside its page title — same treatment as a
+// league logo. The source is a square image with its own silver border
+// baked in, so it's shown whole via objectFit:contain (never cropped) and
+// falls back to "300" as text if the file is missing, same graceful
+// degradation as TierMark.
+function Club300Mark({ maxW = 40, maxH = 40 }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return "300";
+  return (
+    <img src={CLUB_300_MARK} alt="The 300 Club" onError={() => setFailed(true)}
          style={{ maxWidth: maxW, maxHeight: maxH, objectFit: "contain" }} />
   );
 }
@@ -6723,9 +6738,20 @@ export default function App() {
         {view === "300club" && (
           <div className="flex flex-col lg:flex-row gap-6">
             <section className="flex-1 min-w-0">
-              <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                The 300 Club
-              </h2>
+              <div className="flex items-center gap-3 mb-1">
+                <div
+                  className="shrink-0 flex items-center justify-center overflow-hidden"
+                  style={{
+                    width: 46, height: 46, border: `1px solid ${C.line}`, borderRadius: 4,
+                    background: C.panel,
+                  }}
+                >
+                  <Club300Mark />
+                </div>
+                <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                  The 300 Club
+                </h2>
+              </div>
               <p className="text-sm mb-4" style={{ color: C.slate }}>
                 300+ points in a single game. Immortality, in decimals. {CLUB_300.length} games and counting.
               </p>
