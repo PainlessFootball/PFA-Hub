@@ -1038,6 +1038,160 @@ const RULES_SECTIONS = [
   },
 ];
 
+// Everything below is transcribed from her Sleeper scoring/roster/league
+// settings export (2026-08-03 CSV). Three deliberate omissions, all to
+// avoid duplicating RULES_SECTIONS above rather than any data gap:
+//  - Team DEF and Special Teams DEF are both entirely "off" in the export
+//    (every single line item) — real, not a parsing miss, confirmed by
+//    counting: 0 of 40 Team DEF rows and 0 of 6 Special Teams DEF rows have
+//    a Points value. Omitted as whole sections; nothing there to show.
+//  - "Bonus" (100-199yd Rush Game, etc.) is a defined category with all 14
+//    line items present but zero of them have a Points value set either —
+//    also omitted, also confirmed by count, not an oversight.
+//  - Trade deadline (Week 13) and the general trade-review window are
+//    already stated in the "Trades" section above — not repeated here.
+const SETTINGS_SCORING_SECTIONS = [
+  {
+    id: "settings-passing",
+    title: "Passing",
+    rows: [
+      { value: "0.05", label: "Passing Yards", note: "1 pt per 20 yds" },
+      { value: "5", label: "Passing TD" },
+      { value: "2", label: "2pt Conversion" },
+      { value: "-1.25", label: "Pass Intercepted" },
+    ],
+  },
+  {
+    id: "settings-rushing",
+    title: "Rushing",
+    rows: [
+      { value: "0.1", label: "Rushing Yards", note: "1 pt per 10 yds" },
+      { value: "6", label: "Rushing TD" },
+      { value: "2", label: "2pt Conversion" },
+    ],
+  },
+  {
+    id: "settings-receiving",
+    title: "Receiving",
+    rows: [
+      { value: "1", label: "Reception" },
+      { value: "0.1", label: "Receiving Yards", note: "1 pt per 10 yds" },
+      { value: "6", label: "Receiving TD" },
+      { value: "2", label: "2pt Conversion" },
+    ],
+  },
+  {
+    id: "settings-kicking",
+    title: "Kicking",
+    rows: [
+      { value: "1", label: "FG Made 50+" },
+      { value: "0.1", label: "Points per FG Yard", note: "1 pt per 10 yds — longer FGs score more" },
+      { value: "1", label: "PAT Made" },
+      { value: "-5", label: "FG Missed 0-19" },
+      { value: "-4", label: "FG Missed 20-29" },
+      { value: "-3", label: "FG Missed 30-39" },
+      { value: "-2", label: "FG Missed 40-49" },
+      { value: "-1", label: "FG Missed 50+" },
+      { value: "-3", label: "PAT Missed" },
+    ],
+  },
+  {
+    id: "settings-st-player",
+    title: "Special Teams Player",
+    intro: "Return specialists, not the DEF/ST unit itself.",
+    rows: [
+      { value: "6", label: "TD" },
+      { value: "3", label: "Forced Fumble" },
+      { value: "3", label: "Recovery" },
+      { value: "1", label: "Solo Tackle" },
+      { value: "0.1", label: "Punt Return Yds", note: "1 pt per 10 yds" },
+      { value: "0.1", label: "Kick Return Yds", note: "1 pt per 10 yds" },
+    ],
+  },
+  {
+    id: "settings-misc",
+    title: "Misc",
+    rows: [
+      { value: "-1", label: "Fumble" },
+      { value: "-2", label: "Fumble Lost" },
+      { value: "6", label: "Fumble Recovery TD" },
+    ],
+  },
+  {
+    id: "settings-idp",
+    title: "IDP",
+    rows: [
+      { value: "6", label: "IDP TD" },
+      { value: "7", label: "Sack" },
+      { value: "0.5", label: "Hit on QB" },
+      { value: "4", label: "Tackle for a Loss" },
+      { value: "3", label: "Blocked Punt/PAT/FG" },
+      { value: "7", label: "INT" },
+      { value: "0.1", label: "INT Return Yds", note: "1 pt per 10 yds" },
+      { value: "3", label: "Fumble Recovery" },
+      { value: "0.1", label: "Fumble Return Yds", note: "1 pt per 10 yds" },
+      { value: "3", label: "Forced Fumble" },
+      { value: "3", label: "Safety" },
+      { value: "0.5", label: "Assisted Tackle" },
+      { value: "1", label: "Solo Tackle" },
+      { value: "4", label: "Pass Defended" },
+    ],
+  },
+];
+
+// Starting lineup composition, spelled out once rather than as 20 separate
+// roster-slot rows (the CSV lists QB/RB1/RB2/.../DB3 as individual rows
+// since that's how a roster export enumerates seats, not because each
+// needs its own line on a rules page).
+const SETTINGS_ROSTER = {
+  starters: [
+    "QB", "2 RB", "3 WR", "TE", "W/R/T FLEX", "K", "2 IDP FLEX", "3 DL", "3 LB", "3 DB",
+  ],
+  bench: 20,
+  ir: 6,
+  taxi: 8,
+};
+
+const SETTINGS_LEAGUE_SECTIONS = [
+  {
+    id: "settings-waivers",
+    title: "FAAB & Waivers",
+    items: [
+      "FAAB budget: $256 — matches the NFL salary cap and resets each season (Feb/Mar).",
+      "Waivers are active the entire offseason. Minimum bid $1.",
+      "Clears Wednesday 3am EDT and processes at 11am EDT. Players stay on waivers after their game until then.",
+      "A dropped player waits 1 day on waivers before anyone can claim them.",
+      "Weekly schedule: Monday free agency \u00b7 Tuesday locked \u00b7 Wednesday\u2013Saturday waivers (Saturday also FA) \u00b7 Sunday free agency.",
+    ],
+  },
+  {
+    id: "settings-draft",
+    title: "Draft",
+    items: ["Draft pick trading is allowed.", "Roster moves are allowed pre-draft."],
+  },
+  {
+    id: "settings-playoffs-start",
+    title: "Playoffs Start",
+    items: ["NFL, USFL, XFL: Week 14.", "All sixteen-team leagues: Week 15."],
+  },
+  {
+    id: "settings-ir",
+    title: "IR Eligibility",
+    items: [
+      "A player may go on IR for: COVID-19, Out, Suspended, NA, DNR/Holdout/Opt-out, or Doubtful status.",
+    ],
+  },
+  {
+    id: "settings-taxi",
+    title: "Taxi Squad",
+    items: [
+      "Only rookies may be placed on the Taxi Squad.",
+      "Eligibility length depends on tier: NFL 4 years \u00b7 USFL/XFL 3 years \u00b7 all sixteen-team leagues 2 years.",
+      "The Taxi Squad locks at the start of the first regular season game.",
+    ],
+  },
+];
+
 const CLUB_300 = [
   { coach: "Harvey28", team: "Carolina Chanticleers", conf: "SUN", pts: 388.1, week: 15, year: 2022 },
   { coach: "mchostetler1", team: "Florida Gators", conf: "SEC", pts: 384.85, week: 2, year: 2024 },
@@ -6953,6 +7107,7 @@ export default function App() {
         )}
 
         {view === "pyramid" && (
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
           <section className="max-w-2xl">
             <h2 className="text-3xl uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
               Rules
@@ -6998,7 +7153,8 @@ export default function App() {
               ))}
             </div>
             <p className="mt-2 text-xs" style={{ color: C.slate }}>
-              232 teams total. Every roster carries a 20-man bench and an 8-player taxi squad (2-year eligibility).
+              232 teams total. Every roster carries a 20-man bench and an 8-player taxi squad — eligibility varies by
+              tier, see Taxi Squad in Settings.
             </p>
 
             <div className="mt-8 space-y-2">
@@ -7062,6 +7218,123 @@ export default function App() {
               <div className="mt-1">Contributors: Davidsstone, Deevel, Gavdjedi, Vastettler</div>
             </div>
           </section>
+
+          <section className="flex-1 min-w-0">
+            <h2 className="text-3xl uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+              Settings
+            </h2>
+            <p className="text-sm mb-5" style={{ color: C.slate }}>
+              Every league runs the same roster, scoring, and league settings — pulled directly from the Alliance's
+              Sleeper configuration.
+            </p>
+
+            <div className="rounded-sm p-3.5 mb-6" style={{ border: `1px solid ${C.line}`, background: C.panel }}>
+              <div
+                className="uppercase text-sm mb-2"
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}
+              >
+                Roster
+              </div>
+              <p className="text-sm leading-relaxed" style={{ color: C.chalk }}>
+                {SETTINGS_ROSTER.starters.length} starters — {SETTINGS_ROSTER.starters.join(", ")}
+              </p>
+              <p className="text-xs mt-2" style={{ color: C.slate }}>
+                Plus a {SETTINGS_ROSTER.bench}-man bench, {SETTINGS_ROSTER.ir}-man IR, and {SETTINGS_ROSTER.taxi}-man
+                taxi squad (eligibility below).
+              </p>
+            </div>
+
+            <div
+              className="uppercase text-sm mb-2"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}
+            >
+              Scoring
+            </div>
+            <div className="space-y-2 mb-6">
+              {SETTINGS_SCORING_SECTIONS.map((sec) => {
+                const open = Boolean(openRuleSections[sec.id]);
+                return (
+                  <div key={sec.id} className="rounded-sm overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenRuleSections((prev) => ({ ...prev, [sec.id]: !prev[sec.id] }))}
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+                      style={{ background: C.panel }}
+                    >
+                      <span className="uppercase text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}>
+                        {sec.title}
+                      </span>
+                      <span className="text-xs" style={{ color: C.gold }}>{open ? "\u2212" : "+"}</span>
+                    </button>
+                    {open && (
+                      <div className="px-4 py-3" style={{ background: C.ink }}>
+                        {sec.intro && <p className="text-xs mb-3" style={{ color: C.slate }}>{sec.intro}</p>}
+                        <div className="space-y-1">
+                          {sec.rows.map((row, i) => (
+                            <div key={i} className="flex items-center gap-3 py-1" style={{ borderTop: i > 0 ? `1px solid ${C.line}` : "none" }}>
+                              <span
+                                className="text-xs shrink-0 px-2 py-0.5 rounded-sm text-right"
+                                style={{
+                                  minWidth: "3.5rem",
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontWeight: 600,
+                                  color: row.value.trim().startsWith("-") ? C.ember : C.turf,
+                                  background: row.value.trim().startsWith("-") ? "rgba(212,96,76,0.1)" : "rgba(87,180,120,0.1)",
+                                }}
+                              >
+                                {row.value}
+                              </span>
+                              <span className="text-sm" style={{ color: C.chalk }}>
+                                {row.label}
+                                {row.note && <span style={{ color: C.slate }}> \u2014 {row.note}</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
+              className="uppercase text-sm mb-2"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}
+            >
+              League Settings
+            </div>
+            <div className="space-y-2">
+              {SETTINGS_LEAGUE_SECTIONS.map((sec) => {
+                const open = Boolean(openRuleSections[sec.id]);
+                return (
+                  <div key={sec.id} className="rounded-sm overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenRuleSections((prev) => ({ ...prev, [sec.id]: !prev[sec.id] }))}
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+                      style={{ background: C.panel }}
+                    >
+                      <span className="uppercase text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: "0.06em" }}>
+                        {sec.title}
+                      </span>
+                      <span className="text-xs" style={{ color: C.gold }}>{open ? "\u2212" : "+"}</span>
+                    </button>
+                    {open && (
+                      <div className="px-4 py-3" style={{ background: C.ink }}>
+                        <ul className="space-y-2 text-sm leading-relaxed list-disc pl-4">
+                          {sec.items.map((item, i) => (
+                            <li key={i} style={{ color: C.chalk }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+          </div>
         )}
 
         {view === "300club" && (
