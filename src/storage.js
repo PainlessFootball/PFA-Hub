@@ -61,6 +61,17 @@ export async function removeChatMessage(id) {
   return null;
 }
 
+export async function pinChatMessage(id, pinned) {
+  if (!firebaseReady) {
+    const c = (localGet("pfa-chat") || []).map((m) => (m.id === id ? { ...m, pinned } : m));
+    localSet("pfa-chat", c);
+    return c;
+  }
+  await ensureDb();
+  await fs.updateDoc(fs.doc(db, "chat", id), { pinned });
+  return null;
+}
+
 // ── News ──
 export function watchNews(cb) {
   if (!firebaseReady) {
