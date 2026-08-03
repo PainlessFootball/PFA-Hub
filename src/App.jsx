@@ -1946,6 +1946,14 @@ function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading, sheetR
     sheetRosterLinks[(team.team || "").toLowerCase()] ||
     ROSTER_LINKS[(team.team || "").toLowerCase()];
 
+  // "—" is the site-wide placeholder for an unassigned team (same check the
+  // Open Teams list on Standings uses). Anything else — a real coach name,
+  // OR unknown (the 300 Club's historical entries carry no live coach data
+  // at all) — is treated as NOT available. Visual only for now, no click
+  // action: the real apply flow already exists (Standings' Open Teams
+  // list, `applyToTeam`) and this button isn't wired to it yet on purpose.
+  const isAvailable = team.coach === "—";
+
   return (
     <div
       onClick={onClose}
@@ -1964,9 +1972,26 @@ function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading, sheetR
               <div className="text-xs uppercase tracking-wider mt-0.5" style={{ color: C.gold }}>{team.tierName}</div>
             )}
           </div>
-          <button onClick={onClose} className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>
-            close
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              disabled={!isAvailable}
+              title={isAvailable ? "Applications aren't open yet" : "This team isn't available"}
+              className="text-xs uppercase tracking-wider px-2.5 py-1 rounded-sm"
+              style={{
+                background: isAvailable ? C.turf : "transparent",
+                color: isAvailable ? C.ink : C.slate,
+                border: `1px solid ${isAvailable ? C.turf : C.line}`,
+                fontWeight: 600,
+                cursor: isAvailable ? "pointer" : "default",
+              }}
+            >
+              Apply
+            </button>
+            <button onClick={onClose} className="text-xs uppercase tracking-wider" style={{ color: C.slate }}>
+              close
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -6031,6 +6056,14 @@ export default function App() {
       maxPts: row.maxPts,
       rosterId: row.rosterId,
       leagueId,
+      // row.coach covers Standings ("—" for an open team, a real name
+      // otherwise) and the Open Teams list (always "—"). The Coaches tab's
+      // rows don't carry a .coach field at all — every row there already IS
+      // a coach, under .name instead — so fall back to that. The 300 Club's
+      // synthetic row has neither; team.coach stays undefined there, which
+      // the modal treats as NOT available (never claim availability we
+      // don't actually know).
+      coach: row.coach ?? row.name,
     });
     if (mode === "live" && leagueId && row.rosterId) ensureDraftDataLoaded(leagueId);
   };
