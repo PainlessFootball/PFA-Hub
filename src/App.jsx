@@ -1229,6 +1229,18 @@ const SEED_NEWS = [
 const fmt = (n, d = 2) =>
   typeof n === "number" ? n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
 
+// Win % as three digits, no percent sign — ".750" not "75.0%". `n` comes in
+// as a percentage (e.g. 75.0, matching how CAREER_STATS's "Win %" strings
+// already read once the % is stripped). Rounds, doesn't truncate, so it
+// matches what the raw percentage would round to at one decimal.
+const winPctLabel = (n) => {
+  const frac = n / 100;
+  const thousandths = Math.round(frac * 1000);
+  if (thousandths >= 1000) return "1.000";
+  if (thousandths <= 0) return ".000";
+  return `.${thousandths.toString().padStart(3, "0")}`;
+};
+
 const ago = (ts) => {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
   if (s < 60) return `${s}s`;
@@ -6861,7 +6873,7 @@ export default function App() {
                           </>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right">{r.winPct === -Infinity ? "—" : `${r.winPct.toFixed(1)}%`}</td>
+                      <td className="px-3 py-2 text-right">{r.winPct === -Infinity ? "—" : winPctLabel(r.winPct)}</td>
                       <td className="px-3 py-2 text-right">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
                     </tr>
                   ))}
