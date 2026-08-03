@@ -253,6 +253,79 @@ const HISTORICAL_ROUND1 = {
 
 const SLEEPER = "https://api.sleeper.app/v1";
 
+// Live coach-tag feed — her admin sheet's Master_Coaches tab, published via
+// File > Share > Publish to web > that tab > CSV. Sleeper's API only ever
+// returns her raw account name on every roster she owns, so a coach holding
+// several teams (the int1/l2/etc. tags in CAREER_STATS) is indistinguishable
+// from Sleeper alone. Her sheet's "coach" column already carries the correct
+// tag per team, so we read that live instead of asking her to resend a CSV
+// every time a tag changes. If this fetch fails (network, or the sheet gets
+// unpublished), we fall back to Sleeper's bare name — same behavior as
+// before this feed existed, never a hard failure.
+const COACH_SHEET_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSCHiIhEQSvPXRS1anXfhB4PPw6caQ4HEMaRCld1Mi28r0uWtFn5sQyCz-KQElyh738EOBZiLBVHQsc/pub?gid=211173018&single=true&output=csv";
+
+// Minimal RFC4180 CSV parser: handles quoted fields containing commas and
+// embedded newlines (her "notes" column has both). Returns row arrays; does
+// not assume every row is the same length, since the sheet mixes league
+// headers, column headers, coach rows, and blank/summary rows.
+function parseCSVRows(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      field = "";
+      rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
+// Every real coach row — in any of the 13 league blocks — carries a Sleeper
+// roster link (".../roster/{leagueId}/{rosterId}") in the same column
+// position (index 27), so we don't need to parse the sheet's per-league
+// block structure at all. We just pull (coach name, roster link) pairs off
+// every row and key on the IDs already embedded in the link. League header
+// rows, column-header rows, and blank/trophies summary rows all lack a
+// roster link and are skipped automatically.
+function parseCoachTagsFromSheet(csvText) {
+  const rows = parseCSVRows(csvText);
+  const tagByRosterKey = {};
+  for (const row of rows) {
+    const coach = (row[0] || "").trim();
+    const rosterLink = row[27] || "";
+    if (!coach || !rosterLink) continue;
+    const m = /\/roster\/(\d+)\/(\d+)/.exec(rosterLink);
+    if (!m) continue;
+    tagByRosterKey[`${m[1]}:${m[2]}`] = coach;
+  }
+  return tagByRosterKey;
+}
+
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
 // (lowercased). Each name maps to an ARRAY — coaches who've held more than
 // one team over their career (across the leagues currently tracked) get a
@@ -4872,17 +4945,40 @@ export default function App() {
   const [promotionWindowOpen, setPromotionWindowOpen] = useState(false);
   const chatEndRef = useRef(null);
   const bulkLoadedRef = useRef(false);
+  const [coachTagsByRosterKey, setCoachTagsByRosterKey] = useState({});
 
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
-  const buildStandings = (users, rosters) => {
+  // Live coach-tag sheet — fetched once on load. Failure just leaves the map
+  // empty, so every roster falls back to Sleeper's raw name (unchanged from
+  // before this feed existed).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(COACH_SHEET_CSV_URL);
+        if (!res.ok) return;
+        const text = await res.text();
+        if (cancelled) return;
+        setCoachTagsByRosterKey(parseCoachTagsFromSheet(text));
+      } catch (e) {
+        // Sheet unreachable — Directory/Coaches proceed on Sleeper names alone.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const buildStandings = (users, rosters, leagueId) => {
     const byOwner = {};
     users.forEach((u) => (byOwner[u.user_id] = u));
     const rows = rosters.map((r) => {
       const u = byOwner[r.owner_id] || {};
       const s = r.settings || {};
+      const tagged = leagueId ? coachTagsByRosterKey[`${leagueId}:${r.roster_id}`] : null;
       return {
-        coach: u.display_name || "—",
+        coach: tagged || u.display_name || "—",
         team: (u.metadata && u.metadata.team_name) || u.display_name || "—",
         w: s.wins || 0,
         l: s.losses || 0,
@@ -4904,7 +5000,7 @@ export default function App() {
       j(`${SLEEPER}/league/${leagueId}/users`),
       j(`${SLEEPER}/league/${leagueId}/rosters`),
     ]);
-    const rows = buildStandings(users, rosters);
+    const rows = buildStandings(users, rosters, leagueId);
     setStandingsCache((c) => ({ ...c, [leagueId]: rows }));
     if (week) {
       try {
