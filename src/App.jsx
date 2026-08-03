@@ -6802,9 +6802,9 @@ export default function App() {
                       { key: "name", label: "Coach", right: false },
                       { key: "team", label: "Team", right: false },
                       { key: "tierKey", label: "Tier", right: false },
-                      { key: "cp", label: "Career CP", right: true },
-                      { key: "currentCP", label: "Season CP", right: true },
                       { key: "promotionScore", label: "Promotion Score", right: true },
+                      { key: "currentCP", label: "Season CP", right: true },
+                      { key: "cp", label: "Career CP", right: true },
                       { key: "wins", label: "W–L", right: true },
                       { key: "winPct", label: "Win %", right: true },
                       { key: "totalPts", label: "Career PF", right: true },
@@ -6835,8 +6835,11 @@ export default function App() {
                         </button>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
-                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
-                        {r.cp === -Infinity ? "—" : fmt(r.cp)}
+                      <td
+                        className="px-3 py-2 text-right"
+                        style={{ color: r.promotionScore === -Infinity ? C.chalk : r.promotionScore > 0 ? C.turf : r.promotionScore < 0 ? C.ember : C.slate }}
+                      >
+                        {r.promotionScore === -Infinity ? "—" : `${r.promotionScore >= 0 ? "+" : ""}${fmt(r.promotionScore)}`}
                       </td>
                       <td
                         className="px-3 py-2 text-right"
@@ -6844,11 +6847,8 @@ export default function App() {
                       >
                         {r.currentCP === -Infinity ? "—" : `${r.currentCP >= 0 ? "+" : ""}${fmt(r.currentCP)}`}
                       </td>
-                      <td
-                        className="px-3 py-2 text-right"
-                        style={{ color: r.promotionScore === -Infinity ? C.chalk : r.promotionScore > 0 ? C.turf : r.promotionScore < 0 ? C.ember : C.slate }}
-                      >
-                        {r.promotionScore === -Infinity ? "—" : `${r.promotionScore >= 0 ? "+" : ""}${fmt(r.promotionScore)}`}
+                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
+                        {r.cp === -Infinity ? "—" : fmt(r.cp)}
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         {r.record === "—" || !r.record ? (
