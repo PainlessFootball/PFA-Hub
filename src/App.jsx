@@ -309,12 +309,12 @@ function parseCSVRows(text) {
 // Every real coach row — in any of the 13 league blocks — carries a Sleeper
 // roster link (".../roster/{leagueId}/{rosterId}") in the same column
 // position (index 27), so we don't need to parse the sheet's per-league
-// block structure at all. We just pull (coach, team, roster link) off every
-// row and key on what's already embedded in the link. League header rows,
-// column-header rows, and blank/trophies summary rows all lack a roster
-// link and are skipped automatically.
+// block structure at all. We just pull (coach, team, roster link, live
+// stats) off every row and key on what's already embedded in the link.
+// League header rows, column-header rows, and blank/trophies summary rows
+// all lack a roster link and are skipped automatically.
 //
-// Returns two maps from ONE pass over the same rows (one fetch serves both
+// Returns THREE maps from ONE pass over the same rows (one fetch serves all
 // — no reason to hit the sheet twice for data that lives on the same line):
 //  - tagByRosterKey: `${leagueId}:${rosterId}` -> her tagged coach name
 //  - rosterLinkByTeamName: lowercased team name -> full roster URL. This is
@@ -327,10 +327,19 @@ function parseCSVRows(text) {
 //    300 Club's historical high-score list, which only ever has a team
 //    name) — and even then it beats a hardcoded table, since her sheet gets
 //    republished with the new season's links same as everything else here.
+//  - liveStatsByName: lowercased tagged coach name -> { promotionScore,
+//    currentCP }, columns 9 and 21 (`PromotionScore` / `coaching Pts` in her
+//    header row — CURRENT SEASON, distinct from CAREER_STATS's static
+//    "Career CP"). Keyed by the exact tagged name (e.g. "pwnrangr int1"),
+//    same format as CAREER_STATS's own keys, so allCoachesTable's existing
+//    lowerName lookup matches directly with no extra resolution needed.
+//    `#DIV/0!`/`#N/A`/blank (unplayed season, every coach preseason) parse
+//    to null via parseFloat, same as leagueDifficultyLabel already handles.
 function parseSheetLookups(csvText) {
   const rows = parseCSVRows(csvText);
   const tagByRosterKey = {};
   const rosterLinkByTeamName = {};
+  const liveStatsByName = {};
   for (const row of rows) {
     const coach = (row[0] || "").trim();
     const team = (row[1] || "").trim();
@@ -340,8 +349,16 @@ function parseSheetLookups(csvText) {
     if (!m) continue;
     if (coach) tagByRosterKey[`${m[1]}:${m[2]}`] = coach;
     if (team && team !== "#N/A") rosterLinkByTeamName[team.toLowerCase()] = rosterLink.trim();
+    if (coach) {
+      const promotionScore = parseFloat(row[9]);
+      const currentCP = parseFloat(row[21]);
+      liveStatsByName[coach.toLowerCase()] = {
+        promotionScore: Number.isFinite(promotionScore) ? promotionScore : null,
+        currentCP: Number.isFinite(currentCP) ? currentCP : null,
+      };
+    }
   }
-  return { tagByRosterKey, rosterLinkByTeamName };
+  return { tagByRosterKey, rosterLinkByTeamName, liveStatsByName };
 
 }
 
@@ -5033,15 +5050,17 @@ export default function App() {
   const bulkLoadedRef = useRef(false);
   const [coachTagsByRosterKey, setCoachTagsByRosterKey] = useState({});
   const [sheetRosterLinks, setSheetRosterLinks] = useState({});
+  const [liveCoachStats, setLiveCoachStats] = useState({});
   const [leagueDifficulty, setLeagueDifficulty] = useState({});
 
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
   // Live sheet feed — fetched once on load, parsed once for both the
   // coach-tag map and the roster-link fallback map (same rows, one fetch).
-  // Failure just leaves both maps empty: coach names fall back to Sleeper's
-  // raw name, and roster links fall back further to the static ROSTER_LINKS
-  // table below (unchanged from before this feed existed either way).
+  // Failure just leaves all three maps empty: coach names fall back to
+  // Sleeper's raw name, roster links fall back further to the static
+  // ROSTER_LINKS table below, and Promotion Score/Season CP just render "—"
+  // on the Coaches tab (unchanged from before this feed existed either way).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -5050,9 +5069,10 @@ export default function App() {
         if (!res.ok) return;
         const text = await res.text();
         if (cancelled) return;
-        const { tagByRosterKey, rosterLinkByTeamName } = parseSheetLookups(text);
+        const { tagByRosterKey, rosterLinkByTeamName, liveStatsByName } = parseSheetLookups(text);
         setCoachTagsByRosterKey(tagByRosterKey);
         setSheetRosterLinks(rosterLinkByTeamName);
+        setLiveCoachStats(liveStatsByName);
       } catch (e) {
         // Sheet unreachable — Directory/Coaches/roster links proceed on
         // their non-sheet fallbacks, same as before this feed existed.
@@ -5741,11 +5761,14 @@ export default function App() {
         return Number.isFinite(n) ? n : -Infinity;
       };
       const [wStr, lStr] = (s["Record"] || "").split("-");
+      const live = liveCoachStats[lowerName];
       return {
         name: dirEntry ? dirEntry.name : lowerName,
         team: chosen.team,
         tierKey: chosen.tierKey,
         cp: parseNum(s["Career CP"]),
+        promotionScore: live && live.promotionScore !== null ? live.promotionScore : -Infinity,
+        currentCP: live && live.currentCP !== null ? live.currentCP : -Infinity,
         wins: parseNum(wStr),
         losses: parseNum(lStr),
         winPct: parseNum(s["Win %"]),
@@ -5755,7 +5778,7 @@ export default function App() {
         rosterId: match ? dirEntry.rosterId : undefined,
       };
     });
-  }, [coachDirectory]);
+  }, [coachDirectory, liveCoachStats]);
 
   const sortedCoachesTable = useMemo(() => {
     const arr = [...allCoachesTable];
@@ -6779,7 +6802,9 @@ export default function App() {
                       { key: "name", label: "Coach", right: false },
                       { key: "team", label: "Team", right: false },
                       { key: "tierKey", label: "Tier", right: false },
-                      { key: "cp", label: "CP", right: true },
+                      { key: "cp", label: "Career CP", right: true },
+                      { key: "currentCP", label: "Season CP", right: true },
+                      { key: "promotionScore", label: "Promotion Score", right: true },
                       { key: "wins", label: "W–L", right: true },
                       { key: "winPct", label: "Win %", right: true },
                       { key: "totalPts", label: "Career PF", right: true },
@@ -6812,6 +6837,18 @@ export default function App() {
                       <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
                       <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
                         {r.cp === -Infinity ? "—" : fmt(r.cp)}
+                      </td>
+                      <td
+                        className="px-3 py-2 text-right"
+                        style={{ color: r.currentCP === -Infinity ? C.chalk : r.currentCP > 0 ? C.turf : r.currentCP < 0 ? C.ember : C.slate }}
+                      >
+                        {r.currentCP === -Infinity ? "—" : `${r.currentCP >= 0 ? "+" : ""}${fmt(r.currentCP)}`}
+                      </td>
+                      <td
+                        className="px-3 py-2 text-right"
+                        style={{ color: r.promotionScore === -Infinity ? C.chalk : r.promotionScore > 0 ? C.turf : r.promotionScore < 0 ? C.ember : C.slate }}
+                      >
+                        {r.promotionScore === -Infinity ? "—" : `${r.promotionScore >= 0 ? "+" : ""}${fmt(r.promotionScore)}`}
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         {r.record === "—" || !r.record ? (
