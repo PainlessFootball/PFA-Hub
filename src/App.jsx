@@ -5532,6 +5532,29 @@ export default function App() {
     return live && live.promotionScore !== null ? live.promotionScore : null;
   };
 
+  // Eligibility per the Rules page: the last 5/16, 7/20, or 11/32-placed
+  // teams can't move up or down (`promotionEligible`, already used by the
+  // bracket sidebar — same rule, not a new one). Reads the applicant's
+  // CURRENT team's place in HISTORICAL_FINAL_ORDER[CURRENT_SEASON], the
+  // just-finished season's finish order — populated the same way every
+  // prior season's was, once that season's bracket gets transcribed after
+  // it ends. Returns null (unknown — NOT "eligible") whenever that data
+  // isn't in yet, which is simply the normal state right up until a season
+  // actually finishes; the transfer period itself runs weeks 19-20-ish,
+  // after week 18 ends the season, so the data's always in by the time
+  // this is checked for real.
+  const applicantEligibility = (coachName) => {
+    const dirEntry = coachDirectory.find((c) => c.name.toLowerCase() === (coachName || "").toLowerCase());
+    if (!dirEntry) return null;
+    const order = HISTORICAL_FINAL_ORDER[CURRENT_SEASON] && HISTORICAL_FINAL_ORDER[CURRENT_SEASON][dirEntry.tierKey];
+    if (!order) return null;
+    const place = order.indexOf(dirEntry.team) + 1;
+    if (place <= 0) return null;
+    const tier = TIERS.find((t) => t.key === dirEntry.tierKey);
+    if (!tier) return null;
+    return promotionEligible(tier.size, place);
+  };
+
   // Computes playoff seeding from final regular-season standings, per the
   // Rules doc's format for each tier. Returns null for tiers whose format
   // isn't confirmed yet (see PLAYOFF_FORMAT above) — the bracket section
@@ -6955,8 +6978,9 @@ export default function App() {
                                   <ol className="space-y-1 text-xs">
                                     {teamApps.map((a, i) => {
                                       const pts = promotionPointsFor(a.coachName);
+                                      const eligible = applicantEligibility(a.coachName);
                                       return (
-                                        <li key={a.id || i} className="flex items-center justify-between">
+                                        <li key={a.id || i} className="flex items-center justify-between gap-2">
                                           <button
                                             type="button"
                                             onClick={() => openCoachProfile(a.coachName)}
@@ -6964,8 +6988,18 @@ export default function App() {
                                           >
                                             {i + 1}. {a.coachName}
                                           </button>
-                                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>
-                                            {pts === null ? "—" : fmt(pts)} PS
+                                          <span className="flex items-center gap-2 shrink-0">
+                                            {eligible === false && (
+                                              <span
+                                                className="px-1.5 py-0.5 text-xs uppercase tracking-wider rounded-sm"
+                                                style={{ background: "rgba(212,96,76,0.15)", color: C.ember }}
+                                              >
+                                                Ineligible
+                                              </span>
+                                            )}
+                                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>
+                                              {pts === null ? "—" : fmt(pts)} PS
+                                            </span>
                                           </span>
                                         </li>
                                       );
