@@ -5028,6 +5028,11 @@ export default function App() {
       } catch (e) {
         // Sheet unreachable — Directory/Coaches/roster links proceed on
         // their non-sheet fallbacks, same as before this feed existed.
+        // Logged (not surfaced to her) so a dev-tools check can tell this
+        // feed apart from the League Difficulty one below. Most likely
+        // cause if this fires: the browser blocked the request (CORS) —
+        // the published-CSV link still works if opened directly.
+        console.warn("PFA live feed failed: coach tags / roster links (Master_Coaches sheet).", e);
       }
     })();
     return () => {
@@ -5050,6 +5055,11 @@ export default function App() {
         setLeagueDifficulty(parseLeagueDifficultyFromSheet(text));
       } catch (e) {
         // Sheet unreachable — Standings just omits the difficulty badge.
+        // Logged (not surfaced to her) so a dev-tools check can tell this
+        // feed apart from the coach-sheet one above. Most likely cause if
+        // this fires: the browser blocked the request (CORS) — the
+        // published-CSV link still works if opened directly.
+        console.warn("PFA live feed failed: League Difficulty sheet.", e);
       }
     })();
     return () => {
