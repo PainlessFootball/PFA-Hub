@@ -1512,6 +1512,54 @@ function Avatar({ name, avatar, size = 36 }) {
   );
 }
 
+// A team's brand-color crest, for contexts with no coach to show an Avatar
+// for (an open team). Same circular badge as Avatar's own no-image
+// fallback, just keyed by team+tier instead of a Sleeper avatar URL. Only
+// 7 of the 13 tiers have their own color palette (NFL/USFL/XFL/SEC/BIG
+// XII/TEN/SWAC — same ones GBox already draws from); the other 6 fall back
+// to the same generic slate GBox itself uses for an unlisted team, so this
+// never looks broken, just less colorful for those leagues. The lookup
+// lives INSIDE the function body on purpose, not as a module-level const —
+// TEAM_CLR/USFL_CLR/etc. are declared much later in the file, and a
+// top-level const built from them here would hit the exact module-load
+// TDZ this file has been bitten by before. A function body only runs when
+// called (i.e. at render time, after the whole module has already loaded),
+// so referencing them here is safe regardless of declaration order.
+function TeamMark({ team, tierKey, size = 38 }) {
+  const clrMap =
+    tierKey === "NFL" ? TEAM_CLR :
+    tierKey === "USFL" ? USFL_CLR :
+    tierKey === "XFL" ? XFL_CLR :
+    tierKey === "SEC" ? SEC_CLR :
+    tierKey === "BIG XII" ? XII_CLR :
+    tierKey === "TEN" ? TEN_CLR :
+    tierKey === "SWAC" ? SWAC_CLR :
+    null;
+  const clr = (clrMap && clrMap[team]) || ["#2A3550", C.chalk];
+  const initial = (team || "?").trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 4,
+        background: clr[0],
+        color: clr[1],
+        border: `1px solid ${C.line}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontWeight: 700,
+        fontSize: Math.round(size * 0.42),
+        flexShrink: 0,
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
 // ── Trophies: coach, award, league, year — empty until the real list is
 // provided, keyed by coach name (lowercased). One entry per win, so a coach
 // who won a league three times gets three entries and three icons, same
@@ -6106,6 +6154,34 @@ export default function App() {
     );
   }, [coachDirectory, dirQuery]);
 
+  // Teams with no coach — the exact inverse of coachDirectory's own filter
+  // (`r.coach === "—"` kept here, dropped there), same live rows, same
+  // fetch. `coach: "—"` is set explicitly on each entry so openTeamProfile's
+  // `row.coach ?? row.name` resolves correctly when a card opens the modal.
+  const openTeamsDirectory = useMemo(() => {
+    const list = [];
+    if (mode === "live") {
+      TIERS.forEach((t) => {
+        const id = leagueMap[t.key];
+        const tRows = id ? standingsCache[id] : null;
+        if (!tRows) return;
+        tRows.forEach((r) => {
+          if (r.coach !== "—") return;
+          list.push({ coach: "—", team: r.team, tierKey: t.key, tierName: t.name, maxPts: r.maxPts, rosterId: r.rosterId });
+        });
+      });
+    }
+    return list;
+  }, [mode, leagueMap, standingsCache]);
+
+  const filteredOpenTeams = useMemo(() => {
+    const q = dirQuery.trim().toLowerCase();
+    if (!q) return openTeamsDirectory;
+    return openTeamsDirectory.filter(
+      (t) => t.team.toLowerCase().includes(q) || t.tierKey.toLowerCase().includes(q) || t.tierName.toLowerCase().includes(q)
+    );
+  }, [openTeamsDirectory, dirQuery]);
+
   // ── Directory grouping ───────────────────────────────────────────────────
   // Coaches who hold more than one team carry a tag on the end of the name
   // ("pwnrangr l3", "rifelife520 int2"). Each tagged name is a SEPARATE coach,
@@ -6132,13 +6208,20 @@ export default function App() {
       if (!byTier.has(c.tierKey)) byTier.set(c.tierKey, []);
       byTier.get(c.tierKey).push(c);
     });
+    const openByTier = new Map();
+    filteredOpenTeams.forEach((t) => {
+      if (!openByTier.has(t.tierKey)) openByTier.set(t.tierKey, []);
+      openByTier.get(t.tierKey).push(t);
+    });
     // Ladder order (tier 1 down to 13), same as Standings — not alphabetical.
-    // Tiers with no coach after filtering drop out entirely.
-    return TIERS.filter((t) => byTier.has(t.key)).map((t) => ({
+    // A tier appears if it has coaches OR open teams (or both); drops out
+    // only when it has neither after filtering.
+    return TIERS.filter((t) => byTier.has(t.key) || openByTier.has(t.key)).map((t) => ({
       tier: t,
-      coaches: byTier.get(t.key).sort(cmp).map((c) => ({ ...c, ...splitTag(c.name) })),
+      coaches: (byTier.get(t.key) || []).sort(cmp).map((c) => ({ ...c, ...splitTag(c.name) })),
+      openTeams: (openByTier.get(t.key) || []).sort((a, b) => a.team.localeCompare(b.team)),
     }));
-  }, [filteredDirectory]);
+  }, [filteredDirectory, filteredOpenTeams]);
 
   // ── Conference Strength — Troy's original spreadsheet metric, rebuilt from
   // season-total points already in standingsCache. Two pools: the 10-tier
@@ -7165,12 +7248,27 @@ export default function App() {
                       </div>
                     </button>
                   ))}
+                  {g.openTeams.map((t, i) => (
+                    <button
+                      type="button"
+                      key={t.team + i}
+                      onClick={() => openTeamProfile(t, t.tierKey)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-left transition-colors"
+                      style={{ background: C.panel, border: `1px solid ${C.turf}` }}
+                    >
+                      <TeamMark team={t.team} tierKey={t.tierKey} size={38} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold uppercase tracking-wider" style={{ color: C.turf }}>Apply</div>
+                        <div className="text-xs truncate" style={{ color: C.slate }}>{t.team}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
             {dirGroups.length === 0 && (
               <div className="py-10 text-center text-sm" style={{ color: C.slate }}>
-                No coaches match that search.
+                Nothing matches that search.
               </div>
             )}
           </section>
