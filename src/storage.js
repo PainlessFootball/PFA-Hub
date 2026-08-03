@@ -77,7 +77,8 @@ export function watchNews(cb) {
 
 export async function postNewsItem(item) {
   if (!firebaseReady) {
-    const n = [item].concat(localGet("pfa-news") || []).slice(0, 50);
+    const entry = { ...item, id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}` };
+    const n = [entry].concat(localGet("pfa-news") || []).slice(0, 50);
     localSet("pfa-news", n);
     return n;
   }

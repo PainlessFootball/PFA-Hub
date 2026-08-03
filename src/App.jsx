@@ -5269,7 +5269,12 @@ export default function App() {
     const title = newsTitle.trim().slice(0, 120);
     const body = newsBody.trim().slice(0, 600);
     if (!title) return;
-    const item = { id: String(Date.now()), tag: newsTag, title, body, ts: Date.now() };
+    // No `id` here on purpose — matches sendMsg's pattern. If we set one,
+    // it rides along as a plain data field on the Firestore doc and
+    // clobbers the real `d.id` in watchNews's `{ id: d.id, ...d.data() }`
+    // (object spread: a later duplicate key wins), which breaks delete AND
+    // pin for every news item posted while Firebase is live.
+    const item = { tag: newsTag, title, body, ts: Date.now() };
     setNewsTitle("");
     setNewsBody("");
     const local = await postNewsItem(item);
