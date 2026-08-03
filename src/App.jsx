@@ -308,22 +308,73 @@ function parseCSVRows(text) {
 // Every real coach row — in any of the 13 league blocks — carries a Sleeper
 // roster link (".../roster/{leagueId}/{rosterId}") in the same column
 // position (index 27), so we don't need to parse the sheet's per-league
-// block structure at all. We just pull (coach name, roster link) pairs off
-// every row and key on the IDs already embedded in the link. League header
-// rows, column-header rows, and blank/trophies summary rows all lack a
-// roster link and are skipped automatically.
-function parseCoachTagsFromSheet(csvText) {
+// block structure at all. We just pull (coach, team, roster link) off every
+// row and key on what's already embedded in the link. League header rows,
+// column-header rows, and blank/trophies summary rows all lack a roster
+// link and are skipped automatically.
+//
+// Returns two maps from ONE pass over the same rows (one fetch serves both
+// — no reason to hit the sheet twice for data that lives on the same line):
+//  - tagByRosterKey: `${leagueId}:${rosterId}` -> her tagged coach name
+//  - rosterLinkByTeamName: lowercased team name -> full roster URL. This is
+//    a FALLBACK only — see where it's consumed in TeamProfileModal. Most
+//    roster links are computed live from the current season's already-live
+//    leagueId + rosterId (see openTeamProfile), which self-updates every
+//    season since Sleeper assigns a new league ID each year and the site
+//    re-discovers it live. This sheet-derived map only matters for the one
+//    path that opens a team profile WITHOUT live roster data attached (the
+//    300 Club's historical high-score list, which only ever has a team
+//    name) — and even then it beats a hardcoded table, since her sheet gets
+//    republished with the new season's links same as everything else here.
+function parseSheetLookups(csvText) {
   const rows = parseCSVRows(csvText);
   const tagByRosterKey = {};
+  const rosterLinkByTeamName = {};
   for (const row of rows) {
     const coach = (row[0] || "").trim();
+    const team = (row[1] || "").trim();
     const rosterLink = row[27] || "";
-    if (!coach || !rosterLink) continue;
+    if (!rosterLink) continue;
     const m = /\/roster\/(\d+)\/(\d+)/.exec(rosterLink);
     if (!m) continue;
-    tagByRosterKey[`${m[1]}:${m[2]}`] = coach;
+    if (coach) tagByRosterKey[`${m[1]}:${m[2]}`] = coach;
+    if (team && team !== "#N/A") rosterLinkByTeamName[team.toLowerCase()] = rosterLink.trim();
   }
-  return tagByRosterKey;
+  return { tagByRosterKey, rosterLinkByTeamName };
+
+}
+
+// Her "League Difficulty" tab, published the same way as Master_Coaches.
+// Layout is a fixed 3-column block PER TIER (label, value, blank spacer),
+// running NFL/USFL/XFL/SEC/BIG XII/ACC/TEN/SUN/SOCO/IVY/SWAC/GLIAC/FLHS —
+// the SAME order as our own TIERS array — so no name-matching is needed at
+// all: tier i's value sits at column 3*i+1. The final "bonus" figure she
+// wants (the one feeding her Coaching Score formula on the Rules page) is
+// on row 35 (index 34). Every formula upstream of it medians/averages real
+// season data, so expect "#DIV/0!"/"#N/A" for every tier until games are
+// actually played — that's her sheet, not a parsing bug; formatted for
+// display by leagueDifficultyLabel below.
+const LEAGUE_DIFFICULTY_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSCHiIhEQSvPXRS1anXfhB4PPw6caQ4HEMaRCld1Mi28r0uWtFn5sQyCz-KQElyh738EOBZiLBVHQsc/pub?gid=1744823145&single=true&output=csv";
+
+function parseLeagueDifficultyFromSheet(csvText) {
+  const rows = parseCSVRows(csvText);
+  const bonusRow = rows[34] || [];
+  const byTierKey = {};
+  TIERS.forEach((t, i) => {
+    const value = (bonusRow[3 * i + 1] || "").trim();
+    if (value) byTierKey[t.key] = value;
+  });
+  return byTierKey;
+}
+
+// Formats a raw sheet value for the Standings badge: a real number gets a
+// sign and 2 decimals (matches her sheet's own display), anything else
+// (her formula errors before the season has real data) reads as "TBD"
+// rather than showing "#DIV/0!" on the live site.
+function leagueDifficultyLabel(raw) {
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? (n >= 0 ? `+${n.toFixed(2)}` : n.toFixed(2)) : "TBD";
 }
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -1425,18 +1476,18 @@ function CoachProfileModal({ coach, onClose }) {
 
 // ── Team Profile popup: Max Total Points comes straight from the same
 // standings data already on the page. Roster is a link out to the real
-// Sleeper roster page (once ROSTER_LINKS has an entry — see below) rather
-// than an in-app player list, keeping room for team history, etc. later.
+// Sleeper roster page — TeamProfileModal builds this live from the row's
+// leagueId+rosterId when available, falls back to the sheet-derived map,
+// and only reaches this static table as a last resort (see there for why).
 // Draft picks are computed live from Sleeper's traded-picks data.
 
-// Roster links from the roster-link export, keyed by lowercased team name
-// (lookup below lowercases team.team before checking this map). Covers all
-// 13 tiers. A few open items:
-//  - "North Colorado Bears" (Big XII) and "THE Ohio State Buckeyes" (Big Ten)
-//    had links pointing into the wrong tier in the source sheet — omitted
-//    until the real roster numbers are confirmed.
-//  - Unfilled roster slots (open coaching jobs) have no entry, so the popup
-//    just omits the link for those, same as before.
+// LAST-RESORT roster-link table, keyed by lowercased team name — only
+// consulted if BOTH the live leagueId+rosterId AND the sheet-derived map
+// come up empty (e.g. the sheet fetch itself failed). These league IDs are
+// 2026's; Sleeper assigns a new one every season, so this table will drift
+// out of date on its own next season — that's fine, it's not the primary
+// path anymore and doesn't need annual upkeep. Left in as a same-season
+// safety net, not something to keep current going forward.
 const ROSTER_LINKS = {
   // ---- NFL (1316582839847759872) ----
   "baltimore ravens": "https://sleeper.com/roster/1316582839847759872/12",
@@ -1531,10 +1582,7 @@ const ROSTER_LINKS = {
   "texas longhorns": "https://sleeper.com/roster/1316594738958192640/1",
 
   // ---- BIG XII (1317152669235703808) ----
-  // NOTE: "North Colorado Bears" in the source sheet links into the XFL
-  // league instead (1316588494914613248/18, which is actually the Los
-  // Angeles Wildcats' slot) — a copy/paste error. Left out below; let me
-  // know the real roster number and I'll add it.
+  "north colorado bears": "https://sleeper.com/roster/1317152669235703808/18",
   "iowa state cyclones": "https://sleeper.com/roster/1317152669235703808/15",
   "south dakota state": "https://sleeper.com/roster/1317152669235703808/16",
   "houston cougars": "https://sleeper.com/roster/1317152669235703808/6",
@@ -1570,10 +1618,7 @@ const ROSTER_LINKS = {
   "georgiatech yellowjackets": "https://sleeper.com/roster/1317191636379254784/7",
 
   // ---- BIG TEN (1317530523035242496) — 4 slots unfilled in source (skipped) ----
-  // NOTE: "THE Ohio State Buckeyes" in the source sheet links into the FLHS
-  // league instead (1317921468134232064/4, an unfilled FLHS slot) — a
-  // copy/paste error. Left out below; let me know the real roster number
-  // and I'll add it.
+  "the ohio state buckeyes": "https://sleeper.com/roster/1317530523035242496/4",
   "northwestern wildcats": "https://sleeper.com/roster/1317530523035242496/13",
   "indiana hoosiers": "https://sleeper.com/roster/1317530523035242496/11",
   "cal golden bears": "https://sleeper.com/roster/1317530523035242496/6",
@@ -1673,9 +1718,22 @@ const ROSTER_LINKS = {
   "miami senior stingrays": "https://sleeper.com/roster/1317921468134232064/8",
 };
 
-function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading }) {
+function TeamProfileModal({ team, onClose, draftPicks, draftPicksLoading, sheetRosterLinks }) {
   if (!team) return null;
-  const rosterLink = ROSTER_LINKS[(team.team || "").toLowerCase()];
+  // Three tiers, in order: (1) computed live from THIS season's leagueId +
+  // rosterId — both already fetched live from Sleeper wherever this modal
+  // is opened from a real Standings/Coaches/Directory row, so this needs no
+  // maintenance at all and re-points itself every season automatically,
+  // since Sleeper assigns a new league ID each year and the site
+  // re-discovers it live (see the leagueMap discovery effect). (2) the
+  // sheet-derived fallback, for the one path that opens this modal WITHOUT
+  // live roster data — the 300 Club's historical high-score list, which
+  // only ever has a team name. (3) the static ROSTER_LINKS table below, in
+  // case the sheet fetch itself failed.
+  const rosterLink =
+    (team.leagueId && team.rosterId && `https://sleeper.com/roster/${team.leagueId}/${team.rosterId}`) ||
+    sheetRosterLinks[(team.team || "").toLowerCase()] ||
+    ROSTER_LINKS[(team.team || "").toLowerCase()];
 
   return (
     <div
@@ -4946,12 +5004,16 @@ export default function App() {
   const chatEndRef = useRef(null);
   const bulkLoadedRef = useRef(false);
   const [coachTagsByRosterKey, setCoachTagsByRosterKey] = useState({});
+  const [sheetRosterLinks, setSheetRosterLinks] = useState({});
+  const [leagueDifficulty, setLeagueDifficulty] = useState({});
 
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
-  // Live coach-tag sheet — fetched once on load. Failure just leaves the map
-  // empty, so every roster falls back to Sleeper's raw name (unchanged from
-  // before this feed existed).
+  // Live sheet feed — fetched once on load, parsed once for both the
+  // coach-tag map and the roster-link fallback map (same rows, one fetch).
+  // Failure just leaves both maps empty: coach names fall back to Sleeper's
+  // raw name, and roster links fall back further to the static ROSTER_LINKS
+  // table below (unchanged from before this feed existed either way).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -4960,9 +5022,34 @@ export default function App() {
         if (!res.ok) return;
         const text = await res.text();
         if (cancelled) return;
-        setCoachTagsByRosterKey(parseCoachTagsFromSheet(text));
+        const { tagByRosterKey, rosterLinkByTeamName } = parseSheetLookups(text);
+        setCoachTagsByRosterKey(tagByRosterKey);
+        setSheetRosterLinks(rosterLinkByTeamName);
       } catch (e) {
-        // Sheet unreachable — Directory/Coaches proceed on Sleeper names alone.
+        // Sheet unreachable — Directory/Coaches/roster links proceed on
+        // their non-sheet fallbacks, same as before this feed existed.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // League-difficulty sheet — separate tab, separate fetch (different gid,
+  // no rows in common with Master_Coaches to share a parse with). Failure
+  // just leaves the map empty, so the Standings badge simply doesn't show —
+  // no error surfaced to her.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(LEAGUE_DIFFICULTY_CSV_URL);
+        if (!res.ok) return;
+        const text = await res.text();
+        if (cancelled) return;
+        setLeagueDifficulty(parseLeagueDifficultyFromSheet(text));
+      } catch (e) {
+        // Sheet unreachable — Standings just omits the difficulty badge.
       }
     })();
     return () => {
@@ -6198,6 +6285,19 @@ export default function App() {
                   <h2 className="text-3xl uppercase leading-none truncate" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
                     {tier.name}
                   </h2>
+                  {mode === "live" && standingsSeason === CURRENT_SEASON && leagueDifficulty[tier.key] !== undefined && (() => {
+                    const diffN = parseFloat(leagueDifficulty[tier.key]);
+                    const diffColor = Number.isFinite(diffN) ? (diffN > 0 ? C.turf : diffN < 0 ? C.ember : C.slate) : C.slate;
+                    return (
+                      <span
+                        className="text-xs uppercase tracking-wider px-1.5 py-0.5 rounded-sm shrink-0"
+                        style={{ color: diffColor, border: `1px solid ${C.line}`, fontFamily: "'IBM Plex Mono', monospace" }}
+                        title="League Difficulty bonus, from her spreadsheet — feeds into each coach's Coaching Score"
+                      >
+                        Difficulty {leagueDifficultyLabel(leagueDifficulty[tier.key])}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
               </div>
@@ -6966,6 +7066,7 @@ export default function App() {
         onClose={() => setSelectedTeam(null)}
         draftPicks={selectedTeam ? ownedPicksFor(selectedTeam.leagueId, selectedTeam.rosterId) : null}
         draftPicksLoading={selectedTeam ? Boolean(draftDataLoading[selectedTeam.leagueId]) : false}
+        sheetRosterLinks={sheetRosterLinks}
       />
     </div>
   );
