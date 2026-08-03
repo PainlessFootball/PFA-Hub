@@ -706,20 +706,21 @@ function ordinal(n) {
 }
 
 // Builds the reference rows shown beside a bracket: one per final place,
-// carrying that place's coaching points (16-team leagues only, the others
-// have no CP table yet) plus whether it can still take a promotion. Draft
-// picks used to live here too; they now read off the bracket's place cells.
-// When there is no CP to show, consecutive places that would render
-// identically collapse into a band ("22nd - 31st") rather than repeating.
+// carrying that place's coaching points plus whether it can still take a
+// promotion. Draft picks used to live here too; they now read off the
+// bracket's place cells. When there is no CP to show (shouldn't happen for
+// any of the 13 tiers now, kept as a safety net), consecutive places that
+// would render identically collapse into a band ("22nd - 31st") instead of
+// repeating.
 function placementInfoRows(size, tKeyForCP) {
-  const hasCP = !!tKeyForCP && size === 16;
+  const hasCP = !!tKeyForCP && (size === 16 || !!CP_BY_PLACE[tKeyForCP]);
   const rows = [];
   for (let place = 1; place <= size; place++) {
     const fired = place === size;
     rows.push({
       place,
       label: ordinal(place),
-      cp: hasCP ? cpForPlace16(tKeyForCP, place) : undefined,
+      cp: hasCP ? cpForPlace(tKeyForCP, place) : undefined,
       fired,
       ineligible: !fired && !promotionEligible(size, place),
     });
@@ -753,8 +754,34 @@ const CHAMPION_CP_16 = {
   SEC: 140, "BIG XII": 135, ACC: 130, TEN: 125, SUN: 120,
   SOCO: 115, IVY: 110, SWAC: 105, GLIAC: 100, FLHS: 95,
 };
-const cpForPlace16 = (tKey, place) =>
-  place <= 10 ? CHAMPION_CP_16[tKey] - CP_OFFSETS_1_10[place - 1] : CP_TAIL_16[place - 11];
+
+// Coaching points by final place for NFL (32), USFL (20) and XFL (20) —
+// supplied directly from her Rules-page table, place 1 through last, index
+// 0 = place 1. NOT a formula like the 16-team scale above: NFL has two
+// extra -10 jumps (place 17, place 28) beyond the base -5 step, and
+// USFL/XFL both have an irregular drop across places 13-16 lining up with
+// where promotion eligibility ends — real, deliberate, not "cleaned up",
+// same principle as the non-monotonic DRAFT_PICKS_* tables.
+const CP_BY_PLACE_NFL = [
+  155, 150, 145, 140, 135, 130, 125, 120, 115, 110, 105, 100, 95, 90, 85, 80,
+  70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 10, 0, -5, -10, -15,
+];
+const CP_BY_PLACE_USFL = [
+  150, 145, 140, 135, 130, 125, 120, 115, 110, 105, 95, 90, 80, 50, 25, 10,
+  5, 0, -5, -10,
+];
+const CP_BY_PLACE_XFL = [
+  145, 140, 135, 130, 125, 120, 115, 110, 105, 100, 90, 85, 75, 50, 25, 10,
+  5, 0, -5, -10,
+];
+const CP_BY_PLACE = { NFL: CP_BY_PLACE_NFL, USFL: CP_BY_PLACE_USFL, XFL: CP_BY_PLACE_XFL };
+
+const cpForPlace = (tKey, place) =>
+  CP_BY_PLACE[tKey]
+    ? CP_BY_PLACE[tKey][place - 1]
+    : place <= 10
+    ? CHAMPION_CP_16[tKey] - CP_OFFSETS_1_10[place - 1]
+    : CP_TAIL_16[place - 11];
 
 // Ineligible for a promotion or demotion: the last 5 places in a 16-team
 // league, the last 7 in a 20-team league, the last 11 in the 32-team NFL --
@@ -5441,8 +5468,8 @@ export default function App() {
   const placementPanel = !bracket
     ? null
     : {
-        rows: placementInfoRows(tier.size, tier.size === 16 ? tierKey : null),
-        title: tier.size === 16 ? "Coaching Points" : "Promotion Eligibility",
+        rows: placementInfoRows(tier.size, tierKey),
+        title: "Coaching Points",
       };
 
   // Fetch Sleeper's real bracket results for whichever tier/season is on
