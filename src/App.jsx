@@ -5519,14 +5519,17 @@ export default function App() {
   };
 
   // ── Apply-to-Team ──
+  // Ranks applicants by live Promotion Score (the same stat now shown on
+  // the Coaches tab), not Career CP — matches what the Rules page actually
+  // says ("Jobs go to the coach with the highest Promotion Score"). No
+  // fallback to Career CP: the transfer period runs weeks 19-20-ish, after
+  // week 18 ends the fantasy season, by which point every coach has real
+  // season stats — nulls here mean a genuinely unlisted name, not "too
+  // early in the season," so they sort last rather than substituting a
+  // different stat.
   const promotionPointsFor = (name) => {
-    const entries = CAREER_STATS[(name || "").toLowerCase()] || [];
-    if (!entries.length) return null;
-    const dirEntry = coachDirectory.find((c) => c.name.toLowerCase() === (name || "").toLowerCase());
-    const match = dirEntry ? entries.find((e) => e.tierKey === dirEntry.tierKey) : null;
-    const stats = (match || entries[0]).stats;
-    const n = parseFloat(stats["Career CP"]);
-    return Number.isFinite(n) ? n : null;
+    const live = liveCoachStats[(name || "").toLowerCase()];
+    return live && live.promotionScore !== null ? live.promotionScore : null;
   };
 
   // Computes playoff seeding from final regular-season standings, per the
@@ -6962,7 +6965,7 @@ export default function App() {
                                             {i + 1}. {a.coachName}
                                           </button>
                                           <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>
-                                            {pts === null ? "—" : fmt(pts)} CP
+                                            {pts === null ? "—" : fmt(pts)} PS
                                           </span>
                                         </li>
                                       );
