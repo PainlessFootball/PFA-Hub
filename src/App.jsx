@@ -6,8 +6,8 @@ import {
   watchNews,
   postNewsItem,
   removeNewsItem,
+  pinNewsItem,
   removeChatMessage,
-  pinChatMessage,
   getCoachName,
   setCoachNameStored,
   watchApplications,
@@ -5281,28 +5281,26 @@ export default function App() {
     if (local) setNews(local.length ? local : SEED_NEWS);
   };
 
+  // Toggles a news item's pinned flag. Shared/persisted the same way delete
+  // is — updateDoc on Firebase, direct array rewrite on the local fallback
+  // — so a pin sticks for every viewer, not just this browser.
+  const pinNews = async (id, pinned) => {
+    const local = await pinNewsItem(id, pinned);
+    if (local) setNews(local.length ? local : SEED_NEWS);
+  };
+
+  // Pinned news items float to the top of the feed, each group keeping its
+  // own order (newest-first, same as watchNews/postNewsItem already give us).
+  const pinnedFirstNews = useMemo(() => {
+    const pinned = news.filter((n) => n.pinned);
+    const rest = news.filter((n) => !n.pinned);
+    return { list: [...pinned, ...rest], pinnedCount: pinned.length };
+  }, [news]);
+
   const deleteChatMsg = async (id) => {
     const local = await removeChatMessage(id);
     if (local) setChat(local);
   };
-
-  // Toggles a message's pinned flag. Shared/persisted the same way delete
-  // is — updateDoc on Firebase, direct array rewrite on the local fallback
-  // — so a pin sticks for every viewer, not just this browser.
-  const pinChatMsg = async (id, pinned) => {
-    const local = await pinChatMessage(id, pinned);
-    if (local) setChat(local);
-  };
-
-  // Pinned messages float to the top of The Clubhouse feed, each group
-  // keeping its own chronological order; chatEndRef's scroll-to-bottom
-  // effect (keyed on chat.length, not this) is unaffected — it's about new
-  // messages arriving, not this display reordering.
-  const pinnedFirstChat = useMemo(() => {
-    const pinned = chat.filter((m) => m.pinned);
-    const rest = chat.filter((m) => !m.pinned);
-    return { list: [...pinned, ...rest], pinnedCount: pinned.length };
-  }, [chat]);
 
   // ── Apply-to-Team ──
   const promotionPointsFor = (name) => {
@@ -6107,20 +6105,43 @@ export default function App() {
                 )}
 
                 <div className="space-y-2">
-                  {news.map((n) => (
-                    <article key={n.id} className="p-3.5 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                      <div className="flex items-center gap-2 text-xs mb-1.5">
-                        <span className="uppercase tracking-wider font-semibold" style={{ color: tagColor(n.tag) }}>{n.tag}</span>
-                        <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(n.ts)} ago</span>
-                        {commish && (
-                          <button onClick={() => deleteNews(n.id)} className="ml-auto text-xs" style={{ color: C.ember }}>
-                            delete
-                          </button>
-                        )}
-                      </div>
-                      <h3 className="text-base font-semibold leading-snug">{n.title}</h3>
-                      {n.body && <p className="mt-1 text-sm leading-relaxed" style={{ color: C.slate }}>{n.body}</p>}
-                    </article>
+                  {pinnedFirstNews.list.map((n, i) => (
+                    <div key={n.id}>
+                      {i === pinnedFirstNews.pinnedCount && pinnedFirstNews.pinnedCount > 0 && (
+                        <div
+                          className="text-[10px] uppercase tracking-widest pb-2 mb-2"
+                          style={{ color: C.slate, borderBottom: `1px solid ${C.line}` }}
+                        >
+                          rest of the news
+                        </div>
+                      )}
+                      <article
+                        className="p-3.5 rounded-sm"
+                        style={{
+                          background: n.pinned ? C.panelHi : C.panel,
+                          border: `1px solid ${C.line}`,
+                          borderLeft: n.pinned ? `3px solid ${C.gold}` : `1px solid ${C.line}`,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 text-xs mb-1.5">
+                          {n.pinned && <span title="Pinned">📌</span>}
+                          <span className="uppercase tracking-wider font-semibold" style={{ color: tagColor(n.tag) }}>{n.tag}</span>
+                          <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(n.ts)} ago</span>
+                          {commish && (
+                            <span className="ml-auto flex items-center gap-2 text-xs">
+                              <button onClick={() => pinNews(n.id, !n.pinned)} style={{ color: C.gold }}>
+                                {n.pinned ? "unpin" : "pin"}
+                              </button>
+                              <button onClick={() => deleteNews(n.id)} style={{ color: C.ember }}>
+                                delete
+                              </button>
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-base font-semibold leading-snug">{n.title}</h3>
+                        {n.body && <p className="mt-1 text-sm leading-relaxed" style={{ color: C.slate }}>{n.body}</p>}
+                      </article>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -6139,47 +6160,28 @@ export default function App() {
                         Nobody's talking yet. Someone in FLHS probably thinks they could hang in the NFL — discuss.
                       </div>
                     )}
-                    {pinnedFirstChat.list.map((m, i) => (
-                      <div key={m.id || i}>
-                        {i === pinnedFirstChat.pinnedCount && pinnedFirstChat.pinnedCount > 0 && (
-                          <div
-                            className="text-[10px] uppercase tracking-widest pb-2 mb-0.5"
-                            style={{ color: C.slate, borderBottom: `1px solid ${C.line}` }}
-                          >
-                            rest of the chat
-                          </div>
-                        )}
-                        <div
-                          className="flex items-start gap-2"
-                          style={m.pinned ? { background: C.panelHi, borderRadius: 4, padding: "4px 6px", margin: "-4px -6px" } : undefined}
-                        >
-                          <Avatar name={m.name} avatar={findCoachAvatar(m.name)} size={24} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline gap-2 text-xs">
-                              {m.pinned && <span title="Pinned">📌</span>}
-                              <button
-                                type="button"
-                                onClick={() => openCoachProfile(m.name)}
-                                className="font-semibold"
-                                style={{ color: m.name === coachName ? C.gold : C.chalk }}
-                              >
-                                {m.name}
-                                <TrophyBadges name={m.name} size={11} />
+                    {chat.map((m, i) => (
+                      <div key={m.id || i} className="flex items-start gap-2">
+                        <Avatar name={m.name} avatar={findCoachAvatar(m.name)} size={24} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => openCoachProfile(m.name)}
+                              className="font-semibold"
+                              style={{ color: m.name === coachName ? C.gold : C.chalk }}
+                            >
+                              {m.name}
+                              <TrophyBadges name={m.name} size={11} />
+                            </button>
+                            <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
+                            {commish && (
+                              <button onClick={() => deleteChatMsg(m.id)} className="ml-auto text-xs" style={{ color: C.ember }}>
+                                delete
                               </button>
-                              <span style={{ color: C.slate, fontFamily: "'IBM Plex Mono', monospace" }}>{ago(m.ts)}</span>
-                              {commish && (
-                                <span className="ml-auto flex items-center gap-2 text-xs">
-                                  <button onClick={() => pinChatMsg(m.id, !m.pinned)} style={{ color: C.gold }}>
-                                    {m.pinned ? "unpin" : "pin"}
-                                  </button>
-                                  <button onClick={() => deleteChatMsg(m.id)} style={{ color: C.ember }}>
-                                    delete
-                                  </button>
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm leading-snug mt-0.5">{m.text}</div>
+                            )}
                           </div>
+                          <div className="text-sm leading-snug mt-0.5">{m.text}</div>
                         </div>
                       </div>
                     ))}

@@ -61,17 +61,6 @@ export async function removeChatMessage(id) {
   return null;
 }
 
-export async function pinChatMessage(id, pinned) {
-  if (!firebaseReady) {
-    const c = (localGet("pfa-chat") || []).map((m) => (m.id === id ? { ...m, pinned } : m));
-    localSet("pfa-chat", c);
-    return c;
-  }
-  await ensureDb();
-  await fs.updateDoc(fs.doc(db, "chat", id), { pinned });
-  return null;
-}
-
 // ── News ──
 export function watchNews(cb) {
   if (!firebaseReady) {
@@ -105,6 +94,17 @@ export async function removeNewsItem(id) {
   }
   await ensureDb();
   await fs.deleteDoc(fs.doc(db, "news", id));
+  return null;
+}
+
+export async function pinNewsItem(id, pinned) {
+  if (!firebaseReady) {
+    const n = (localGet("pfa-news") || []).map((x) => (x.id === id ? { ...x, pinned } : x));
+    localSet("pfa-news", n);
+    return n;
+  }
+  await ensureDb();
+  await fs.updateDoc(fs.doc(db, "news", id), { pinned });
   return null;
 }
 
