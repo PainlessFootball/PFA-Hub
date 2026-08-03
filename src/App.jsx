@@ -306,17 +306,32 @@ function parseCSVRows(text) {
   return rows;
 }
 
-// Every real coach row — in any of the 13 league blocks — carries a Sleeper
-// roster link (".../roster/{leagueId}/{rosterId}") in the same column
-// position (index 27), so we don't need to parse the sheet's per-league
-// block structure at all. We just pull (coach, team, roster link, live
-// stats) off every row and key on what's already embedded in the link.
-// League header rows, column-header rows, and blank/trophies summary rows
-// all lack a roster link and are skipped automatically.
+// Every real coach row — in any of the 13 league blocks — carries a roster
+// number in a fixed column (index 26) and a tier-block header row directly
+// above it whose column 0 is EXACTLY that tier's key ("NFL", "FLHS", etc,
+// same strings as TIERS). That's the only reliable structure here — no
+// name-matching, no URL-parsing needed for row/tier detection.
 //
-// Returns THREE maps from ONE pass over the same rows (one fetch serves all
-// — no reason to hit the sheet twice for data that lives on the same line):
-//  - tagByRosterKey: `${leagueId}:${rosterId}` -> her tagged coach name
+// REAL BUG FOUND 2026-08-04, been there since this feed was first built:
+// the sheet's "roster link" column (index 27) is NOT `.../roster/{numeric
+// leagueId}/{rosterId}` like a real Sleeper URL — it's `.../roster/{team or
+// league NAME}/{rosterId}`, e.g. ".../roster/New Orleans Saints/12". The
+// old code regexed `/\/roster\/(\d+)\/(\d+)/` out of that link expecting a
+// numeric leagueId; that pattern can never match a name, so it silently
+// returned null on literally every row, every tier, every fetch — the
+// entire coachTagsByRosterKey/liveStatsByName system has been returning
+// EMPTY since 2026-08-02 without ever throwing or logging anything.
+// Confirmed systematic (checked all 13 tiers' first rows, all broken the
+// same way), not a one-off typo — this is just how her formula builds the
+// link. FIX: don't parse the link at all. The roster NUMBER is already sitting
+// in column 26 as a plain integer — use that directly — and key every map
+// by TIER instead of leagueId, which is actually an improvement on top of
+// the fix: leagueId changes every season (Sleeper reissues them yearly),
+// tier keys never do, so this stops needing a re-check every year the old
+// keying scheme never would have survived even if it HAD worked.
+//
+// Returns FOUR maps from ONE pass over the same rows (one fetch serves all):
+//  - tagByRosterKey: `${tierKey}:${rosterId}` -> her tagged coach name
 //  - rosterLinkByTeamName: lowercased team name -> full roster URL. This is
 //    a FALLBACK only — see where it's consumed in TeamProfileModal. Most
 //    roster links are computed live from the current season's already-live
@@ -335,20 +350,37 @@ function parseCSVRows(text) {
 //    lowerName lookup matches directly with no extra resolution needed.
 //    `#DIV/0!`/`#N/A`/blank (unplayed season, every coach preseason) parse
 //    to null via parseFloat, same as leagueDifficultyLabel already handles.
+//  - teamNameByRosterKey: `${tierKey}:${rosterId}` -> team name, populated
+//    for EVERY row with a team name, including unowned rosters (status
+//    "available"/"retired"/etc, no coach). Sleeper itself has no team name
+//    for a roster nobody's claimed — this is the only source for one, used
+//    as a fallback in buildStandings so an open team shows its real name
+//    ("Boca Raton Wolverines") instead of a bare "—" placeholder.
 function parseSheetLookups(csvText) {
   const rows = parseCSVRows(csvText);
   const tagByRosterKey = {};
   const rosterLinkByTeamName = {};
   const liveStatsByName = {};
+  const teamNameByRosterKey = {};
+  const tierKeySet = new Set(TIERS.map((t) => t.key));
+  let currentTier = null;
   for (const row of rows) {
+    const col0 = (row[0] || "").trim();
+    if (tierKeySet.has(col0)) {
+      currentTier = col0;
+      continue;
+    }
     const coach = (row[0] || "").trim();
     const team = (row[1] || "").trim();
+    const rosterId = (row[26] || "").trim();
     const rosterLink = row[27] || "";
-    if (!rosterLink) continue;
-    const m = /\/roster\/(\d+)\/(\d+)/.exec(rosterLink);
-    if (!m) continue;
-    if (coach) tagByRosterKey[`${m[1]}:${m[2]}`] = coach;
-    if (team && team !== "#N/A") rosterLinkByTeamName[team.toLowerCase()] = rosterLink.trim();
+    if (!currentTier || !rosterId || !rosterLink) continue;
+    const key = `${currentTier}:${rosterId}`;
+    if (coach) tagByRosterKey[key] = coach;
+    if (team && team !== "#N/A") {
+      rosterLinkByTeamName[team.toLowerCase()] = rosterLink.trim();
+      teamNameByRosterKey[key] = team;
+    }
     if (coach) {
       const promotionScore = parseFloat(row[9]);
       const currentCP = parseFloat(row[21]);
@@ -358,8 +390,7 @@ function parseSheetLookups(csvText) {
       };
     }
   }
-  return { tagByRosterKey, rosterLinkByTeamName, liveStatsByName };
-
+  return { tagByRosterKey, rosterLinkByTeamName, liveStatsByName, teamNameByRosterKey };
 }
 
 // Her "League Difficulty" tab, published the same way as Master_Coaches.
@@ -5290,6 +5321,7 @@ export default function App() {
   const [coachTagsByRosterKey, setCoachTagsByRosterKey] = useState({});
   const [sheetRosterLinks, setSheetRosterLinks] = useState({});
   const [liveCoachStats, setLiveCoachStats] = useState({});
+  const [sheetTeamNames, setSheetTeamNames] = useState({});
   const [leagueDifficulty, setLeagueDifficulty] = useState({});
 
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
@@ -5308,10 +5340,11 @@ export default function App() {
         if (!res.ok) return;
         const text = await res.text();
         if (cancelled) return;
-        const { tagByRosterKey, rosterLinkByTeamName, liveStatsByName } = parseSheetLookups(text);
+        const { tagByRosterKey, rosterLinkByTeamName, liveStatsByName, teamNameByRosterKey } = parseSheetLookups(text);
         setCoachTagsByRosterKey(tagByRosterKey);
         setSheetRosterLinks(rosterLinkByTeamName);
         setLiveCoachStats(liveStatsByName);
+        setSheetTeamNames(teamNameByRosterKey);
       } catch (e) {
         // Sheet unreachable — Directory/Coaches/roster links proceed on
         // their non-sheet fallbacks, same as before this feed existed.
@@ -5354,16 +5387,23 @@ export default function App() {
     };
   }, []);
 
-  const buildStandings = (users, rosters, leagueId) => {
+  // `tierKeyArg` (added 2026-08-04 alongside the roster-link bug fix) keys
+  // both sheet lookups below — see parseSheetLookups' comment for why tier
+  // beats leagueId as a key. Every caller of buildStandings now supplies it.
+  const buildStandings = (users, rosters, leagueId, tierKeyArg) => {
     const byOwner = {};
     users.forEach((u) => (byOwner[u.user_id] = u));
     const rows = rosters.map((r) => {
       const u = byOwner[r.owner_id] || {};
       const s = r.settings || {};
-      const tagged = leagueId ? coachTagsByRosterKey[`${leagueId}:${r.roster_id}`] : null;
+      const sheetKey = tierKeyArg ? `${tierKeyArg}:${r.roster_id}` : null;
+      const tagged = sheetKey ? coachTagsByRosterKey[sheetKey] : null;
       return {
         coach: tagged || u.display_name || "—",
-        team: (u.metadata && u.metadata.team_name) || u.display_name || "—",
+        // Sheet-derived team name is a fallback for an UNOWNED roster only
+        // (Sleeper has no team name to give us there at all) — a real
+        // owner's own `metadata.team_name`/`display_name` always wins first.
+        team: (u.metadata && u.metadata.team_name) || u.display_name || (sheetKey && sheetTeamNames[sheetKey]) || "—",
         w: s.wins || 0,
         l: s.losses || 0,
         pts: (s.fpts || 0) + (s.fpts_decimal || 0) / 100,
@@ -5379,12 +5419,12 @@ export default function App() {
     return rows.map((r, i) => ({ ...r, place: i + 1 }));
   };
 
-  const loadLeague = useCallback(async (leagueId, week) => {
+  const loadLeague = useCallback(async (leagueId, week, tKey) => {
     const [users, rosters] = await Promise.all([
       j(`${SLEEPER}/league/${leagueId}/users`),
       j(`${SLEEPER}/league/${leagueId}/rosters`),
     ]);
-    const rows = buildStandings(users, rosters, leagueId);
+    const rows = buildStandings(users, rosters, leagueId, tKey);
     setStandingsCache((c) => ({ ...c, [leagueId]: rows }));
     if (week) {
       try {
@@ -5437,7 +5477,7 @@ export default function App() {
         const st = await j(`${SLEEPER}/state/nfl`);
         if (cancelled) return;
         setNflState({ week: st.week || 1, season: st.season });
-        await loadLeague(NFL_LEAGUE_ID, st.week || 1);
+        await loadLeague(NFL_LEAGUE_ID, st.week || 1, "NFL");
         setMode("live");
         try {
           const users = await j(`${SLEEPER}/league/${NFL_LEAGUE_ID}/users`);
@@ -5492,7 +5532,7 @@ export default function App() {
       // past season's league is already finished, so there's no "this week"
       // to show; just pull its final standings.
       const week = standingsSeason === CURRENT_SEASON ? nflState && nflState.week : undefined;
-      loadLeague(id, week).finally(() => setTierLoading(false));
+      loadLeague(id, week, tierKey).finally(() => setTierLoading(false));
     }
   }, [tierKey, mode, standingsSeason, leagueMap, standingsCache, loadLeague, nflState]);
 
@@ -5503,8 +5543,8 @@ export default function App() {
     if (mode !== "live" || bulkLoadedRef.current) return;
     if (Object.keys(leagueMap).length <= 1) return;
     bulkLoadedRef.current = true;
-    Object.values(leagueMap).forEach((id) => {
-      if (id && !standingsCache[id]) loadLeague(id);
+    Object.entries(leagueMap).forEach(([tKey, id]) => {
+      if (id && !standingsCache[id]) loadLeague(id, undefined, tKey);
     });
   }, [mode, leagueMap, standingsCache, loadLeague]);
 
