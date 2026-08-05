@@ -6387,11 +6387,19 @@ export default function App() {
     }));
   }, [filteredDirectory, filteredOpenTeams]);
 
-  // ── Conference Strength — Troy's original spreadsheet metric, rebuilt from
-  // season-total points already in standingsCache. Two pools: the 10-tier
-  // "Alliance," and USFL+XFL compared only against each other. NFL has no
-  // pool, so it isn't scored. Scores hover near zero until real games are
-  // played — that's expected during the off-season, not a bug.
+  // ── Conference Strength — our JS port of her "League Difficulty" sheet
+  // formula (confirmed cell-by-cell against the sheet's real formulas and a
+  // real season's roster CSV, 2026-08-05), rebuilt entirely from data
+  // already in standingsCache — no separate fetch needed. Two pools: the
+  // 10-tier "Alliance," and USFL+XFL compared only against each other. NFL
+  // has no pool, so it isn't scored. Scores hover near zero until real games
+  // are played — that's expected during the off-season, not a bug.
+  //
+  // maxPts (below) is Sleeper's own `settings.ppts`/`ppts_decimal` — its
+  // built-in season-total "potential points" (optimal-lineup) figure per
+  // roster, already parsed in buildStandings. Confirmed byte-for-byte
+  // against her sheet's own MaxPts/pts-per-max columns on a real season's
+  // roster dump — no lineup-optimizer or player-level data needed.
   const conferenceStrength = useMemo(() => {
     if (mode !== "live") return {};
 
@@ -6402,12 +6410,20 @@ export default function App() {
       const scores = tRows.map((r) => r.pts || 0);
       const teamMax = Math.max(...scores);
       const teamMin = Math.min(...scores);
+      const maxPts = tRows.map((r) => r.maxPts || 0);
+      const ptsPerMax = tRows.map((r, i) => (maxPts[i] ? scores[i] / maxPts[i] : 0));
       return {
         teamMax,
         teamMin,
         d: teamMax - teamMin,
-        leagueAvg: average(scores),
         leagueMedian: median(scores),
+        // "L Av Max*Pts/Max" / "L Med Max*Pts/Max" in her sheet — the
+        // average (or median) of each team's Max Points, times the average
+        // (or median) of each team's Pts/Max ratio, computed within this
+        // tier only. Multiplied together as a single per-tier stat, same as
+        // her Admin!Q120*Admin!R120 cell.
+        avgMaxPM: average(maxPts) * average(ptsPerMax),
+        medMaxPM: median(maxPts) * median(ptsPerMax),
       };
     };
 
@@ -6421,21 +6437,25 @@ export default function App() {
       if (keys.length < 2) return {};
 
       const poolMedianD = median(keys.map((k) => stats[k].d));
-      const poolAvgOfAvgs = average(keys.map((k) => stats[k].leagueAvg));
-      const poolMedianOfMedians = median(keys.map((k) => stats[k].leagueMedian));
+      const poolAvgOfAvgMaxPM = average(keys.map((k) => stats[k].avgMaxPM));
+      const poolMedianOfMedMaxPM = median(keys.map((k) => stats[k].medMaxPM));
       const poolMedianOfMax = median(keys.map((k) => stats[k].teamMax));
+      // Her sheet's $K$43 is "Av16 Med Tot Pts" — the AVERAGE of the pool's
+      // per-tier medians, not the median of them.
+      const poolAvgOfMedians = average(keys.map((k) => stats[k].leagueMedian));
       const poolMedianOfMin = median(keys.map((k) => stats[k].teamMin));
 
       const out = {};
       keys.forEach((k) => {
         const s = stats[k];
         const score =
-          (s.d - poolMedianD) / -10 / 10 +
-          (s.leagueAvg - poolAvgOfAvgs) / 100 +
-          (s.leagueMedian - poolMedianOfMedians) / 20 +
-          (s.teamMax - poolMedianOfMax) / 100 +
-          (s.leagueMedian - poolMedianOfMedians) / 20 +
-          (s.teamMin - poolMedianOfMin) / 20;
+          ((s.d - poolMedianD) / -10 / 10 +
+            (s.avgMaxPM - poolAvgOfAvgMaxPM) / 100 +
+            (s.medMaxPM - poolMedianOfMedMaxPM) / 20 +
+            (s.teamMax - poolMedianOfMax) / 100 +
+            (s.leagueMedian - poolAvgOfMedians) / 20 +
+            (s.teamMin - poolMedianOfMin) / 100) /
+          2; // her sheet sums all six bonus terms, then halves the total
         out[k] = { score, poolSize: keys.length };
       });
       return out;
@@ -6443,6 +6463,8 @@ export default function App() {
 
     return { ...scorePool(ALLIANCE_POOL), ...scorePool(PRO_POOL) };
   }, [mode, leagueMap, standingsCache]);
+
+
 
   const tagColor = (t) =>
     t === "BREAKING" ? C.ember : t === "ANNOUNCEMENT" ? C.gold : t === "COACHING CAROUSEL" ? C.turf : C.slate;
