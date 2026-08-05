@@ -5489,6 +5489,44 @@ export default function App() {
     };
   }, []);
 
+  // Self-heals already-cached standings once the sheet feed arrives.
+  // CONFIRMED 2026-08-05 via the debug logs above: the sheet fetch DOES
+  // succeed (183 team names, 188 tags parsed), it just consistently
+  // resolves after Sleeper's users+rosters calls already finished and
+  // buildStandings already cached "—" for every open roster — every
+  // tier, every time, not intermittent. The refs above fix this for any
+  // FUTURE buildStandings call, but standingsCache is only ever computed
+  // ONCE per leagueId (guarded by `!standingsCache[id]`), so anything
+  // already cached before the sheet arrived stays wrong forever without
+  // this. Deliberately NOT fixed by delaying Sleeper's load until the
+  // sheet resolves — that would slow down the whole site's initial load
+  // for the sake of a handful of vacant rosters. Patch in place instead.
+  useEffect(() => {
+    if (Object.keys(sheetTeamNames).length === 0 && Object.keys(coachTagsByRosterKey).length === 0) return;
+    setStandingsCache((cache) => {
+      let changed = false;
+      const next = { ...cache };
+      Object.entries(leagueMap).forEach(([tKey, id]) => {
+        const rows = next[id];
+        if (!rows) return;
+        let rowsChanged = false;
+        const patchedRows = rows.map((r) => {
+          const sheetKey = `${tKey}:${r.rosterId}`;
+          const betterTeam = r.team === "—" ? sheetTeamNames[sheetKey] : null;
+          const betterCoach = r.coach === "—" ? coachTagsByRosterKey[sheetKey] : null;
+          if (!betterTeam && !betterCoach) return r;
+          rowsChanged = true;
+          return { ...r, ...(betterTeam ? { team: betterTeam } : {}), ...(betterCoach ? { coach: betterCoach } : {}) };
+        });
+        if (rowsChanged) {
+          next[id] = patchedRows;
+          changed = true;
+        }
+      });
+      return changed ? next : cache;
+    });
+  }, [sheetTeamNames, coachTagsByRosterKey, leagueMap]);
+
   // League-difficulty sheet — separate tab, separate fetch (different gid,
   // no rows in common with Master_Coaches to share a parse with). Failure
   // just leaves the map empty, so the Standings badge simply doesn't show —
