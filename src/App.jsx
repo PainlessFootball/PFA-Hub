@@ -5517,13 +5517,13 @@ export default function App() {
       const tagged = sheetKey ? coachTagsByRosterKeyRef.current[sheetKey] : null;
       // TEMPORARY — remove once the Directory open-team bug is confirmed
       // fixed. Only logs unowned rosters, so this won't spam the console.
+      // Plain string on purpose (not an object) so it prints already-expanded
+      // in the console instead of a collapsed "Object" the caller then has
+      // to click into.
       if (!r.owner_id && sheetKey) {
-        console.log("[open-team debug]", {
-          sheetKey,
-          refHasKey: Object.prototype.hasOwnProperty.call(sheetTeamNamesRef.current, sheetKey),
-          refValue: sheetTeamNamesRef.current[sheetKey],
-          refKeyCount: Object.keys(sheetTeamNamesRef.current).length,
-        });
+        console.log(
+          `[open-team debug] sheetKey=${sheetKey} refHasKey=${Object.prototype.hasOwnProperty.call(sheetTeamNamesRef.current, sheetKey)} refValue=${sheetTeamNamesRef.current[sheetKey]} refKeyCount=${Object.keys(sheetTeamNamesRef.current).length}`
+        );
       }
       return {
         coach: tagged || u.display_name || "—",
