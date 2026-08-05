@@ -1556,7 +1556,34 @@ function Avatar({ name, avatar, size = 36 }) {
 // TDZ this file has been bitten by before. A function body only runs when
 // called (i.e. at render time, after the whole module has already loaded),
 // so referencing them here is safe regardless of declaration order.
+//
+// 2026-08-04: real per-team logo art (TEAM_ART, defined near FLHS_CLR)
+// takes priority over the color crest whenever a team has an entry — same
+// TDZ-safe function-body-only reference as the color maps above. Tracks
+// the FAILED src rather than a boolean (same pattern as GSlot/TierMark/
+// BowlLogo) so switching teams/tiers retries automatically instead of
+// staying broken. Falls back to the color crest on missing art OR a load
+// error, so an incomplete art set for a tier never looks worse than before.
 function TeamMark({ team, tierKey, size = 38 }) {
+  const [failedSrc, setFailedSrc] = useState(null);
+  const artMap = TEAM_ART[tierKey];
+  const artSrc = artMap ? artMap[normTeamKey(team)] : null;
+  if (artSrc && artSrc !== failedSrc) {
+    return (
+      <img
+        src={artSrc}
+        alt={team}
+        onError={() => setFailedSrc(artSrc)}
+        style={{
+          width: size,
+          height: size,
+          objectFit: "contain",
+          borderRadius: 4,
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
   const clrMap =
     tierKey === "NFL" ? TEAM_CLR :
     tierKey === "USFL" ? USFL_CLR :
@@ -4286,6 +4313,61 @@ const FLHS_CLR = {
   "Southwest": ["#D9D9D9", "#592478"], "Coral Glades": ["#3F8E8E", "#FFFFFF"],
   "Deerfield": ["#000000", "#F19E38"], "Stoneman": ["#691817", "#E19A3D"],
   "West Boca": ["#321D70", "#F9DA78"], "Cypress Bay": ["#25528F", "#B89230"],
+};
+
+// Real per-team logo art, 2026-08-04 — a NEW category, separate from the
+// 32-asset league-mark pipeline and from FLHS_CLR just above. FLHS_CLR is
+// keyed by the SHORT names used in the 2025 historical bracket sheets
+// ("Southwest", "Dr Krop"); TEAM_ART is keyed by each team's CURRENT full
+// name as it appears in live data ("Coral Gables Cavaliers", "Dr. Krop
+// Lightning") — two different namespaces for two different eras, on
+// purpose. Looked up through normTeamKey (lowercase, alphanumeric only) so
+// small punctuation drift between this list and a live Sleeper display
+// name — a period, a hyphen, a stray space — doesn't silently miss.
+// Structured per-tier (TEAM_ART[tierKey][normalizedTeam]) so any other
+// tier can grow its own set later without touching this one; only FLHS
+// exists so far. All 16 FLHS teams are populated even though only the
+// open ones render anywhere today (Directory's open-team cards, via
+// TeamMark) — banking the rest now means a future coach-card or team-
+// modal image slot is a display change only, no new art pass required.
+// Southwest Eagles was renamed Coral Gables Cavaliers 2026-08-04 (team
+// name/logo only, roster otherwise unchanged) — only the CURRENT name
+// appears here; the old name stays in FLHS_CLR/HISTORICAL_FINAL_ORDER
+// untouched, since those describe the 2025 season under its old name.
+//
+// Folder-per-league layout, requested 2026-08-04 so up to 232 team files
+// across 13 leagues don't pile up flat in public/art/ next to the 32
+// single-per-tier league marks. Each league gets its own folder named
+// EXACTLY "<tier key> team logos" — she uploads that literal folder
+// ("FLHS team logos", eventually "BIG XII team logos", etc.). teamArtPath
+// builds the path from the tier key so every entry stays in sync with
+// that convention automatically, and %-encodes the spaces since a literal
+// space in a src path is technically invalid even though most browsers
+// tolerate it unencoded. The PNG filenames themselves are unchanged from
+// what already went out flat — only the folder they sit in is new, so
+// nothing needs re-naming, just moving into the new folder.
+const teamArtPath = (tierKey, filename) =>
+  `/art/${tierKey} team logos/${filename}`.replace(/ /g, "%20");
+const normTeamKey = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const TEAM_ART = {
+  FLHS: {
+    [normTeamKey("Western Wildcats")]: teamArtPath("FLHS", "flhs-team-western-wildcats.png"),
+    [normTeamKey("Coral Springs Colts")]: teamArtPath("FLHS", "flhs-team-coral-springs-colts.png"),
+    [normTeamKey("Boca Raton Wolverines")]: teamArtPath("FLHS", "flhs-team-boca-raton-wolverines.png"),
+    [normTeamKey("Palmetto Panthers")]: teamArtPath("FLHS", "flhs-team-palmetto-panthers.png"),
+    [normTeamKey("West Broward Bobcats")]: teamArtPath("FLHS", "flhs-team-west-broward-bobcats.png"),
+    [normTeamKey("Miami Dade Buccaneers")]: teamArtPath("FLHS", "flhs-team-miami-dade-buccaneers.png"),
+    [normTeamKey("Miami Beach Hi Tides")]: teamArtPath("FLHS", "flhs-team-miami-beach-hi-tides.png"),
+    [normTeamKey("Taravella Trojans")]: teamArtPath("FLHS", "flhs-team-taravella-trojans.png"),
+    [normTeamKey("West Boca Raton Bulls")]: teamArtPath("FLHS", "flhs-team-west-boca-bulls.png"),
+    [normTeamKey("Dr. Krop Lightning")]: teamArtPath("FLHS", "flhs-team-dr-krop-lightning.png"),
+    [normTeamKey("Coral Gables Cavaliers")]: teamArtPath("FLHS", "flhs-team-coral-gables-cavaliers.png"),
+    [normTeamKey("Deerfield Beach Bucks")]: teamArtPath("FLHS", "flhs-team-deerfield-beach-bucks.png"),
+    [normTeamKey("Coral Glades Jaguars")]: teamArtPath("FLHS", "flhs-team-coral-glades-jaguars.png"),
+    [normTeamKey("Cypress Bay Lightning")]: teamArtPath("FLHS", "flhs-team-cypress-bay-lightning.png"),
+    [normTeamKey("Stoneman Douglas Eagles")]: teamArtPath("FLHS", "flhs-team-stoneman-douglas-eagles.png"),
+    [normTeamKey("Miami Senior Stingrays")]: teamArtPath("FLHS", "flhs-team-miami-senior-stingrays.png"),
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
