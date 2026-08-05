@@ -359,6 +359,19 @@ function parseCSVRows(text) {
 //    for a roster nobody's claimed — this is the only source for one, used
 //    as a fallback in buildStandings so an open team shows its real name
 //    ("Boca Raton Wolverines") instead of a bare "—" placeholder.
+//
+// SHEET_TIER_ALIASES — confirmed 2026-08-05 via direct row checks against
+// the live sheet: the Master_Coaches sheet's own tier-block labels don't
+// always match TIERS' canonical keys. Big Ten's block is headed "BIG10"
+// (not "TEN"), Big 12's is "BIG12" (not "BIG XII"), Sun Belt's is "Sun
+// Belt" (not "SUN"). Without this, a mismatched block's currentTier never
+// gets set, so every row under it is silently skipped — exactly the bug
+// that hit Big Ten's open teams (Big 12/Sun Belt had the same latent
+// issue, just no current vacancy to expose it). Separate from
+// CONF_TO_TIER_KEY below, which aliases a DIFFERENT source's (old
+// 300-Club/export data) own different abbreviations.
+const SHEET_TIER_ALIASES = { BIG10: "TEN", BIG12: "BIG XII", "Sun Belt": "SUN" };
+
 function parseSheetLookups(csvText) {
   const rows = parseCSVRows(csvText);
   const tagByRosterKey = {};
@@ -368,7 +381,8 @@ function parseSheetLookups(csvText) {
   const tierKeySet = new Set(TIERS.map((t) => t.key));
   let currentTier = null;
   for (const row of rows) {
-    const col0 = (row[0] || "").trim();
+    const rawCol0 = (row[0] || "").trim();
+    const col0 = SHEET_TIER_ALIASES[rawCol0] || rawCol0;
     if (tierKeySet.has(col0)) {
       currentTier = col0;
       continue;
