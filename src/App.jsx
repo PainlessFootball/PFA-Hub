@@ -4762,14 +4762,22 @@ const USFLXFL_LIVE = {
   USFL: {
     colors: USFL_CLR, logoSrc: USFL_MARK, trophy: USFL_TROPHY, logo: "USFL",
     banners: USFL_BANNERS, consoBanners: USFL_CONSO_BANNERS,
-    // Live Sleeper team names haven't been audited against USFL_CLR yet —
-    // 2026 standings are still 0-0, so today's seed order is just roster
-    // order. Check this the same way every other tier was (7 aliases needed
-    // across R3_LIVE, 6 for NFL) once real names start appearing.
+    // Audited 2026-08-05 against her live 2026 Sleeper names: all 20 are
+    // "City + Mascot" (real historical USFL franchise names), and every
+    // city prefix matches a USFL_CLR key exactly. 0 aliases needed.
   },
   XFL: {
     colors: XFL_CLR, logoSrc: XFL_MARK, trophy: XFL_TROPHY, logo: "XFL",
     banners: XFL_BANNERS, consoBanners: XFL_CONSO_BANNERS,
+    // Audited 2026-08-05. XFL_CLR uses LAX/LAW (not "Los Angeles") because
+    // this tier has two different LA franchises (2001 Xtreme, 2020
+    // Wildcats) — neither live name's tokens prefix-match its 3-letter
+    // code, so both need an explicit alias below. Every other live name
+    // matched an XFL_CLR key directly, including "St. Louis Battlehawks"
+    // (works because the tokenizer's ST->STATE expansion applies
+    // identically to both the live name and the "St Louis" key, so it
+    // cancels out).
+    aliases: { "Los Angeles Xtreme": "LAX", "Los Angeles Wildcats": "LAW" },
   },
 };
 
