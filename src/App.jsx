@@ -5469,21 +5469,16 @@ export default function App() {
       try {
         const res = await fetch(COACH_SHEET_CSV_URL);
         if (!res.ok) {
-          // TEMPORARY — remove once the Directory open-team bug is
-          // confirmed fixed. This branch used to return here with zero
-          // console output — a known blind spot, closed now so a bad
-          // response status is finally visible instead of silent.
-          console.warn("[open-team debug] Master_Coaches fetch returned non-OK status:", res.status, res.statusText);
+          // Was previously a silent `return;` with zero console output — a
+          // real blind spot (a bad status here looked identical to a
+          // network-level failure from the outside). Kept permanently now
+          // that it's fixed, not just for this investigation.
+          console.warn("PFA live feed failed: Master_Coaches sheet returned a non-OK response.", res.status, res.statusText);
           return;
         }
         const text = await res.text();
         if (cancelled) return;
         const { tagByRosterKey, rosterLinkByTeamName, liveStatsByName, teamNameByRosterKey } = parseSheetLookups(text);
-        // TEMPORARY — remove once the Directory open-team bug is confirmed
-        // fixed. Direct confirmation of what actually made it into state.
-        console.log(
-          `[open-team debug] Master_Coaches fetch succeeded — parsed ${Object.keys(teamNameByRosterKey).length} team-name entries, ${Object.keys(tagByRosterKey).length} tag entries`
-        );
         setCoachTagsByRosterKey(tagByRosterKey);
         setSheetRosterLinks(rosterLinkByTeamName);
         setLiveCoachStats(liveStatsByName);
@@ -5579,16 +5574,6 @@ export default function App() {
       const s = r.settings || {};
       const sheetKey = tierKeyArg ? `${tierKeyArg}:${r.roster_id}` : null;
       const tagged = sheetKey ? coachTagsByRosterKeyRef.current[sheetKey] : null;
-      // TEMPORARY — remove once the Directory open-team bug is confirmed
-      // fixed. Only logs unowned rosters, so this won't spam the console.
-      // Plain string on purpose (not an object) so it prints already-expanded
-      // in the console instead of a collapsed "Object" the caller then has
-      // to click into.
-      if (!r.owner_id && sheetKey) {
-        console.log(
-          `[open-team debug] sheetKey=${sheetKey} refHasKey=${Object.prototype.hasOwnProperty.call(sheetTeamNamesRef.current, sheetKey)} refValue=${sheetTeamNamesRef.current[sheetKey]} refKeyCount=${Object.keys(sheetTeamNamesRef.current).length}`
-        );
-      }
       return {
         coach: tagged || u.display_name || "—",
         // Sheet-derived team name is a fallback for an UNOWNED roster only
