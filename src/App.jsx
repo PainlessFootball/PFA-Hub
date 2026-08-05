@@ -15,6 +15,9 @@ import {
   watchPromotionWindow,
   setPromotionWindow,
 } from "./storage.js";
+import { onAuthChange, logoutUser } from "./auth.js";
+import LandingPage from "./LandingPage.jsx";
+import AdminPanel from "./AdminPanel.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // PAINLESS FOOTBALL ALLIANCE — fan hub
@@ -5406,6 +5409,19 @@ export default function App() {
   const [sheetTeamNames, setSheetTeamNames] = useState({});
   const [leagueDifficulty, setLeagueDifficulty] = useState({});
 
+  // Auth — undefined currentUser means "still checking", not "logged out",
+  // so the loading screen and the landing page never flash into each other.
+  const [currentUser, setCurrentUser] = useState(undefined);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthChange((profile) => {
+      setCurrentUser(profile);
+      setAuthReady(true);
+    });
+    return unsub;
+  }, []);
+
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
   // Live sheet feed — fetched once on load, parsed once for both the
@@ -6432,6 +6448,35 @@ export default function App() {
     </th>
   );
 
+  // Auth render gate — must sit before any of the app's own JSX. Order
+  // matters: still-checking, then logged-out, then logged-in-but-suspended,
+  // and only then the real app below.
+  if (!authReady) {
+    return (
+      <div
+        className="min-h-screen w-full flex items-center justify-center"
+        style={{ background: C.ink, color: C.gold, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: "0.1em" }}
+      >
+        LOADING…
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LandingPage onAuth={setCurrentUser} />;
+  }
+
+  if (!currentUser.approved) {
+    return (
+      <div
+        className="min-h-screen w-full flex items-center justify-center text-center px-6"
+        style={{ background: C.ink, color: C.ember, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18 }}
+      >
+        Your account has been suspended. Contact an admin.
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full" style={{ background: C.ink, color: C.chalk, fontFamily: "'Barlow', sans-serif" }}>
       <style>{`
@@ -6459,21 +6504,40 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <span
-              className="px-2.5 py-1 text-xs uppercase tracking-wider rounded-sm"
-              style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                background: mode === "live" ? "rgba(87,180,120,0.15)" : "rgba(232,163,61,0.12)",
-                color: mode === "live" ? C.turf : C.gold,
-                border: `1px solid ${mode === "live" ? C.turf : C.goldDim}`,
-              }}
-            >
-              {mode === "loading"
-                ? "Connecting…"
-                : mode === "live"
-                ? `● Live · ${nflState ? `${nflState.season} Wk ${nflState.week}` : ""}`
-                : "Offline · sample data"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                className="px-2.5 py-1 text-xs uppercase tracking-wider rounded-sm"
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  background: mode === "live" ? "rgba(87,180,120,0.15)" : "rgba(232,163,61,0.12)",
+                  color: mode === "live" ? C.turf : C.gold,
+                  border: `1px solid ${mode === "live" ? C.turf : C.goldDim}`,
+                }}
+              >
+                {mode === "loading"
+                  ? "Connecting…"
+                  : mode === "live"
+                  ? `● Live · ${nflState ? `${nflState.season} Wk ${nflState.week}` : ""}`
+                  : "Offline · sample data"}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: C.slate }}>
+                  {currentUser.displayName || currentUser.email}
+                  {currentUser.role !== "user" && (
+                    <span className="ml-1.5 font-bold uppercase" style={{ color: C.gold, fontSize: 10 }}>
+                      [{currentUser.role}]
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={logoutUser}
+                  className="px-2.5 py-1 text-xs font-bold uppercase rounded-sm"
+                  style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.slate, cursor: "pointer" }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
           </div>
           <nav className="mt-4 flex overflow-x-auto">
             <Tab id="home">Home</Tab>
@@ -6482,6 +6546,7 @@ export default function App() {
             <Tab id="directory">Directory</Tab>
             <Tab id="pyramid">Rules</Tab>
             <Tab id="300club">300 Club</Tab>
+            {currentUser.role === "admin" && <Tab id="admin">Admin</Tab>}
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
           </nav>
         </div>
@@ -7745,6 +7810,8 @@ export default function App() {
             </aside>
           </div>
         )}
+
+        {view === "admin" && currentUser.role === "admin" && <AdminPanel currentUser={currentUser} />}
       </main>
 
       <footer className="px-4 sm:px-6 py-4 text-xs" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>

@@ -1,17 +1,20 @@
 // Storage adapter: uses Firebase (shared, real-time) when configured,
 // otherwise falls back to this browser's local storage.
-import { firebaseConfig } from "./firebase-config.js";
+import { app, firebaseConfig } from "./firebase-config.js";
 
 export const firebaseReady = Boolean(firebaseConfig && firebaseConfig.apiKey);
 
 let db = null;
 let fs = null; // firestore module functions
 
+// Firebase itself is now initialized once, in firebase-config.js (auth.js
+// needs that same initialized `app` too) — this just hands Firestore the
+// shared instance instead of calling initializeApp a second time, which
+// throws ("Firebase App named '[DEFAULT]' already exists").
 async function ensureDb() {
   if (!firebaseReady || db) return db;
-  const { initializeApp } = await import("firebase/app");
   fs = await import("firebase/firestore");
-  db = fs.getFirestore(initializeApp(firebaseConfig));
+  db = fs.getFirestore(app);
   return db;
 }
 

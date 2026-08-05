@@ -1,3 +1,5 @@
+import { initializeApp } from "firebase/app";
+
 // ── PASTE YOUR FIREBASE CONFIG HERE (Step 5 of the walkthrough) ──
 // Until you do, the site works fine but chat/news are saved
 // only on each person's own device.
@@ -21,3 +23,8 @@ export const firebaseConfig = {
   messagingSenderId: "671133068854",
   appId: "1:671133068854:web:15db9f567a75575170b297"
 };
+
+// Initialized once here — auth.js and storage.js both import this same
+// `app` instance rather than each calling initializeApp themselves, which
+// would throw ("Firebase App named '[DEFAULT]' already exists").
+export const app = initializeApp(firebaseConfig);
