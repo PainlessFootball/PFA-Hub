@@ -5424,6 +5424,25 @@ export default function App() {
 
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
+  // buildStandings is only ever called from inside loadLeague, which is
+  // wrapped in useCallback([]) below (frozen once at mount, on purpose — it
+  // shouldn't refetch every league every time some unrelated state changes).
+  // The bug: buildStandings used to read coachTagsByRosterKey/sheetTeamNames
+  // directly, which meant it permanently saw the {} they held on that first
+  // render — not a timing race, a hard freeze, since useCallback([]) never
+  // re-runs its factory. These refs stay in sync with the real state via the
+  // effects right below, and .current is read live at CALL time regardless
+  // of when the enclosing closure was created — refs, unlike the state
+  // values themselves, aren't captured-by-value at closure creation.
+  const coachTagsByRosterKeyRef = useRef({});
+  const sheetTeamNamesRef = useRef({});
+  useEffect(() => {
+    coachTagsByRosterKeyRef.current = coachTagsByRosterKey;
+  }, [coachTagsByRosterKey]);
+  useEffect(() => {
+    sheetTeamNamesRef.current = sheetTeamNames;
+  }, [sheetTeamNames]);
+
   // Live sheet feed — fetched once on load, parsed once for both the
   // coach-tag map and the roster-link fallback map (same rows, one fetch).
   // Failure just leaves all three maps empty: coach names fall back to
@@ -5495,13 +5514,13 @@ export default function App() {
       const u = byOwner[r.owner_id] || {};
       const s = r.settings || {};
       const sheetKey = tierKeyArg ? `${tierKeyArg}:${r.roster_id}` : null;
-      const tagged = sheetKey ? coachTagsByRosterKey[sheetKey] : null;
+      const tagged = sheetKey ? coachTagsByRosterKeyRef.current[sheetKey] : null;
       return {
         coach: tagged || u.display_name || "—",
         // Sheet-derived team name is a fallback for an UNOWNED roster only
         // (Sleeper has no team name to give us there at all) — a real
         // owner's own `metadata.team_name`/`display_name` always wins first.
-        team: (u.metadata && u.metadata.team_name) || u.display_name || (sheetKey && sheetTeamNames[sheetKey]) || "—",
+        team: (u.metadata && u.metadata.team_name) || u.display_name || (sheetKey && sheetTeamNamesRef.current[sheetKey]) || "—",
         w: s.wins || 0,
         l: s.losses || 0,
         pts: (s.fpts || 0) + (s.fpts_decimal || 0) / 100,
