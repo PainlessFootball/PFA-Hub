@@ -5454,10 +5454,22 @@ export default function App() {
     (async () => {
       try {
         const res = await fetch(COACH_SHEET_CSV_URL);
-        if (!res.ok) return;
+        if (!res.ok) {
+          // TEMPORARY — remove once the Directory open-team bug is
+          // confirmed fixed. This branch used to return here with zero
+          // console output — a known blind spot, closed now so a bad
+          // response status is finally visible instead of silent.
+          console.warn("[open-team debug] Master_Coaches fetch returned non-OK status:", res.status, res.statusText);
+          return;
+        }
         const text = await res.text();
         if (cancelled) return;
         const { tagByRosterKey, rosterLinkByTeamName, liveStatsByName, teamNameByRosterKey } = parseSheetLookups(text);
+        // TEMPORARY — remove once the Directory open-team bug is confirmed
+        // fixed. Direct confirmation of what actually made it into state.
+        console.log(
+          `[open-team debug] Master_Coaches fetch succeeded — parsed ${Object.keys(teamNameByRosterKey).length} team-name entries, ${Object.keys(tagByRosterKey).length} tag entries`
+        );
         setCoachTagsByRosterKey(tagByRosterKey);
         setSheetRosterLinks(rosterLinkByTeamName);
         setLiveCoachStats(liveStatsByName);
