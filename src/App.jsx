@@ -5515,6 +5515,16 @@ export default function App() {
       const s = r.settings || {};
       const sheetKey = tierKeyArg ? `${tierKeyArg}:${r.roster_id}` : null;
       const tagged = sheetKey ? coachTagsByRosterKeyRef.current[sheetKey] : null;
+      // TEMPORARY — remove once the Directory open-team bug is confirmed
+      // fixed. Only logs unowned rosters, so this won't spam the console.
+      if (!r.owner_id && sheetKey) {
+        console.log("[open-team debug]", {
+          sheetKey,
+          refHasKey: Object.prototype.hasOwnProperty.call(sheetTeamNamesRef.current, sheetKey),
+          refValue: sheetTeamNamesRef.current[sheetKey],
+          refKeyCount: Object.keys(sheetTeamNamesRef.current).length,
+        });
+      }
       return {
         coach: tagged || u.display_name || "—",
         // Sheet-derived team name is a fallback for an UNOWNED roster only
