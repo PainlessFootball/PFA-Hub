@@ -352,7 +352,8 @@ function parseCSVRows(text) {
 //    same format as CAREER_STATS's own keys, so allCoachesTable's existing
 //    lowerName lookup matches directly with no extra resolution needed.
 //    `#DIV/0!`/`#N/A`/blank (unplayed season, every coach preseason) parse
-//    to null via parseFloat, same as leagueDifficultyLabel already handles.
+//    to null via parseFloat — the same defensive-parse pattern used
+//    throughout this file for her live sheet feeds.
 //  - teamNameByRosterKey: `${tierKey}:${rosterId}` -> team name, populated
 //    for EVERY row with a team name, including unowned rosters (status
 //    "available"/"retired"/etc, no coach). Sleeper itself has no team name
@@ -408,39 +409,6 @@ function parseSheetLookups(csvText) {
     }
   }
   return { tagByRosterKey, rosterLinkByTeamName, liveStatsByName, teamNameByRosterKey };
-}
-
-// Her "League Difficulty" tab, published the same way as Master_Coaches.
-// Layout is a fixed 3-column block PER TIER (label, value, blank spacer),
-// running NFL/USFL/XFL/SEC/BIG XII/ACC/TEN/SUN/SOCO/IVY/SWAC/GLIAC/FLHS —
-// the SAME order as our own TIERS array — so no name-matching is needed at
-// all: tier i's value sits at column 3*i+1. The final "bonus" figure she
-// wants (the one feeding her Coaching Score formula on the Rules page) is
-// on row 35 (index 34). Every formula upstream of it medians/averages real
-// season data, so expect "#DIV/0!"/"#N/A" for every tier until games are
-// actually played — that's her sheet, not a parsing bug; formatted for
-// display by leagueDifficultyLabel below.
-const LEAGUE_DIFFICULTY_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSCHiIhEQSvPXRS1anXfhB4PPw6caQ4HEMaRCld1Mi28r0uWtFn5sQyCz-KQElyh738EOBZiLBVHQsc/pub?gid=1744823145&single=true&output=csv";
-
-function parseLeagueDifficultyFromSheet(csvText) {
-  const rows = parseCSVRows(csvText);
-  const bonusRow = rows[34] || [];
-  const byTierKey = {};
-  TIERS.forEach((t, i) => {
-    const value = (bonusRow[3 * i + 1] || "").trim();
-    if (value) byTierKey[t.key] = value;
-  });
-  return byTierKey;
-}
-
-// Formats a raw sheet value for the Standings badge: a real number gets a
-// sign and 2 decimals (matches her sheet's own display), anything else
-// (her formula errors before the season has real data) reads as "TBD"
-// rather than showing "#DIV/0!" on the live site.
-function leagueDifficultyLabel(raw) {
-  const n = parseFloat(raw);
-  return Number.isFinite(n) ? (n >= 0 ? `+${n.toFixed(2)}` : n.toFixed(2)) : "TBD";
 }
 
 // Career stats from the Admin tab (columns AM:BA), keyed by coach name
@@ -5429,7 +5397,6 @@ export default function App() {
   const [sheetRosterLinks, setSheetRosterLinks] = useState({});
   const [liveCoachStats, setLiveCoachStats] = useState({});
   const [sheetTeamNames, setSheetTeamNames] = useState({});
-  const [leagueDifficulty, setLeagueDifficulty] = useState({});
 
   // Auth — undefined currentUser means "still checking", not "logged out",
   // so the loading screen and the landing page never flash into each other.
@@ -5543,33 +5510,6 @@ export default function App() {
       return changed ? next : cache;
     });
   }, [sheetTeamNames, coachTagsByRosterKey, leagueMap]);
-
-  // League-difficulty sheet — separate tab, separate fetch (different gid,
-  // no rows in common with Master_Coaches to share a parse with). Failure
-  // just leaves the map empty, so the Standings badge simply doesn't show —
-  // no error surfaced to her.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(LEAGUE_DIFFICULTY_CSV_URL);
-        if (!res.ok) return;
-        const text = await res.text();
-        if (cancelled) return;
-        setLeagueDifficulty(parseLeagueDifficultyFromSheet(text));
-      } catch (e) {
-        // Sheet unreachable — Standings just omits the difficulty badge.
-        // Logged (not surfaced to her) so a dev-tools check can tell this
-        // feed apart from the coach-sheet one above. Most likely cause if
-        // this fires: the browser blocked the request (CORS) — the
-        // published-CSV link still works if opened directly.
-        console.warn("PFA live feed failed: League Difficulty sheet.", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // `tierKeyArg` (added 2026-08-04 alongside the roster-link bug fix) keys
   // both sheet lookups below — see parseSheetLookups' comment for why tier
@@ -6971,19 +6911,6 @@ export default function App() {
                   <h2 className="text-3xl uppercase leading-none truncate" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
                     {tier.name}
                   </h2>
-                  {mode === "live" && standingsSeason === CURRENT_SEASON && leagueDifficulty[tier.key] !== undefined && (() => {
-                    const diffN = parseFloat(leagueDifficulty[tier.key]);
-                    const diffColor = Number.isFinite(diffN) ? (diffN > 0 ? C.turf : diffN < 0 ? C.ember : C.slate) : C.slate;
-                    return (
-                      <span
-                        className="text-xs uppercase tracking-wider px-1.5 py-0.5 rounded-sm shrink-0"
-                        style={{ color: diffColor, border: `1px solid ${C.line}`, fontFamily: "'IBM Plex Mono', monospace" }}
-                        title="League Difficulty bonus, from her spreadsheet — feeds into each coach's Coaching Score"
-                      >
-                        Difficulty {leagueDifficultyLabel(leagueDifficulty[tier.key])}
-                      </span>
-                    );
-                  })()}
                 </div>
                 <span className="text-xs uppercase tracking-widest" style={{ color: C.slate }}>Tier {tier.tier} of 13</span>
               </div>
