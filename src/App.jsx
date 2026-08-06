@@ -14,6 +14,10 @@ import {
   submitApplication,
   watchPromotionWindow,
   setPromotionWindow,
+  getWeeklyResult,
+  setWeeklyResult,
+  addClub300Entry,
+  watchClub300Live,
 } from "./storage.js";
 import { onAuthChange, logoutUser } from "./auth.js";
 import LandingPage from "./LandingPage.jsx";
@@ -118,6 +122,10 @@ const SHOW_BRACKETS = true;
 const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
   .map(Number)
   .sort((a, b) => b - a);
+
+// Weekly Awards' week picker — regular-season weeks only (1-18), same range
+// her sheets use elsewhere; playoff weeks aren't in scope for this feature.
+const WEEK_OPTIONS = Array.from({ length: 18 }, (_, i) => i + 1);
 
 // Confirmed final placements (1st through last), transcribed directly from
 // Lainey's real playoff-sheet PDFs/screenshots — NOT computed from Sleeper
@@ -1371,7 +1379,10 @@ const CLUB_300 = [
 ];
 
 // Leaderboards derived directly from CLUB_300 itself, so they can never
-// drift out of sync with the list players actually see.
+// drift out of sync with the list players actually see. Kept as a plain
+// function (not a module-level constant) since the 300 Club tab now merges
+// this static list with live-detected entries — the merge has to happen
+// inside the component (useMemo, keyed on club300Live) where that state lives.
 function tally(arr, keyFn) {
   const counts = {};
   arr.forEach((item) => {
@@ -1380,9 +1391,20 @@ function tally(arr, keyFn) {
   });
   return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
-const CLUB_300_TOP_COACHES = tally(CLUB_300, (r) => r.coach).slice(0, 10);
-const CLUB_300_TOP_TEAMS = tally(CLUB_300, (r) => r.team).slice(0, 8);
-const CLUB_300_BY_CONF = tally(CLUB_300, (r) => r.conf);
+
+// Weekly Awards' "Bench Points" category — total roster points minus
+// starter points, i.e. what got left on the bench. Sleeper's matchup
+// response already carries both pieces (players_points has every rostered
+// player, starters lists which of them were active), so this needs no
+// lineup optimizer, no roster_positions fetch, no position-eligibility
+// logic. Floors at 0 rather than going negative on a bye-week/partial-data
+// response where players_points might not fully cover starters.
+function benchPointsFor(t) {
+  const pp = t.players_points || {};
+  const total = Object.values(pp).reduce((s, v) => s + (v || 0), 0);
+  const started = typeof t.points === "number" ? t.points : 0;
+  return Math.max(0, total - started);
+}
 
 const SEED_NEWS = [
   {
@@ -5444,6 +5466,20 @@ export default function App() {
   const [bracketResultsCache, setBracketResultsCache] = useState({});
   const [tierLoading, setTierLoading] = useState(false);
 
+  // Weekly Awards — one weeklyResultsCache entry per {tierKey, year, week}
+  // (see getWeeklyResultCached below), and club300Live holds the auto-
+  // detected 300+ games that get merged with the static CLUB_300 list for
+  // display. weeklyAwardsWeek defaults to nflState's current week once that
+  // resolves (see the effect near the initial load below).
+  const [weeklyResultsCache, setWeeklyResultsCache] = useState({});
+  const [club300Live, setClub300Live] = useState([]);
+  const [weeklyAwardsSeason, setWeeklyAwardsSeason] = useState(CURRENT_SEASON);
+  const [weeklyAwardsWeek, setWeeklyAwardsWeek] = useState(null);
+  const [weeklyAwardsLoading, setWeeklyAwardsLoading] = useState(false);
+  // Flattened {tierKey, a, b} pairs across all 13 tiers for the selected
+  // week — what weeklyAwards (below) crowns a winner from.
+  const [weeklyAwardsPairs, setWeeklyAwardsPairs] = useState([]);
+
   const [news, setNews] = useState(SEED_NEWS);
   const [chat, setChat] = useState([]);
   const [coachName, setCoachName] = useState(getCoachName());
@@ -5549,6 +5585,16 @@ export default function App() {
   useEffect(() => {
     sheetTeamNamesRef.current = sheetTeamNames;
   }, [sheetTeamNames]);
+
+  // Same ref-mirror pattern as the two above, same reason: getWeeklyResultCached
+  // is a useCallback([]) below (frozen once, so it doesn't reconstruct — and
+  // therefore doesn't re-trigger every effect that calls it — on every cache
+  // update) but still needs to read the LATEST cache to avoid re-fetching a
+  // week that only just landed.
+  const weeklyResultsCacheRef = useRef({});
+  useEffect(() => {
+    weeklyResultsCacheRef.current = weeklyResultsCache;
+  }, [weeklyResultsCache]);
 
   // Live sheet feed — fetched once on load, parsed once for both the
   // coach-tag map and the roster-link fallback map (same rows, one fetch).
@@ -5661,6 +5707,50 @@ export default function App() {
     return rows.map((r, i) => ({ ...r, place: i + 1 }));
   };
 
+  // Pure pairs-builder, factored out of loadLeague so the Weekly Awards lazy
+  // fetch (getWeeklyResultCached, below) can build the exact same shape from
+  // its own matchup fetch without duplicating this logic. Adds `points`
+  // (alias of the existing `live` field, for callers that don't care about
+  // the "still updating" connotation) and `benchPoints` on each side.
+  const buildPairsWithBench = (m, rows) => {
+    const byMatch = {};
+    m.forEach((t) => {
+      if (!t.matchup_id) return;
+      (byMatch[t.matchup_id] = byMatch[t.matchup_id] || []).push(t);
+    });
+    const nameByRoster = {};
+    rows.forEach((r) => (nameByRoster[r.rosterId] = r));
+    const side = (t) => ({
+      ...nameByRoster[t.roster_id],
+      live: t.points || 0,
+      points: t.points || 0,
+      benchPoints: benchPointsFor(t),
+    });
+    return Object.values(byMatch)
+      .filter((p) => p.length === 2)
+      .map(([a, b]) => ({ a: side(a), b: side(b) }));
+  };
+
+  // 300 Club auto-detection, shared by loadLeague's current-week fetch AND
+  // the Weekly Awards lazy fetch — one detection pass feeds both features.
+  // Safe to call repeatedly on the SAME league-week (e.g. once live mid-week
+  // via loadLeague, again later once the week is final): the Firestore doc
+  // ID is deterministic per {tier,year,week,roster}, so a later call with a
+  // higher final score just overwrites the earlier partial one, never
+  // duplicates an entry.
+  const detect300 = (pairs, tierKeyArg, year, week) => {
+    pairs.forEach(({ a, b }) => {
+      [a, b].forEach((s) => {
+        if (s.points >= 300 && s.rosterId != null) {
+          const entry = { coach: s.coach || "—", team: s.team || "—", conf: tierKeyArg, pts: s.points, week, year };
+          addClub300Entry(tierKeyArg, year, week, s.rosterId, entry).then((local) => {
+            if (local) setClub300Live(local);
+          });
+        }
+      });
+    });
+  };
+
   const loadLeague = useCallback(async (leagueId, week, tKey) => {
     const [users, rosters] = await Promise.all([
       j(`${SLEEPER}/league/${leagueId}/users`),
@@ -5671,23 +5761,64 @@ export default function App() {
     if (week) {
       try {
         const m = await j(`${SLEEPER}/league/${leagueId}/matchups/${week}`);
-        const byMatch = {};
-        m.forEach((t) => {
-          if (!t.matchup_id) return;
-          (byMatch[t.matchup_id] = byMatch[t.matchup_id] || []).push(t);
-        });
-        const nameByRoster = {};
-        rows.forEach((r) => (nameByRoster[r.rosterId] = r));
-        const pairs = Object.values(byMatch)
-          .filter((p) => p.length === 2)
-          .map(([a, b]) => ({
-            a: { ...nameByRoster[a.roster_id], live: a.points || 0 },
-            b: { ...nameByRoster[b.roster_id], live: b.points || 0 },
-          }));
+        const pairs = buildPairsWithBench(m, rows);
         setMatchupsCache((c) => ({ ...c, [leagueId]: pairs }));
+        // Current-week scores are still moving, so this never writes to the
+        // permanent weeklyResults Firestore cache (that's the Weekly Awards
+        // lazy fetch's job, and only once a week is confirmed final) — just
+        // the 300 Club check, which is safe to re-run on partial data.
+        detect300(pairs, tKey, CURRENT_SEASON, week);
       } catch (e) {}
     }
   }, []);
+
+  // Lazy, cache-first fetch for one tier's one week — the Weekly Awards tab
+  // calls this once per tier (up to 13 calls) whenever the selected
+  // season/week changes. A COMPLETED week (any past season, or a past week
+  // of the current season) is permanently cached in Firestore since its
+  // numbers never change once the games are over — every visit after the
+  // first reads that cached copy instead of re-hitting Sleeper. The CURRENT
+  // in-progress week is deliberately never written to that permanent cache:
+  // its numbers are still moving, so every visit re-fetches fresh rather
+  // than freezing a partial score as if it were final. Either way, the
+  // in-memory weeklyResultsCache still short-circuits repeat calls within
+  // the same visit.
+  const getWeeklyResultCached = useCallback(
+    async (tierKeyArg, leagueId, year, week) => {
+      const cacheKey = `${tierKeyArg}_${year}_${week}`;
+      if (weeklyResultsCacheRef.current[cacheKey]) return weeklyResultsCacheRef.current[cacheKey];
+
+      const isCompleted = year < CURRENT_SEASON || (year === CURRENT_SEASON && nflState && week < nflState.week);
+
+      if (isCompleted) {
+        try {
+          const stored = await getWeeklyResult(tierKeyArg, year, week);
+          if (stored) {
+            setWeeklyResultsCache((c) => ({ ...c, [cacheKey]: stored }));
+            return stored;
+          }
+        } catch (e) {}
+      }
+
+      try {
+        const [users, rosters] = await Promise.all([
+          j(`${SLEEPER}/league/${leagueId}/users`),
+          j(`${SLEEPER}/league/${leagueId}/rosters`),
+        ]);
+        const rows = buildStandings(users, rosters, leagueId, tierKeyArg);
+        const m = await j(`${SLEEPER}/league/${leagueId}/matchups/${week}`);
+        const pairs = buildPairsWithBench(m, rows);
+        detect300(pairs, tierKeyArg, year, week);
+        const result = { tierKey: tierKeyArg, year, week, pairs };
+        setWeeklyResultsCache((c) => ({ ...c, [cacheKey]: result }));
+        if (isCompleted) setWeeklyResult(tierKeyArg, year, week, result).catch(() => {});
+        return result;
+      } catch (e) {
+        return null;
+      }
+    },
+    [nflState]
+  );
 
   // Sleeper's own playoff bracket — this is the actual round-by-round
   // winner/loser data (roster IDs, not just seeding), separate from the
@@ -5753,11 +5884,13 @@ export default function App() {
     });
     const unsubApps = watchApplications((apps) => setApplications(apps));
     const unsubPromo = watchPromotionWindow((open) => setPromotionWindowOpen(open));
+    const unsubClub300 = watchClub300Live((entries) => setClub300Live(entries));
     return () => {
       unsubChat();
       unsubNews();
       unsubApps();
       unsubPromo();
+      unsubClub300();
     };
   }, []);
 
@@ -5789,6 +5922,44 @@ export default function App() {
       if (id && !standingsCache[id]) loadLeague(id, undefined, tKey);
     });
   }, [mode, leagueMap, standingsCache, loadLeague]);
+
+  // Weekly Awards week picker defaults to the current live week once it's
+  // known — only set once (guarded by weeklyAwardsWeek == null) so it never
+  // overrides a week she's already browsing to.
+  useEffect(() => {
+    if (nflState && weeklyAwardsWeek == null) setWeeklyAwardsWeek(nflState.week);
+  }, [nflState, weeklyAwardsWeek]);
+
+  // Fetches (cache-first, see getWeeklyResultCached) every tier's result for
+  // the selected Weekly Awards season/week, then flattens all 13 tiers' pairs
+  // into one alliance-wide list for weeklyAwards (below) to crown a winner
+  // from. Guarded on view === "weeklyawards" so switching seasons/weeks on a
+  // tab she isn't looking at never fires 13 fetches for nothing.
+  useEffect(() => {
+    if (view !== "weeklyawards" || weeklyAwardsWeek == null) return;
+    let cancelled = false;
+    setWeeklyAwardsLoading(true);
+    const seasonMap = weeklyAwardsSeason === CURRENT_SEASON ? leagueMap : LEAGUE_HISTORY[weeklyAwardsSeason] || {};
+    Promise.all(
+      TIERS.map((t) => {
+        const id = seasonMap[t.key];
+        if (!id) return null;
+        return getWeeklyResultCached(t.key, id, weeklyAwardsSeason, weeklyAwardsWeek).catch(() => null);
+      })
+    ).then((results) => {
+      if (cancelled) return;
+      const flat = [];
+      results.forEach((r, i) => {
+        if (!r) return;
+        r.pairs.forEach((p) => flat.push({ tierKey: TIERS[i].key, ...p }));
+      });
+      setWeeklyAwardsPairs(flat);
+      setWeeklyAwardsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, weeklyAwardsSeason, weeklyAwardsWeek, leagueMap, getWeeklyResultCached]);
 
   const saveName = () => {
     const nm = nameInput.trim().slice(0, 24);
@@ -6582,7 +6753,45 @@ export default function App() {
     return { ...scorePool(ALLIANCE_POOL), ...scorePool(PRO_POOL) };
   }, [mode, leagueMap, standingsCache]);
 
+  // The 7 Weekly Awards categories, crowned across ALL 13 tiers combined
+  // ("Alliance" High/Low, not per-tier) from weeklyAwardsPairs. Bench Points
+  // is the confirmed 2026-08-06 substitute for a true weekly Pts-vs-Max —
+  // see the project notes for why a real lineup-optimizer version isn't
+  // built here.
+  const weeklyAwards = useMemo(() => {
+    if (!weeklyAwardsPairs.length) return null;
+    const sides = [];
+    weeklyAwardsPairs.forEach((p) => {
+      sides.push({ ...p.a, tierKey: p.tierKey });
+      sides.push({ ...p.b, tierKey: p.tierKey });
+    });
+    const bestOf = (cmp) => sides.reduce((best, s) => (!best || cmp(s, best) ? s : best), null);
+    const highScore = bestOf((s, b) => s.points > b.points);
+    const lowScore = bestOf((s, b) => s.points < b.points);
+    const bestBench = bestOf((s, b) => s.benchPoints < b.benchPoints);
+    const worstBench = bestOf((s, b) => s.benchPoints > b.benchPoints);
 
+    let closest = null,
+      blowout = null,
+      highLoss = null;
+    weeklyAwardsPairs.forEach((p) => {
+      const margin = Math.abs(p.a.points - p.b.points);
+      const loserPts = Math.min(p.a.points, p.b.points);
+      const info = { ...p, margin, loserPts };
+      if (!closest || margin < closest.margin) closest = info;
+      if (!blowout || margin > blowout.margin) blowout = info;
+      if (!highLoss || loserPts > highLoss.loserPts) highLoss = info;
+    });
+
+    return { highScore, lowScore, bestBench, worstBench, closest, blowout, highLoss };
+  }, [weeklyAwardsPairs]);
+
+  // 300 Club: static CLUB_300 merged with live-detected entries. Kept as a
+  // useMemo (not a module constant) since club300Live changes at runtime.
+  const club300All = useMemo(() => (club300Live.length ? [...CLUB_300, ...club300Live] : CLUB_300), [club300Live]);
+  const club300TopCoaches = useMemo(() => tally(club300All, (r) => r.coach).slice(0, 10), [club300All]);
+  const club300TopTeams = useMemo(() => tally(club300All, (r) => r.team).slice(0, 8), [club300All]);
+  const club300ByConf = useMemo(() => tally(club300All, (r) => r.conf), [club300All]);
 
   const tagColor = (t) =>
     t === "BREAKING" ? C.ember : t === "ANNOUNCEMENT" ? C.gold : t === "COACHING CAROUSEL" ? C.turf : C.slate;
@@ -6613,6 +6822,94 @@ export default function App() {
       {h}
     </th>
   );
+
+  // Weekly Awards card, single-side categories (High/Low Score, Best/Worst
+  // Bench Points). `valueKey` picks which field the big number reads from;
+  // defaults to the raw score.
+  const AwardCard = ({ label, side, valueKey = "points", valueColor = C.gold }) => {
+    if (!side) return null;
+    return (
+      <div className="px-3.5 py-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.15em" }}>
+          {label}
+        </div>
+        <div
+          className="text-3xl leading-none mb-2"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: valueColor }}
+        >
+          {fmt(side[valueKey])}
+        </div>
+        <div className="flex items-center gap-2">
+          <TeamMark team={side.team} tierKey={side.tierKey} size={30} />
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => openCoachProfile(side.coach)}
+              className="text-sm font-semibold truncate block"
+              style={{ color: "inherit" }}
+            >
+              {side.coach || "—"}
+            </button>
+            <button
+              type="button"
+              onClick={() => openTeamProfile(side, side.tierKey)}
+              className="text-xs truncate block"
+              style={{ color: C.slate }}
+            >
+              {side.team || "—"} · {side.tierKey}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Weekly Awards card, pair categories (Closest Margin, Biggest Blowout,
+  // Highest-Scoring Loss). Always shows the higher scorer first; `markLoser`
+  // adds (W)/(L) tags for the one category where who lost is the point.
+  const AwardPairCard = ({ label, pair, value, markLoser = false }) => {
+    if (!pair) return null;
+    const aWon = pair.a.points >= pair.b.points;
+    const winner = aWon ? pair.a : pair.b;
+    const loser = aWon ? pair.b : pair.a;
+    return (
+      <div className="px-3.5 py-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.15em" }}>
+          {label}
+        </div>
+        <div
+          className="text-3xl leading-none mb-2"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}
+        >
+          {fmt(value)}
+        </div>
+        <div className="space-y-1">
+          {[winner, loser].map((s, i) => (
+            <div key={i} className="flex items-center justify-between text-xs gap-2">
+              <button
+                type="button"
+                onClick={() => openTeamProfile(s, pair.tierKey)}
+                className="truncate"
+                style={{ color: i === 0 ? C.chalk : C.slate }}
+              >
+                {s.coach || "—"}
+                {markLoser ? (i === 0 ? " (W)" : " (L)") : ""}
+              </button>
+              <span
+                className="shrink-0"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", color: i === 0 ? C.chalk : C.slate }}
+              >
+                {fmt(s.points)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="text-xs mt-2" style={{ color: C.slate }}>
+          {pair.tierKey}
+        </div>
+      </div>
+    );
+  };
 
   // Age gate — outermost, ahead of everything else, including the auth
   // loading check below. Has nothing to do with Firebase and shouldn't wait
@@ -6791,6 +7088,7 @@ export default function App() {
             <Tab id="directory">Directory</Tab>
             <Tab id="pyramid">Rules</Tab>
             <Tab id="300club">300 Club</Tab>
+            <Tab id="weeklyawards">Weekly Awards</Tab>
             {currentUser.role === "admin" && <Tab id="admin">Admin</Tab>}
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
           </nav>
@@ -7942,7 +8240,7 @@ export default function App() {
                 </h2>
               </div>
               <p className="text-sm mb-4" style={{ color: C.slate }}>
-                300+ points in a single game. Immortality, in decimals. {CLUB_300.length} games and counting.
+                300+ points in a single game. Immortality, in decimals. {club300All.length} games and counting.
               </p>
               <input
                 value={club300Query}
@@ -7952,7 +8250,7 @@ export default function App() {
                 style={{ background: C.panel, border: `1px solid ${C.line}`, color: C.chalk }}
               />
               <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: "42rem" }}>
-                {CLUB_300.filter((r) => {
+                {club300All.filter((r) => {
                   const q = club300Query.trim().toLowerCase();
                   if (!q) return true;
                   return r.coach.toLowerCase().includes(q) || r.team.toLowerCase().includes(q);
@@ -7989,7 +8287,7 @@ export default function App() {
                   MVP · Most Appearances
                 </div>
                 <div className="space-y-1">
-                  {CLUB_300_TOP_COACHES.map(([name, count]) => (
+                  {club300TopCoaches.map(([name, count]) => (
                     <button
                       type="button"
                       key={name}
@@ -8012,7 +8310,7 @@ export default function App() {
                   Most 300pt Teams
                 </div>
                 <div className="space-y-1">
-                  {CLUB_300_TOP_TEAMS.map(([name, count]) => (
+                  {club300TopTeams.map(([name, count]) => (
                     <div key={name} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
                       <span className="truncate" style={{ color: C.chalk }}>{name}</span>
                       <span className="shrink-0 ml-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>{count}</span>
@@ -8026,8 +8324,8 @@ export default function App() {
                   By Conference
                 </div>
                 <div className="space-y-1">
-                  {CLUB_300_BY_CONF.map(([conf, count]) => {
-                    const max = CLUB_300_BY_CONF[0][1];
+                  {club300ByConf.map(([conf, count]) => {
+                    const max = club300ByConf[0][1];
                     return (
                       <div key={conf} className="flex items-center gap-2 text-xs">
                         <span className="w-12 shrink-0 uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, color: C.slate }}>{conf}</span>
@@ -8041,6 +8339,99 @@ export default function App() {
                 </div>
               </div>
             </aside>
+          </div>
+        )}
+
+        {view === "weeklyawards" && (
+          <div>
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+              <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                Weekly Awards
+              </h2>
+              {weeklyAwardsWeek != null && (
+                <span className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                  {weeklyAwardsSeason} · Week {weeklyAwardsWeek}
+                </span>
+              )}
+            </div>
+            <p className="text-sm mb-4" style={{ color: C.slate }}>
+              The Alliance's best, worst, and closest — one week at a time, across all 13 tiers.
+            </p>
+
+            {mode === "live" && (
+              <div className="mb-4">
+                <div className="flex gap-1 mb-2 flex-wrap">
+                  {SEASON_OPTIONS.map((yr) => {
+                    const active = yr === weeklyAwardsSeason;
+                    return (
+                      <button
+                        key={yr}
+                        onClick={() => setWeeklyAwardsSeason(yr)}
+                        className="px-2.5 py-1 text-xs tracking-wider rounded-sm transition-colors"
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          background: active ? C.gold : "transparent",
+                          color: active ? C.ink : C.slate,
+                          border: `1px solid ${active ? C.gold : C.line}`,
+                        }}
+                      >
+                        {yr}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-xs uppercase tracking-widest mr-1" style={{ color: C.slate, letterSpacing: "0.15em" }}>
+                    Week
+                  </span>
+                  {WEEK_OPTIONS.map((wk) => {
+                    const active = wk === weeklyAwardsWeek;
+                    const future = weeklyAwardsSeason === CURRENT_SEASON && nflState && wk > nflState.week;
+                    return (
+                      <button
+                        key={wk}
+                        disabled={future}
+                        onClick={() => setWeeklyAwardsWeek(wk)}
+                        className="w-7 h-7 text-xs rounded-sm transition-colors"
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          background: active ? C.gold : "transparent",
+                          color: future ? C.line : active ? C.ink : C.slate,
+                          border: `1px solid ${active ? C.gold : C.line}`,
+                          cursor: future ? "default" : "pointer",
+                        }}
+                      >
+                        {wk}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {mode !== "live" ? (
+              <div className="text-sm" style={{ color: C.slate }}>
+                Weekly Awards need a live connection — check back once the site's connected to Sleeper.
+              </div>
+            ) : weeklyAwardsLoading ? (
+              <div className="text-sm" style={{ color: C.slate }}>
+                Loading every tier's week {weeklyAwardsWeek}…
+              </div>
+            ) : !weeklyAwards ? (
+              <div className="text-sm" style={{ color: C.slate }}>
+                No games found for week {weeklyAwardsWeek}, {weeklyAwardsSeason} yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} />
+                <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} />
+                <AwardCard label="Best Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} />
+                <AwardCard label="Worst Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} />
+                <AwardPairCard label="Closest Margin" pair={weeklyAwards.closest} value={weeklyAwards.closest.margin} />
+                <AwardPairCard label="Biggest Blowout" pair={weeklyAwards.blowout} value={weeklyAwards.blowout.margin} />
+                <AwardPairCard label="Highest-Scoring Loss" pair={weeklyAwards.highLoss} value={weeklyAwards.highLoss.loserPts} markLoser />
+              </div>
+            )}
           </div>
         )}
 

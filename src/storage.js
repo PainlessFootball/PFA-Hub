@@ -177,3 +177,68 @@ export async function setPromotionWindow(isOpen) {
   await fs.setDoc(fs.doc(db, "settings", "promotionWindow"), { open: isOpen });
   return null;
 }
+
+// ── Weekly Results (Weekly Awards tab's cache) ──
+// One doc per {tierKey, year, week}, doc ID built directly from those three
+// so a lookup is a single getDoc, never a query. Written once per league-week,
+// ever — App.jsx checks here before ever hitting Sleeper.
+function weeklyResultKey(tierKey, year, week) {
+  return `${tierKey}_${year}_${week}`;
+}
+
+export async function getWeeklyResult(tierKey, year, week) {
+  const key = weeklyResultKey(tierKey, year, week);
+  if (!firebaseReady) {
+    return (localGet("pfa-weekly-results") || {})[key] || null;
+  }
+  await ensureDb();
+  const snap = await fs.getDoc(fs.doc(db, "weeklyResults", key));
+  return snap.exists() ? snap.data() : null;
+}
+
+export async function setWeeklyResult(tierKey, year, week, data) {
+  const key = weeklyResultKey(tierKey, year, week);
+  if (!firebaseReady) {
+    const all = localGet("pfa-weekly-results") || {};
+    all[key] = data;
+    localSet("pfa-weekly-results", all);
+    return data;
+  }
+  await ensureDb();
+  await fs.setDoc(fs.doc(db, "weeklyResults", key), data);
+  return null;
+}
+
+// ── 300 Club (live, auto-detected) ──
+// Doc ID is deterministic from the find itself (tier/year/week/roster), so
+// the SAME score getting detected twice — once via the Weekly Awards lazy
+// fetch, once via the existing current-week fetch in loadLeague — just
+// overwrites the same doc rather than duplicating an entry.
+function club300Key(tierKey, year, week, rosterId) {
+  return `${tierKey}_${year}_${week}_${rosterId}`;
+}
+
+export async function addClub300Entry(tierKey, year, week, rosterId, entry) {
+  const key = club300Key(tierKey, year, week, rosterId);
+  if (!firebaseReady) {
+    const all = localGet("pfa-club300-live") || {};
+    all[key] = entry;
+    localSet("pfa-club300-live", all);
+    return Object.values(all); // local fallback only; Firebase updates via watchClub300Live's snapshot
+  }
+  await ensureDb();
+  await fs.setDoc(fs.doc(db, "club300Live", key), entry);
+  return null;
+}
+
+export function watchClub300Live(cb) {
+  if (!firebaseReady) {
+    cb(Object.values(localGet("pfa-club300-live") || {}));
+    return () => {};
+  }
+  let unsub = () => {};
+  ensureDb().then(() => {
+    unsub = fs.onSnapshot(fs.collection(db, "club300Live"), (snap) => cb(snap.docs.map((d) => d.data())));
+  });
+  return () => unsub();
+}
