@@ -2357,7 +2357,7 @@ function Club300Mark({ maxW = 40, maxH = 40 }) {
 // A Directory league band — the same shape as a bracket banner: mark on the
 // left, conference name centred, tier key on the right. Sits above that
 // league's block of coach cards.
-function DirBand({ tier, count }) {
+function DirBand({ tier, count, strength }) {
   return (
     <div className="flex items-center gap-2.5 px-3 mb-2.5"
          style={{ background: C.panelHi, borderRadius: 3, height: 46 }}>
@@ -2374,9 +2374,14 @@ function DirBand({ tier, count }) {
         </div>
       </div>
       <div className="text-right" style={{
-        fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
-        fontSize: 13, letterSpacing: "0.12em", color: C.gold, width: 56, flexShrink: 0,
-      }}>{tier.key}</div>
+        fontFamily: strength ? "'IBM Plex Mono', monospace" : "'Barlow Condensed', sans-serif",
+        fontWeight: 700, fontSize: strength ? 14 : 13, letterSpacing: "0.12em", color: C.gold,
+        width: 56, flexShrink: 0,
+      }}
+        title={strength ? "Conference Strength - higher means tougher competition" : undefined}
+      >
+        {strength ? `${strength.score >= 0 ? "+" : ""}${strength.score.toFixed(1)}` : tier.key}
+      </div>
     </div>
   );
 }
@@ -7617,7 +7622,7 @@ export default function App() {
             )}
             {dirGroups.map((g) => (
               <div key={g.tier.key} className="mb-6">
-                <DirBand tier={g.tier} count={g.coaches.length} />
+                <DirBand tier={g.tier} count={g.coaches.length} strength={conferenceStrength[g.tier.key]} />
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {g.coaches.map((c, i) => (
                     <button
