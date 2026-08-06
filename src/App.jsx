@@ -7532,7 +7532,7 @@ export default function App() {
                       <th
                         key={col.key}
                         onClick={() => toggleCoachSort(col.key)}
-                        className={`px-3 py-2 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none ${col.right ? "text-right" : "text-left"}`}
+                        className="px-3 py-2 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none text-center"
                         style={{ fontWeight: 500, color: coachSort.key === col.key ? C.gold : C.slate }}
                       >
                         {col.label}{coachSort.key === col.key ? (coachSort.dir === "asc" ? " ▲" : " ▼") : ""}
@@ -7543,34 +7543,34 @@ export default function App() {
                 <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
                   {sortedCoachesTable.map((r, i) => (
                     <tr key={r.name + i} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
+                      <td className="px-3 py-2 whitespace-nowrap text-center" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
                         <button type="button" onClick={() => openCoachProfile(r.name)} style={{ color: "inherit" }}>
                           {r.name}
                           <TrophyBadges name={r.name} size={12} />
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+                      <td className="px-3 py-2 whitespace-nowrap text-center" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
                         <button type="button" onClick={() => openTeamProfile(r, r.tierKey)} style={{ color: "inherit" }}>
                           {r.team}
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
+                      <td className="px-3 py-2 whitespace-nowrap uppercase text-xs text-center" style={{ color: C.gold }}>{r.tierKey}</td>
                       <td
-                        className="px-3 py-2 text-right"
+                        className="px-3 py-2 text-center"
                         style={{ color: r.promotionScore === -Infinity ? C.chalk : r.promotionScore > 0 ? C.turf : r.promotionScore < 0 ? C.ember : C.slate }}
                       >
                         {r.promotionScore === -Infinity ? "—" : `${r.promotionScore >= 0 ? "+" : ""}${fmt(r.promotionScore)}`}
                       </td>
                       <td
-                        className="px-3 py-2 text-right"
+                        className="px-3 py-2 text-center"
                         style={{ color: r.currentCP === -Infinity ? C.chalk : r.currentCP > 0 ? C.turf : r.currentCP < 0 ? C.ember : C.slate }}
                       >
                         {r.currentCP === -Infinity ? "—" : `${r.currentCP >= 0 ? "+" : ""}${fmt(r.currentCP)}`}
                       </td>
-                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
+                      <td className="px-3 py-2 text-center" style={{ color: C.gold, fontWeight: 600 }}>
                         {r.cp === -Infinity ? "—" : fmt(r.cp)}
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
                         {r.record === "—" || !r.record ? (
                           "—"
                         ) : (
@@ -7581,8 +7581,8 @@ export default function App() {
                           </>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right">{r.winPct === -Infinity ? "—" : winPctLabel(r.winPct)}</td>
-                      <td className="px-3 py-2 text-right">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
+                      <td className="px-3 py-2 text-center">{r.winPct === -Infinity ? "—" : winPctLabel(r.winPct)}</td>
+                      <td className="px-3 py-2 text-center">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
                     </tr>
                   ))}
                 </tbody>
