@@ -6826,12 +6826,23 @@ export default function App() {
   // Weekly Awards card, single-side categories (High/Low Score, Best/Worst
   // Bench Points). `valueKey` picks which field the big number reads from;
   // defaults to the raw score.
-  const AwardCard = ({ label, side, valueKey = "points", valueColor = C.gold }) => {
+  const AwardCard = ({ label, side, valueKey = "points", valueColor = C.gold, cp }) => {
     if (!side) return null;
     return (
       <div className="px-3.5 py-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.15em" }}>
-          {label}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.15em" }}>
+            {label}
+          </div>
+          {cp !== undefined && (
+            <span
+              className="text-xs shrink-0"
+              style={{ fontFamily: "'IBM Plex Mono', monospace", color: cp >= 0 ? C.turf : C.ember }}
+            >
+              {cp >= 0 ? "+" : ""}
+              {cp} CP
+            </span>
+          )}
         </div>
         <div
           className="text-3xl leading-none mb-2"
@@ -8423,10 +8434,10 @@ export default function App() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} />
-                <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} />
-                <AwardCard label="Best Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} />
-                <AwardCard label="Worst Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} />
+                <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} cp={5} />
+                <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} cp={-5} />
+                <AwardCard label="Best Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} cp={5} />
+                <AwardCard label="Worst Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} cp={-5} />
                 <AwardPairCard label="Closest Margin" pair={weeklyAwards.closest} value={weeklyAwards.closest.margin} />
                 <AwardPairCard label="Biggest Blowout" pair={weeklyAwards.blowout} value={weeklyAwards.blowout.margin} />
                 <AwardPairCard label="Highest-Scoring Loss" pair={weeklyAwards.highLoss} value={weeklyAwards.highLoss.loserPts} markLoser />
