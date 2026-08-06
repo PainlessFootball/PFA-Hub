@@ -14,10 +14,6 @@ import {
   submitApplication,
   watchPromotionWindow,
   setPromotionWindow,
-  getWeeklyResult,
-  setWeeklyResult,
-  addClub300Entry,
-  watchClub300Live,
 } from "./storage.js";
 import { onAuthChange, logoutUser } from "./auth.js";
 import LandingPage from "./LandingPage.jsx";
@@ -122,10 +118,6 @@ const SHOW_BRACKETS = true;
 const SEASON_OPTIONS = Object.keys(LEAGUE_HISTORY)
   .map(Number)
   .sort((a, b) => b - a);
-
-// Weekly Awards' week picker — regular-season weeks only (1-18), same range
-// her sheets use elsewhere; playoff weeks aren't in scope for this feature.
-const WEEK_OPTIONS = Array.from({ length: 18 }, (_, i) => i + 1);
 
 // Confirmed final placements (1st through last), transcribed directly from
 // Lainey's real playoff-sheet PDFs/screenshots — NOT computed from Sleeper
@@ -532,7 +524,7 @@ const CAREER_STATS = {
   "josssock": [{ "tierKey": "NFL", "team": "New England Patriots", "stats": { "Career CP": "962.18", "Career Avg CP": "240.55", "Record": "47-21", "Win %": "69.1%", "Total Points": "12802.65", "Avg Pts / Season": "182.78", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "9", "League Low Score": "0", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "2", "Playoff Wins": "5" } }],
   "justin_white": [{ "tierKey": "SWAC", "team": "—", "stats": { "Career CP": "0.00", "Career Avg CP": "0.00", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "—", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "0", "League Low Score": "0", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "juugking": [{ "tierKey": "BIG XII", "team": "Iowa State Cyclones", "stats": { "Career CP": "800.43", "Career Avg CP": "200.11", "Record": "44-24", "Win %": "64.7%", "Total Points": "15379.80", "Avg Pts / Season": "219.60", "Alliance High Score": "1", "Alliance Low Score": "1", "League High Score": "11", "League Low Score": "1", "Best Manager": "4", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "4" } }],
-  "jvl007": [{ "tierKey": "IVY", "team": "Cornell Big Red", "stats": { "Career CP": "491.79", "Career Avg CP": "122.95", "Record": "34-34", "Win %": "50.0%", "Total Points": "13980.55", "Avg Pts / Season": "200.03", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "2", "League Low Score": "5", "Best Manager": "-6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }],
+  "jvl007": [{ "tierKey": "IVY", "team": "Cornell University Bears", "stats": { "Career CP": "491.79", "Career Avg CP": "122.95", "Record": "34-34", "Win %": "50.0%", "Total Points": "13980.55", "Avg Pts / Season": "200.03", "Alliance High Score": "0", "Alliance Low Score": "5", "League High Score": "2", "League Low Score": "5", "Best Manager": "-6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }],
   "jweadon": [{ "tierKey": "SEC", "team": "Texas Longhorns", "stats": { "Career CP": "447.91", "Career Avg CP": "111.98", "Record": "30-38", "Win %": "44.1%", "Total Points": "13377.80", "Avg Pts / Season": "191.43", "Alliance High Score": "0", "Alliance Low Score": "9", "League High Score": "5", "League Low Score": "9", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" } }],
   "jwilmot": [{ "tierKey": "NFL", "team": "Miami Dolphins", "stats": { "Career CP": "719.22", "Career Avg CP": "179.80", "Record": "36-32", "Win %": "52.9%", "Total Points": "11108.70", "Avg Pts / Season": "158.88", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "kendoll92": [{ "tierKey": "SUN", "team": "Georgia State Panthers", "stats": { "Career CP": "800.43", "Career Avg CP": "200.11", "Record": "44-24", "Win %": "64.7%", "Total Points": "15379.80", "Avg Pts / Season": "219.60", "Alliance High Score": "1", "Alliance Low Score": "1", "League High Score": "11", "League Low Score": "1", "Best Manager": "4", "Conference Wins": "1", "Division Wins": "0", "Playoff Wins": "4" } }],
@@ -544,7 +536,7 @@ const CAREER_STATS = {
   "landshark18": [{ "tierKey": "NFL", "team": "Baltimore Ravens", "stats": { "Career CP": "893.38", "Career Avg CP": "223.34", "Record": "37-28", "Win %": "56.9%", "Total Points": "11712.80", "Avg Pts / Season": "167.17", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "5", "League Low Score": "0", "Best Manager": "5", "Conference Wins": "1", "Division Wins": "3", "Playoff Wins": "3" } }],
   "leorapoli": [{ "tierKey": "XFL", "team": "—", "stats": { "Career CP": "65.25", "Career Avg CP": "16.31", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "96.31", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "2", "League Low Score": "1", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "FLHS", "team": "—", "stats": { "Career CP": "65.25", "Career Avg CP": "16.31", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "96.31", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "2", "League Low Score": "1", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "lightning77": [{ "tierKey": "USFL", "team": "Tampa Bay Bandits", "stats": { "Career CP": "335.57", "Career Avg CP": "83.89", "Record": "24-44", "Win %": "35.3%", "Total Points": "9651.50", "Avg Pts / Season": "137.58", "Alliance High Score": "0", "Alliance Low Score": "3", "League High Score": "0", "League Low Score": "3", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
-  "mambasdisciples": [{ "tierKey": "SWAC", "team": "PVAMU Panthers", "stats": { "Career CP": "622.60", "Career Avg CP": "155.65", "Record": "44-24", "Win %": "64.7%", "Total Points": "15924.90", "Avg Pts / Season": "227.26", "Alliance High Score": "1", "Alliance Low Score": "0", "League High Score": "7", "League Low Score": "0", "Best Manager": "-4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" } }],
+  "mambasdisciples": [{ "tierKey": "SWAC", "team": "PVAM Panthers", "stats": { "Career CP": "622.60", "Career Avg CP": "155.65", "Record": "44-24", "Win %": "64.7%", "Total Points": "15924.90", "Avg Pts / Season": "227.26", "Alliance High Score": "1", "Alliance Low Score": "0", "League High Score": "7", "League Low Score": "0", "Best Manager": "-4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "4" } }],
   "mattbanks3x": [{ "tierKey": "USFL", "team": "San Antonio Gunslingers", "stats": { "Career CP": "930.46", "Career Avg CP": "232.62", "Record": "46-22", "Win %": "67.6%", "Total Points": "15080.85", "Avg Pts / Season": "215.29", "Alliance High Score": "1", "Alliance Low Score": "0", "League High Score": "11", "League Low Score": "0", "Best Manager": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "2" } }],
   "mbulls": [{ "tierKey": "FLHS", "team": "Miami Senior Stingrays", "stats": { "Career CP": "317.37", "Career Avg CP": "79.34", "Record": "29-39", "Win %": "42.6%", "Total Points": "13149.40", "Avg Pts / Season": "188.12", "Alliance High Score": "0", "Alliance Low Score": "8", "League High Score": "0", "League Low Score": "8", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }],
   "mchostetler1": [{ "tierKey": "USFL", "team": "Washington Federals", "stats": { "Career CP": "563.24", "Career Avg CP": "140.81", "Record": "35-33", "Win %": "51.5%", "Total Points": "13833.85", "Avg Pts / Season": "197.78", "Alliance High Score": "1", "Alliance Low Score": "1", "League High Score": "3", "League Low Score": "1", "Best Manager": "4", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "1" } }],
@@ -584,7 +576,7 @@ const CAREER_STATS = {
   "ravenger": [{ "tierKey": "SOCO", "team": "E Tenn Buccaneers", "stats": { "Career CP": "514.57", "Career Avg CP": "128.64", "Record": "31-37", "Win %": "45.6%", "Total Points": "11269.90", "Avg Pts / Season": "160.79", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "2", "League Low Score": "1", "Best Manager": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "recki20": [{ "tierKey": "GLIAC", "team": "JCU Blue Streaks", "stats": { "Career CP": "227.22", "Career Avg CP": "56.80", "Record": "23-28", "Win %": "45.1%", "Total Points": "10007.80", "Avg Pts / Season": "188.93", "Alliance High Score": "0", "Alliance Low Score": "4", "League High Score": "1", "League Low Score": "4", "Best Manager": "7", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "redphoenix437": [{ "tierKey": "USFL", "team": "Los Angeles Express", "stats": { "Career CP": "933.99", "Career Avg CP": "233.50", "Record": "45-23", "Win %": "66.2%", "Total Points": "14315.00", "Avg Pts / Season": "204.47", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "3", "League Low Score": "0", "Best Manager": "1", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "8" } }],
-  "rflores29": [{ "tierKey": "SWAC", "team": "Morgan State Bears", "stats": { "Career CP": "203.43", "Career Avg CP": "50.86", "Record": "15-19", "Win %": "44.1%", "Total Points": "6939.00", "Avg Pts / Season": "198.38", "Alliance High Score": "0", "Alliance Low Score": "18", "League High Score": "18", "League Low Score": "18", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "GLIAC", "team": "Muskingum Fighting Muskies", "stats": { "Career CP": "203.43", "Career Avg CP": "50.86", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "198.38", "Alliance High Score": "0", "Alliance Low Score": "2", "League High Score": "2", "League Low Score": "2", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
+  "rflores29": [{ "tierKey": "SWAC", "team": "Morgan State Bears", "stats": { "Career CP": "203.43", "Career Avg CP": "50.86", "Record": "15-19", "Win %": "44.1%", "Total Points": "6939.00", "Avg Pts / Season": "198.38", "Alliance High Score": "0", "Alliance Low Score": "18", "League High Score": "18", "League Low Score": "18", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "GLIAC", "team": "Morgan State Bears", "stats": { "Career CP": "203.43", "Career Avg CP": "50.86", "Record": "—", "Win %": "—", "Total Points": "—", "Avg Pts / Season": "198.38", "Alliance High Score": "0", "Alliance Low Score": "2", "League High Score": "2", "League Low Score": "2", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "rhhniner": [{ "tierKey": "TEN", "team": "Cal Golden Bears", "stats": { "Career CP": "533.70", "Career Avg CP": "133.42", "Record": "35-33", "Win %": "51.5%", "Total Points": "13972.89", "Avg Pts / Season": "199.54", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "7", "League Low Score": "1", "Best Manager": "6", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "rifelife520": [{ "tierKey": "ACC", "team": "NC State Wolfpack", "stats": { "Career CP": "2.26", "Career Avg CP": "1.13", "Record": "4-13", "Win %": "23.5%", "Total Points": "2839.35", "Avg Pts / Season": "78.87", "Alliance High Score": "0", "Alliance Low Score": "3", "League High Score": "0", "League Low Score": "3", "Best Manager": "-5", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "rifelife520 int": [{ "tierKey": "SEC", "team": "Oklahoma Sooners 🏆", "stats": { "Career CP": "818.44", "Career Avg CP": "204.61", "Record": "46-22", "Win %": "67.6%", "Total Points": "15533.85", "Avg Pts / Season": "221.87", "Alliance High Score": "2", "Alliance Low Score": "0", "League High Score": "10", "League Low Score": "0", "Best Manager": "3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "3" } }],
@@ -633,7 +625,7 @@ const CAREER_STATS = {
   "yinyangkitties": [{ "tierKey": "NFL", "team": "Atlanta Falcons", "stats": { "Career CP": "355.35", "Career Avg CP": "88.84", "Record": "22-29", "Win %": "43.1%", "Total Points": "8965.09", "Avg Pts / Season": "169.76", "Alliance High Score": "0", "Alliance Low Score": "2", "League High Score": "1", "League Low Score": "2", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "yinyangkitties l": [{ "tierKey": "GLIAC", "team": "N Michigan Wildcats", "stats": { "Career CP": "285.41", "Career Avg CP": "71.35", "Record": "21-13", "Win %": "61.8%", "Total Points": "7233.60", "Avg Pts / Season": "206.58", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "2", "League Low Score": "0", "Best Manager": "2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" } }],
   "z1856z": [{ "tierKey": "XFL", "team": "DC Defenders", "stats": { "Career CP": "779.08", "Career Avg CP": "194.77", "Record": "44-24", "Win %": "64.7%", "Total Points": "15019.65", "Avg Pts / Season": "214.51", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "10", "League Low Score": "0", "Best Manager": "-3", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "5" } }],
-  "z1856z l": [{ "tierKey": "SWAC", "team": "Mississippi Valley Delta Devils", "stats": { "Career CP": "238.07", "Career Avg CP": "59.52", "Record": "22-12", "Win %": "64.7%", "Total Points": "7664.85", "Avg Pts / Season": "218.73", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "5", "League Low Score": "1", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
+  "z1856z l": [{ "tierKey": "SWAC", "team": "Mississippi Valley Devils", "stats": { "Career CP": "238.07", "Career Avg CP": "59.52", "Record": "22-12", "Win %": "64.7%", "Total Points": "7664.85", "Avg Pts / Season": "218.73", "Alliance High Score": "0", "Alliance Low Score": "1", "League High Score": "5", "League Low Score": "1", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
   "zach2326": [{ "tierKey": "USFL", "team": "Birmingham Stallions", "stats": { "Career CP": "765.54", "Career Avg CP": "191.39", "Record": "41-26", "Win %": "61.2%", "Total Points": "13959.45", "Avg Pts / Season": "199.38", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "6", "League Low Score": "0", "Best Manager": "4", "Conference Wins": "1", "Division Wins": "1", "Playoff Wins": "3" } }],
   "zcal": [{ "tierKey": "NFL", "team": "Jacksonville Jaguars", "stats": { "Career CP": "654.19", "Career Avg CP": "163.55", "Record": "33-35", "Win %": "48.5%", "Total Points": "11144.19", "Avg Pts / Season": "159.35", "Alliance High Score": "0", "Alliance Low Score": "2", "League High Score": "2", "League Low Score": "2", "Best Manager": "2", "Conference Wins": "0", "Division Wins": "1", "Playoff Wins": "2" } }],
   "zero00": [{ "tierKey": "NFL", "team": "Philadelphia Eagles", "stats": { "Career CP": "764.92", "Career Avg CP": "191.23", "Record": "32-36", "Win %": "47.1%", "Total Points": "12888.95", "Avg Pts / Season": "184.64", "Alliance High Score": "0", "Alliance Low Score": "3", "League High Score": "4", "League Low Score": "3", "Best Manager": "3", "Conference Wins": "1", "Division Wins": "2", "Playoff Wins": "3" } }, { "tierKey": "XFL", "team": "New York Guardians", "stats": { "Career CP": "381.33", "Career Avg CP": "95.33", "Record": "24-44", "Win %": "35.3%", "Total Points": "12702.25", "Avg Pts / Season": "181.77", "Alliance High Score": "0", "Alliance Low Score": "4", "League High Score": "0", "League Low Score": "4", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }, { "tierKey": "BIG XII", "team": "OSU", "stats": { "Career CP": "0.00", "Career Avg CP": "—", "Record": "0-0", "Win %": "—", "Total Points": "0.00", "Avg Pts / Season": "—", "Alliance High Score": "0", "Alliance Low Score": "16", "League High Score": "16", "League Low Score": "16", "Best Manager": "0", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
@@ -1379,10 +1371,7 @@ const CLUB_300 = [
 ];
 
 // Leaderboards derived directly from CLUB_300 itself, so they can never
-// drift out of sync with the list players actually see. Kept as a plain
-// function (not a module-level constant) since the 300 Club tab now merges
-// this static list with live-detected entries — the merge has to happen
-// inside the component (useMemo, keyed on club300Live) where that state lives.
+// drift out of sync with the list players actually see.
 function tally(arr, keyFn) {
   const counts = {};
   arr.forEach((item) => {
@@ -1391,20 +1380,9 @@ function tally(arr, keyFn) {
   });
   return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
-
-// Weekly Awards' "Bench Points" category — total roster points minus
-// starter points, i.e. what got left on the bench. Sleeper's matchup
-// response already carries both pieces (players_points has every rostered
-// player, starters lists which of them were active), so this needs no
-// lineup optimizer, no roster_positions fetch, no position-eligibility
-// logic. Floors at 0 rather than going negative on a bye-week/partial-data
-// response where players_points might not fully cover starters.
-function benchPointsFor(t) {
-  const pp = t.players_points || {};
-  const total = Object.values(pp).reduce((s, v) => s + (v || 0), 0);
-  const started = typeof t.points === "number" ? t.points : 0;
-  return Math.max(0, total - started);
-}
+const CLUB_300_TOP_COACHES = tally(CLUB_300, (r) => r.coach).slice(0, 10);
+const CLUB_300_TOP_TEAMS = tally(CLUB_300, (r) => r.team).slice(0, 8);
+const CLUB_300_BY_CONF = tally(CLUB_300, (r) => r.conf);
 
 const SEED_NEWS = [
   {
@@ -2379,7 +2357,7 @@ function Club300Mark({ maxW = 40, maxH = 40 }) {
 // A Directory league band — the same shape as a bracket banner: mark on the
 // left, conference name centred, tier key on the right. Sits above that
 // league's block of coach cards.
-function DirBand({ tier, count, strength }) {
+function DirBand({ tier, count }) {
   return (
     <div className="flex items-center gap-2.5 px-3 mb-2.5"
          style={{ background: C.panelHi, borderRadius: 3, height: 46 }}>
@@ -2396,14 +2374,9 @@ function DirBand({ tier, count, strength }) {
         </div>
       </div>
       <div className="text-right" style={{
-        fontFamily: strength ? "'IBM Plex Mono', monospace" : "'Barlow Condensed', sans-serif",
-        fontWeight: 700, fontSize: strength ? 14 : 13, letterSpacing: "0.12em", color: C.gold,
-        width: 56, flexShrink: 0,
-      }}
-        title={strength ? "Conference Strength - higher means tougher competition" : undefined}
-      >
-        {strength ? `${strength.score >= 0 ? "+" : ""}${strength.score.toFixed(1)}` : tier.key}
-      </div>
+        fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+        fontSize: 13, letterSpacing: "0.12em", color: C.gold, width: 56, flexShrink: 0,
+      }}>{tier.key}</div>
     </div>
   );
 }
@@ -4385,60 +4358,6 @@ const TEAM_ART = {
     [normTeamKey("Stoneman Douglas Eagles")]: teamArtPath("FLHS", "flhs-team-stoneman-douglas-eagles.png"),
     [normTeamKey("Miami Senior Stingrays")]: teamArtPath("FLHS", "flhs-team-miami-senior-stingrays.png"),
   },
-  GLIAC: {
-    [normTeamKey("Baldwin Yellow Jackets")]: teamArtPath("GLIAC", "gliac-team-baldwin-yellow-jackets.png"),
-    [normTeamKey("Purdue NW Pride")]: teamArtPath("GLIAC", "gliac-team-purdue-nw-pride.png"),
-    [normTeamKey("N Michigan Wildcats")]: teamArtPath("GLIAC", "gliac-team-n-michigan-wildcats.png"),
-    [normTeamKey("Mount Union Raiders")]: teamArtPath("GLIAC", "gliac-team-mount-union-raiders.png"),
-    [normTeamKey("Wilmington Quakers")]: teamArtPath("GLIAC", "gliac-team-wilmington-quakers.png"),
-    [normTeamKey("Davenport Panthers")]: teamArtPath("GLIAC", "gliac-team-davenport-panthers.png"),
-    [normTeamKey("Wayne State Warriors")]: teamArtPath("GLIAC", "gliac-team-wayne-state-warriors.png"),
-    [normTeamKey("WI Parkside Rangers")]: teamArtPath("GLIAC", "gliac-team-wi-parkside-rangers.png"),
-    [normTeamKey("Lake Superior Lakers")]: teamArtPath("GLIAC", "gliac-team-lake-superior-lakers.png"),
-    [normTeamKey("Capital Comets")]: teamArtPath("GLIAC", "gliac-team-capital-comets.png"),
-    [normTeamKey("Northwood Timberwolves")]: teamArtPath("GLIAC", "gliac-team-northwood-timberwolves.png"),
-    [normTeamKey("Heidelberg StudentPrinces")]: teamArtPath("GLIAC", "gliac-team-heidelberg-studentprinces.png"),
-    [normTeamKey("Ohio Northern Polar Bears")]: teamArtPath("GLIAC", "gliac-team-ohio-northern-polar-bears.png"),
-    [normTeamKey("Ferris State Bulldogs")]: teamArtPath("GLIAC", "gliac-team-ferris-state-bulldogs.png"),
-    [normTeamKey("Muskingum Fighting Muskies")]: teamArtPath("GLIAC", "gliac-team-muskingum-fighting-muskies.png"),
-    [normTeamKey("JCU Blue Streaks")]: teamArtPath("GLIAC", "gliac-team-jcu-blue-streaks.png"),
-  },
-  SWAC: {
-    [normTeamKey("Norfolk State Spartans")]: teamArtPath("SWAC", "swac-team-norfolk-state-spartans.png"),
-    [normTeamKey("Texas Southern Tigers")]: teamArtPath("SWAC", "swac-team-texas-southern-tigers.png"),
-    [normTeamKey("Jackson State Tigers")]: teamArtPath("SWAC", "swac-team-jackson-state-tigers.png"),
-    [normTeamKey("Morgan State Bears")]: teamArtPath("SWAC", "swac-team-morgan-state-bears.png"),
-    [normTeamKey("South Carolina State Bulldogs")]: teamArtPath("SWAC", "swac-team-south-carolina-state-bulldogs.png"),
-    [normTeamKey("Grambling State Tigers")]: teamArtPath("SWAC", "swac-team-grambling-state-tigers.png"),
-    [normTeamKey("Alabama State Hornets")]: teamArtPath("SWAC", "swac-team-alabama-state-hornets.png"),
-    [normTeamKey("Bethune-Cookman Wildcats")]: teamArtPath("SWAC", "swac-team-bethune-cookman-wildcats.png"),
-    [normTeamKey("Pine Bluff Golden Lions")]: teamArtPath("SWAC", "swac-team-arkansas-pine-bluff-golden-lions.png"),
-    [normTeamKey("Alabama A&M Bulldogs")]: teamArtPath("SWAC", "swac-team-alabama-am-bulldogs.png"),
-    [normTeamKey("Mississippi Valley Delta Devils")]: teamArtPath("SWAC", "swac-team-mississippi-valley-state-delta-devils.png"),
-    [normTeamKey("NC Central Eagles")]: teamArtPath("SWAC", "swac-team-nc-central-eagles.png"),
-    [normTeamKey("Florida A&M Rattlers")]: teamArtPath("SWAC", "swac-team-florida-am-rattlers.png"),
-    [normTeamKey("Southern U Jaguars")]: teamArtPath("SWAC", "swac-team-southern-u-jaguars.png"),
-    [normTeamKey("PVAMU Panthers")]: teamArtPath("SWAC", "swac-team-prairie-view-am-panthers.png"),
-    [normTeamKey("Alcorn State Braves")]: teamArtPath("SWAC", "swac-team-alcorn-state-braves.png"),
-  },
-  IVY: {
-    [normTeamKey("Georgetown Hoyas")]: teamArtPath("IVY", "ivy-team-georgetown-hoyas.png"),
-    [normTeamKey("Brown Bears")]: teamArtPath("IVY", "ivy-team-brown-bears.png"),
-    [normTeamKey("Harvard Crimson")]: teamArtPath("IVY", "ivy-team-harvard-crimson.png"),
-    [normTeamKey("Lafayette Leopards")]: teamArtPath("IVY", "ivy-team-lafayette-leopards.png"),
-    [normTeamKey("Yale Bulldogs")]: teamArtPath("IVY", "ivy-team-yale-bulldogs.png"),
-    [normTeamKey("Colgate Raiders")]: teamArtPath("IVY", "ivy-team-colgate-raiders.png"),
-    [normTeamKey("Lehigh Mountain Hawks")]: teamArtPath("IVY", "ivy-team-lehigh-mountain-hawks.png"),
-    [normTeamKey("Bucknell Bison")]: teamArtPath("IVY", "ivy-team-bucknell-bison.png"),
-    [normTeamKey("Penn Quakers")]: teamArtPath("IVY", "ivy-team-penn-quakers.png"),
-    [normTeamKey("Columbia Lions")]: teamArtPath("IVY", "ivy-team-columbia-lions.png"),
-    [normTeamKey("Cornell Big Red")]: teamArtPath("IVY", "ivy-team-cornell-big-red.png"),
-    [normTeamKey("Fordham Rams")]: teamArtPath("IVY", "ivy-team-fordham-rams.png"),
-    [normTeamKey("Princeton Tigers")]: teamArtPath("IVY", "ivy-team-princeton-tigers.png"),
-    [normTeamKey("MIT Engineers")]: teamArtPath("IVY", "ivy-team-mit-engineers.png"),
-    [normTeamKey("Dartmouth Big Green")]: teamArtPath("IVY", "ivy-team-dartmouth-big-green.png"),
-    [normTeamKey("Holy Cross Crusaders")]: teamArtPath("IVY", "ivy-team-holy-cross-crusaders.png"),
-  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
@@ -5466,20 +5385,6 @@ export default function App() {
   const [bracketResultsCache, setBracketResultsCache] = useState({});
   const [tierLoading, setTierLoading] = useState(false);
 
-  // Weekly Awards — one weeklyResultsCache entry per {tierKey, year, week}
-  // (see getWeeklyResultCached below), and club300Live holds the auto-
-  // detected 300+ games that get merged with the static CLUB_300 list for
-  // display. weeklyAwardsWeek defaults to nflState's current week once that
-  // resolves (see the effect near the initial load below).
-  const [weeklyResultsCache, setWeeklyResultsCache] = useState({});
-  const [club300Live, setClub300Live] = useState([]);
-  const [weeklyAwardsSeason, setWeeklyAwardsSeason] = useState(CURRENT_SEASON);
-  const [weeklyAwardsWeek, setWeeklyAwardsWeek] = useState(null);
-  const [weeklyAwardsLoading, setWeeklyAwardsLoading] = useState(false);
-  // Flattened {tierKey, a, b} pairs across all 13 tiers for the selected
-  // week — what weeklyAwards (below) crowns a winner from.
-  const [weeklyAwardsPairs, setWeeklyAwardsPairs] = useState([]);
-
   const [news, setNews] = useState(SEED_NEWS);
   const [chat, setChat] = useState([]);
   const [coachName, setCoachName] = useState(getCoachName());
@@ -5585,16 +5490,6 @@ export default function App() {
   useEffect(() => {
     sheetTeamNamesRef.current = sheetTeamNames;
   }, [sheetTeamNames]);
-
-  // Same ref-mirror pattern as the two above, same reason: getWeeklyResultCached
-  // is a useCallback([]) below (frozen once, so it doesn't reconstruct — and
-  // therefore doesn't re-trigger every effect that calls it — on every cache
-  // update) but still needs to read the LATEST cache to avoid re-fetching a
-  // week that only just landed.
-  const weeklyResultsCacheRef = useRef({});
-  useEffect(() => {
-    weeklyResultsCacheRef.current = weeklyResultsCache;
-  }, [weeklyResultsCache]);
 
   // Live sheet feed — fetched once on load, parsed once for both the
   // coach-tag map and the roster-link fallback map (same rows, one fetch).
@@ -5707,50 +5602,6 @@ export default function App() {
     return rows.map((r, i) => ({ ...r, place: i + 1 }));
   };
 
-  // Pure pairs-builder, factored out of loadLeague so the Weekly Awards lazy
-  // fetch (getWeeklyResultCached, below) can build the exact same shape from
-  // its own matchup fetch without duplicating this logic. Adds `points`
-  // (alias of the existing `live` field, for callers that don't care about
-  // the "still updating" connotation) and `benchPoints` on each side.
-  const buildPairsWithBench = (m, rows) => {
-    const byMatch = {};
-    m.forEach((t) => {
-      if (!t.matchup_id) return;
-      (byMatch[t.matchup_id] = byMatch[t.matchup_id] || []).push(t);
-    });
-    const nameByRoster = {};
-    rows.forEach((r) => (nameByRoster[r.rosterId] = r));
-    const side = (t) => ({
-      ...nameByRoster[t.roster_id],
-      live: t.points || 0,
-      points: t.points || 0,
-      benchPoints: benchPointsFor(t),
-    });
-    return Object.values(byMatch)
-      .filter((p) => p.length === 2)
-      .map(([a, b]) => ({ a: side(a), b: side(b) }));
-  };
-
-  // 300 Club auto-detection, shared by loadLeague's current-week fetch AND
-  // the Weekly Awards lazy fetch — one detection pass feeds both features.
-  // Safe to call repeatedly on the SAME league-week (e.g. once live mid-week
-  // via loadLeague, again later once the week is final): the Firestore doc
-  // ID is deterministic per {tier,year,week,roster}, so a later call with a
-  // higher final score just overwrites the earlier partial one, never
-  // duplicates an entry.
-  const detect300 = (pairs, tierKeyArg, year, week) => {
-    pairs.forEach(({ a, b }) => {
-      [a, b].forEach((s) => {
-        if (s.points >= 300 && s.rosterId != null) {
-          const entry = { coach: s.coach || "—", team: s.team || "—", conf: tierKeyArg, pts: s.points, week, year };
-          addClub300Entry(tierKeyArg, year, week, s.rosterId, entry).then((local) => {
-            if (local) setClub300Live(local);
-          });
-        }
-      });
-    });
-  };
-
   const loadLeague = useCallback(async (leagueId, week, tKey) => {
     const [users, rosters] = await Promise.all([
       j(`${SLEEPER}/league/${leagueId}/users`),
@@ -5761,64 +5612,23 @@ export default function App() {
     if (week) {
       try {
         const m = await j(`${SLEEPER}/league/${leagueId}/matchups/${week}`);
-        const pairs = buildPairsWithBench(m, rows);
+        const byMatch = {};
+        m.forEach((t) => {
+          if (!t.matchup_id) return;
+          (byMatch[t.matchup_id] = byMatch[t.matchup_id] || []).push(t);
+        });
+        const nameByRoster = {};
+        rows.forEach((r) => (nameByRoster[r.rosterId] = r));
+        const pairs = Object.values(byMatch)
+          .filter((p) => p.length === 2)
+          .map(([a, b]) => ({
+            a: { ...nameByRoster[a.roster_id], live: a.points || 0 },
+            b: { ...nameByRoster[b.roster_id], live: b.points || 0 },
+          }));
         setMatchupsCache((c) => ({ ...c, [leagueId]: pairs }));
-        // Current-week scores are still moving, so this never writes to the
-        // permanent weeklyResults Firestore cache (that's the Weekly Awards
-        // lazy fetch's job, and only once a week is confirmed final) — just
-        // the 300 Club check, which is safe to re-run on partial data.
-        detect300(pairs, tKey, CURRENT_SEASON, week);
       } catch (e) {}
     }
   }, []);
-
-  // Lazy, cache-first fetch for one tier's one week — the Weekly Awards tab
-  // calls this once per tier (up to 13 calls) whenever the selected
-  // season/week changes. A COMPLETED week (any past season, or a past week
-  // of the current season) is permanently cached in Firestore since its
-  // numbers never change once the games are over — every visit after the
-  // first reads that cached copy instead of re-hitting Sleeper. The CURRENT
-  // in-progress week is deliberately never written to that permanent cache:
-  // its numbers are still moving, so every visit re-fetches fresh rather
-  // than freezing a partial score as if it were final. Either way, the
-  // in-memory weeklyResultsCache still short-circuits repeat calls within
-  // the same visit.
-  const getWeeklyResultCached = useCallback(
-    async (tierKeyArg, leagueId, year, week) => {
-      const cacheKey = `${tierKeyArg}_${year}_${week}`;
-      if (weeklyResultsCacheRef.current[cacheKey]) return weeklyResultsCacheRef.current[cacheKey];
-
-      const isCompleted = year < CURRENT_SEASON || (year === CURRENT_SEASON && nflState && week < nflState.week);
-
-      if (isCompleted) {
-        try {
-          const stored = await getWeeklyResult(tierKeyArg, year, week);
-          if (stored) {
-            setWeeklyResultsCache((c) => ({ ...c, [cacheKey]: stored }));
-            return stored;
-          }
-        } catch (e) {}
-      }
-
-      try {
-        const [users, rosters] = await Promise.all([
-          j(`${SLEEPER}/league/${leagueId}/users`),
-          j(`${SLEEPER}/league/${leagueId}/rosters`),
-        ]);
-        const rows = buildStandings(users, rosters, leagueId, tierKeyArg);
-        const m = await j(`${SLEEPER}/league/${leagueId}/matchups/${week}`);
-        const pairs = buildPairsWithBench(m, rows);
-        detect300(pairs, tierKeyArg, year, week);
-        const result = { tierKey: tierKeyArg, year, week, pairs };
-        setWeeklyResultsCache((c) => ({ ...c, [cacheKey]: result }));
-        if (isCompleted) setWeeklyResult(tierKeyArg, year, week, result).catch(() => {});
-        return result;
-      } catch (e) {
-        return null;
-      }
-    },
-    [nflState]
-  );
 
   // Sleeper's own playoff bracket — this is the actual round-by-round
   // winner/loser data (roster IDs, not just seeding), separate from the
@@ -5884,13 +5694,11 @@ export default function App() {
     });
     const unsubApps = watchApplications((apps) => setApplications(apps));
     const unsubPromo = watchPromotionWindow((open) => setPromotionWindowOpen(open));
-    const unsubClub300 = watchClub300Live((entries) => setClub300Live(entries));
     return () => {
       unsubChat();
       unsubNews();
       unsubApps();
       unsubPromo();
-      unsubClub300();
     };
   }, []);
 
@@ -5922,44 +5730,6 @@ export default function App() {
       if (id && !standingsCache[id]) loadLeague(id, undefined, tKey);
     });
   }, [mode, leagueMap, standingsCache, loadLeague]);
-
-  // Weekly Awards week picker defaults to the current live week once it's
-  // known — only set once (guarded by weeklyAwardsWeek == null) so it never
-  // overrides a week she's already browsing to.
-  useEffect(() => {
-    if (nflState && weeklyAwardsWeek == null) setWeeklyAwardsWeek(nflState.week);
-  }, [nflState, weeklyAwardsWeek]);
-
-  // Fetches (cache-first, see getWeeklyResultCached) every tier's result for
-  // the selected Weekly Awards season/week, then flattens all 13 tiers' pairs
-  // into one alliance-wide list for weeklyAwards (below) to crown a winner
-  // from. Guarded on view === "weeklyawards" so switching seasons/weeks on a
-  // tab she isn't looking at never fires 13 fetches for nothing.
-  useEffect(() => {
-    if (view !== "weeklyawards" || weeklyAwardsWeek == null) return;
-    let cancelled = false;
-    setWeeklyAwardsLoading(true);
-    const seasonMap = weeklyAwardsSeason === CURRENT_SEASON ? leagueMap : LEAGUE_HISTORY[weeklyAwardsSeason] || {};
-    Promise.all(
-      TIERS.map((t) => {
-        const id = seasonMap[t.key];
-        if (!id) return null;
-        return getWeeklyResultCached(t.key, id, weeklyAwardsSeason, weeklyAwardsWeek).catch(() => null);
-      })
-    ).then((results) => {
-      if (cancelled) return;
-      const flat = [];
-      results.forEach((r, i) => {
-        if (!r) return;
-        r.pairs.forEach((p) => flat.push({ tierKey: TIERS[i].key, ...p }));
-      });
-      setWeeklyAwardsPairs(flat);
-      setWeeklyAwardsLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [view, weeklyAwardsSeason, weeklyAwardsWeek, leagueMap, getWeeklyResultCached]);
 
   const saveName = () => {
     const nm = nameInput.trim().slice(0, 24);
@@ -6753,45 +6523,7 @@ export default function App() {
     return { ...scorePool(ALLIANCE_POOL), ...scorePool(PRO_POOL) };
   }, [mode, leagueMap, standingsCache]);
 
-  // The 7 Weekly Awards categories, crowned across ALL 13 tiers combined
-  // ("Alliance" High/Low, not per-tier) from weeklyAwardsPairs. Bench Points
-  // is the confirmed 2026-08-06 substitute for a true weekly Pts-vs-Max —
-  // see the project notes for why a real lineup-optimizer version isn't
-  // built here.
-  const weeklyAwards = useMemo(() => {
-    if (!weeklyAwardsPairs.length) return null;
-    const sides = [];
-    weeklyAwardsPairs.forEach((p) => {
-      sides.push({ ...p.a, tierKey: p.tierKey });
-      sides.push({ ...p.b, tierKey: p.tierKey });
-    });
-    const bestOf = (cmp) => sides.reduce((best, s) => (!best || cmp(s, best) ? s : best), null);
-    const highScore = bestOf((s, b) => s.points > b.points);
-    const lowScore = bestOf((s, b) => s.points < b.points);
-    const bestBench = bestOf((s, b) => s.benchPoints < b.benchPoints);
-    const worstBench = bestOf((s, b) => s.benchPoints > b.benchPoints);
 
-    let closest = null,
-      blowout = null,
-      highLoss = null;
-    weeklyAwardsPairs.forEach((p) => {
-      const margin = Math.abs(p.a.points - p.b.points);
-      const loserPts = Math.min(p.a.points, p.b.points);
-      const info = { ...p, margin, loserPts };
-      if (!closest || margin < closest.margin) closest = info;
-      if (!blowout || margin > blowout.margin) blowout = info;
-      if (!highLoss || loserPts > highLoss.loserPts) highLoss = info;
-    });
-
-    return { highScore, lowScore, bestBench, worstBench, closest, blowout, highLoss };
-  }, [weeklyAwardsPairs]);
-
-  // 300 Club: static CLUB_300 merged with live-detected entries. Kept as a
-  // useMemo (not a module constant) since club300Live changes at runtime.
-  const club300All = useMemo(() => (club300Live.length ? [...CLUB_300, ...club300Live] : CLUB_300), [club300Live]);
-  const club300TopCoaches = useMemo(() => tally(club300All, (r) => r.coach).slice(0, 10), [club300All]);
-  const club300TopTeams = useMemo(() => tally(club300All, (r) => r.team).slice(0, 8), [club300All]);
-  const club300ByConf = useMemo(() => tally(club300All, (r) => r.conf), [club300All]);
 
   const tagColor = (t) =>
     t === "BREAKING" ? C.ember : t === "ANNOUNCEMENT" ? C.gold : t === "COACHING CAROUSEL" ? C.turf : C.slate;
@@ -6822,105 +6554,6 @@ export default function App() {
       {h}
     </th>
   );
-
-  // Weekly Awards card, single-side categories (High/Low Score, Best/Worst
-  // Bench Points). `valueKey` picks which field the big number reads from;
-  // defaults to the raw score.
-  const AwardCard = ({ label, side, valueKey = "points", valueColor = C.gold, cp }) => {
-    if (!side) return null;
-    return (
-      <div className="px-3.5 py-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.15em" }}>
-            {label}
-          </div>
-          {cp !== undefined && (
-            <span
-              className="text-xs shrink-0"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", color: cp >= 0 ? C.turf : C.ember }}
-            >
-              {cp >= 0 ? "+" : ""}
-              {cp} CP
-            </span>
-          )}
-        </div>
-        <div
-          className="text-3xl leading-none mb-2"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: valueColor }}
-        >
-          {fmt(side[valueKey])}
-        </div>
-        <div className="flex items-center gap-2">
-          <TeamMark team={side.team} tierKey={side.tierKey} size={30} />
-          <div className="min-w-0">
-            <button
-              type="button"
-              onClick={() => openCoachProfile(side.coach)}
-              className="text-sm font-semibold truncate block"
-              style={{ color: "inherit" }}
-            >
-              {side.coach || "—"}
-            </button>
-            <button
-              type="button"
-              onClick={() => openTeamProfile(side, side.tierKey)}
-              className="text-xs truncate block"
-              style={{ color: C.slate }}
-            >
-              {side.team || "—"} · {side.tierKey}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Weekly Awards card, pair categories (Closest Margin, Biggest Blowout,
-  // Highest-Scoring Loss). Always shows the higher scorer first; `markLoser`
-  // adds (W)/(L) tags for the one category where who lost is the point.
-  const AwardPairCard = ({ label, pair, value, markLoser = false }) => {
-    if (!pair) return null;
-    const aWon = pair.a.points >= pair.b.points;
-    const winner = aWon ? pair.a : pair.b;
-    const loser = aWon ? pair.b : pair.a;
-    return (
-      <div className="px-3.5 py-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.15em" }}>
-          {label}
-        </div>
-        <div
-          className="text-3xl leading-none mb-2"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}
-        >
-          {fmt(value)}
-        </div>
-        <div className="space-y-1">
-          {[winner, loser].map((s, i) => (
-            <div key={i} className="flex items-center justify-between text-xs gap-2">
-              <button
-                type="button"
-                onClick={() => openTeamProfile(s, pair.tierKey)}
-                className="truncate"
-                style={{ color: i === 0 ? C.chalk : C.slate }}
-              >
-                {s.coach || "—"}
-                {markLoser ? (i === 0 ? " (W)" : " (L)") : ""}
-              </button>
-              <span
-                className="shrink-0"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", color: i === 0 ? C.chalk : C.slate }}
-              >
-                {fmt(s.points)}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="text-xs mt-2" style={{ color: C.slate }}>
-          {pair.tierKey}
-        </div>
-      </div>
-    );
-  };
 
   // Age gate — outermost, ahead of everything else, including the auth
   // loading check below. Has nothing to do with Firebase and shouldn't wait
@@ -7099,7 +6732,6 @@ export default function App() {
             <Tab id="directory">Directory</Tab>
             <Tab id="pyramid">Rules</Tab>
             <Tab id="300club">300 Club</Tab>
-            <Tab id="weeklyawards">Weekly Awards</Tab>
             {currentUser.role === "admin" && <Tab id="admin">Admin</Tab>}
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
           </nav>
@@ -7859,7 +7491,7 @@ export default function App() {
                       <th
                         key={col.key}
                         onClick={() => toggleCoachSort(col.key)}
-                        className="px-3 py-2 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none text-center"
+                        className={`px-3 py-2 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none ${col.right ? "text-right" : "text-left"}`}
                         style={{ fontWeight: 500, color: coachSort.key === col.key ? C.gold : C.slate }}
                       >
                         {col.label}{coachSort.key === col.key ? (coachSort.dir === "asc" ? " ▲" : " ▼") : ""}
@@ -7870,34 +7502,34 @@ export default function App() {
                 <tbody style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
                   {sortedCoachesTable.map((r, i) => (
                     <tr key={r.name + i} style={{ background: i % 2 ? "rgba(255,255,255,0.02)" : "transparent", borderTop: `1px solid ${C.line}` }}>
-                      <td className="px-3 py-2 whitespace-nowrap text-center" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>
                         <button type="button" onClick={() => openCoachProfile(r.name)} style={{ color: "inherit" }}>
                           {r.name}
                           <TrophyBadges name={r.name} size={12} />
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-center" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: "'Barlow', sans-serif", color: C.slate }}>
                         <button type="button" onClick={() => openTeamProfile(r, r.tierKey)} style={{ color: "inherit" }}>
                           {r.team}
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap uppercase text-xs text-center" style={{ color: C.gold }}>{r.tierKey}</td>
+                      <td className="px-3 py-2 whitespace-nowrap uppercase text-xs" style={{ color: C.gold }}>{r.tierKey}</td>
                       <td
-                        className="px-3 py-2 text-center"
+                        className="px-3 py-2 text-right"
                         style={{ color: r.promotionScore === -Infinity ? C.chalk : r.promotionScore > 0 ? C.turf : r.promotionScore < 0 ? C.ember : C.slate }}
                       >
                         {r.promotionScore === -Infinity ? "—" : `${r.promotionScore >= 0 ? "+" : ""}${fmt(r.promotionScore)}`}
                       </td>
                       <td
-                        className="px-3 py-2 text-center"
+                        className="px-3 py-2 text-right"
                         style={{ color: r.currentCP === -Infinity ? C.chalk : r.currentCP > 0 ? C.turf : r.currentCP < 0 ? C.ember : C.slate }}
                       >
                         {r.currentCP === -Infinity ? "—" : `${r.currentCP >= 0 ? "+" : ""}${fmt(r.currentCP)}`}
                       </td>
-                      <td className="px-3 py-2 text-center" style={{ color: C.gold, fontWeight: 600 }}>
+                      <td className="px-3 py-2 text-right" style={{ color: C.gold, fontWeight: 600 }}>
                         {r.cp === -Infinity ? "—" : fmt(r.cp)}
                       </td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
                         {r.record === "—" || !r.record ? (
                           "—"
                         ) : (
@@ -7908,8 +7540,8 @@ export default function App() {
                           </>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-center">{r.winPct === -Infinity ? "—" : winPctLabel(r.winPct)}</td>
-                      <td className="px-3 py-2 text-center">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
+                      <td className="px-3 py-2 text-right">{r.winPct === -Infinity ? "—" : winPctLabel(r.winPct)}</td>
+                      <td className="px-3 py-2 text-right">{r.totalPts === -Infinity ? "—" : fmt(r.totalPts)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -7949,7 +7581,7 @@ export default function App() {
             )}
             {dirGroups.map((g) => (
               <div key={g.tier.key} className="mb-6">
-                <DirBand tier={g.tier} count={g.coaches.length} strength={conferenceStrength[g.tier.key]} />
+                <DirBand tier={g.tier} count={g.coaches.length} />
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {g.coaches.map((c, i) => (
                     <button
@@ -8251,7 +7883,7 @@ export default function App() {
                 </h2>
               </div>
               <p className="text-sm mb-4" style={{ color: C.slate }}>
-                300+ points in a single game. Immortality, in decimals. {club300All.length} games and counting.
+                300+ points in a single game. Immortality, in decimals. {CLUB_300.length} games and counting.
               </p>
               <input
                 value={club300Query}
@@ -8261,7 +7893,7 @@ export default function App() {
                 style={{ background: C.panel, border: `1px solid ${C.line}`, color: C.chalk }}
               />
               <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: "42rem" }}>
-                {club300All.filter((r) => {
+                {CLUB_300.filter((r) => {
                   const q = club300Query.trim().toLowerCase();
                   if (!q) return true;
                   return r.coach.toLowerCase().includes(q) || r.team.toLowerCase().includes(q);
@@ -8270,7 +7902,6 @@ export default function App() {
                     <span className="text-xl leading-none w-20 shrink-0" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}>
                       {fmt(r.pts)}
                     </span>
-                    <TeamMark team={r.team} tierKey={CONF_TO_TIER_KEY[r.conf] || r.conf} size={38} />
                     <div className="min-w-0 flex-1">
                       <button type="button" onClick={() => openCoachProfile(r.coach)} className="text-sm font-semibold truncate block" style={{ color: "inherit" }}>
                         {r.coach}
@@ -8298,7 +7929,7 @@ export default function App() {
                   MVP · Most Appearances
                 </div>
                 <div className="space-y-1">
-                  {club300TopCoaches.map(([name, count]) => (
+                  {CLUB_300_TOP_COACHES.map(([name, count]) => (
                     <button
                       type="button"
                       key={name}
@@ -8321,7 +7952,7 @@ export default function App() {
                   Most 300pt Teams
                 </div>
                 <div className="space-y-1">
-                  {club300TopTeams.map(([name, count]) => (
+                  {CLUB_300_TOP_TEAMS.map(([name, count]) => (
                     <div key={name} className="flex items-center justify-between px-2.5 py-1.5 rounded-sm text-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
                       <span className="truncate" style={{ color: C.chalk }}>{name}</span>
                       <span className="shrink-0 ml-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold }}>{count}</span>
@@ -8335,8 +7966,8 @@ export default function App() {
                   By Conference
                 </div>
                 <div className="space-y-1">
-                  {club300ByConf.map(([conf, count]) => {
-                    const max = club300ByConf[0][1];
+                  {CLUB_300_BY_CONF.map(([conf, count]) => {
+                    const max = CLUB_300_BY_CONF[0][1];
                     return (
                       <div key={conf} className="flex items-center gap-2 text-xs">
                         <span className="w-12 shrink-0 uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, color: C.slate }}>{conf}</span>
@@ -8350,99 +7981,6 @@ export default function App() {
                 </div>
               </div>
             </aside>
-          </div>
-        )}
-
-        {view === "weeklyawards" && (
-          <div>
-            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-              <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                Weekly Awards
-              </h2>
-              {weeklyAwardsWeek != null && (
-                <span className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                  {weeklyAwardsSeason} · Week {weeklyAwardsWeek}
-                </span>
-              )}
-            </div>
-            <p className="text-sm mb-4" style={{ color: C.slate }}>
-              The Alliance's best, worst, and closest — one week at a time, across all 13 tiers.
-            </p>
-
-            {mode === "live" && (
-              <div className="mb-4">
-                <div className="flex gap-1 mb-2 flex-wrap">
-                  {SEASON_OPTIONS.map((yr) => {
-                    const active = yr === weeklyAwardsSeason;
-                    return (
-                      <button
-                        key={yr}
-                        onClick={() => setWeeklyAwardsSeason(yr)}
-                        className="px-2.5 py-1 text-xs tracking-wider rounded-sm transition-colors"
-                        style={{
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          background: active ? C.gold : "transparent",
-                          color: active ? C.ink : C.slate,
-                          border: `1px solid ${active ? C.gold : C.line}`,
-                        }}
-                      >
-                        {yr}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-1 flex-wrap">
-                  <span className="text-xs uppercase tracking-widest mr-1" style={{ color: C.slate, letterSpacing: "0.15em" }}>
-                    Week
-                  </span>
-                  {WEEK_OPTIONS.map((wk) => {
-                    const active = wk === weeklyAwardsWeek;
-                    const future = weeklyAwardsSeason === CURRENT_SEASON && nflState && wk > nflState.week;
-                    return (
-                      <button
-                        key={wk}
-                        disabled={future}
-                        onClick={() => setWeeklyAwardsWeek(wk)}
-                        className="w-7 h-7 text-xs rounded-sm transition-colors"
-                        style={{
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          background: active ? C.gold : "transparent",
-                          color: future ? C.line : active ? C.ink : C.slate,
-                          border: `1px solid ${active ? C.gold : C.line}`,
-                          cursor: future ? "default" : "pointer",
-                        }}
-                      >
-                        {wk}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {mode !== "live" ? (
-              <div className="text-sm" style={{ color: C.slate }}>
-                Weekly Awards need a live connection — check back once the site's connected to Sleeper.
-              </div>
-            ) : weeklyAwardsLoading ? (
-              <div className="text-sm" style={{ color: C.slate }}>
-                Loading every tier's week {weeklyAwardsWeek}…
-              </div>
-            ) : !weeklyAwards ? (
-              <div className="text-sm" style={{ color: C.slate }}>
-                No games found for week {weeklyAwardsWeek}, {weeklyAwardsSeason} yet.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} cp={5} />
-                <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} cp={-5} />
-                <AwardCard label="Best Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} cp={5} />
-                <AwardCard label="Worst Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} cp={-5} />
-                <AwardPairCard label="Closest Margin" pair={weeklyAwards.closest} value={weeklyAwards.closest.margin} />
-                <AwardPairCard label="Biggest Blowout" pair={weeklyAwards.blowout} value={weeklyAwards.blowout.margin} />
-                <AwardPairCard label="Highest-Scoring Loss" pair={weeklyAwards.highLoss} value={weeklyAwards.highLoss.loserPts} markLoser />
-              </div>
-            )}
           </div>
         )}
 
