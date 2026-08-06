@@ -7943,6 +7943,7 @@ export default function App() {
                     <span className="text-xl leading-none w-20 shrink-0" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: C.gold }}>
                       {fmt(r.pts)}
                     </span>
+                    <TeamMark team={r.team} tierKey={CONF_TO_TIER_KEY[r.conf] || r.conf} size={38} />
                     <div className="min-w-0 flex-1">
                       <button type="button" onClick={() => openCoachProfile(r.coach)} className="text-sm font-semibold truncate block" style={{ color: "inherit" }}>
                         {r.coach}
