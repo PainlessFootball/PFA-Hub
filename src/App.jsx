@@ -4452,10 +4452,30 @@ const TEAM_ART = {
     [normTeamKey("Chattanooga Mocs")]: teamArtPath("SOCO", "soco-team-chattanooga-mocs.png"),
     [normTeamKey("Nicholls State Colonels")]: teamArtPath("SOCO", "soco-team-nicholls-state-colonels.png"),
     [normTeamKey("Tennessee Martin Skyhawks")]: teamArtPath("SOCO", "soco-team-tennessee-martin-skyhawks.png"),
-    [normTeamKey("East Tennessee Buccaneers")]: teamArtPath("SOCO", "soco-team-east-tennessee-buccaneers.png"),
+    [normTeamKey("East Tennessee State Buccaneers")]: teamArtPath("SOCO", "soco-team-east-tennessee-buccaneers.png"),
     [normTeamKey("Murray State Racers")]: teamArtPath("SOCO", "soco-team-murray-state-racers.png"),
     [normTeamKey("Samford Bulldogs")]: teamArtPath("SOCO", "soco-team-samford-bulldogs.png"),
     [normTeamKey("Tennessee Tech Golden Eagles")]: teamArtPath("SOCO", "soco-team-tennessee-tech-golden-eagles.png"),
+  },
+  SUN: {
+    [normTeamKey("Georgia State Panthers")]: teamArtPath("SUN", "sun-team-georgia-state-panthers.png"),
+    [normTeamKey("Little Rock Trojans")]: teamArtPath("SUN", "sun-team-little-rock-trojans.png"),
+    [normTeamKey("Arlington Mavericks")]: teamArtPath("SUN", "sun-team-arlington-mavericks.png"),
+    [normTeamKey("Arkansas State Red Wolves")]: teamArtPath("SUN", "sun-team-arkansas-state-red-wolves.png"),
+    [normTeamKey("Southern Miss Golden Eagles")]: teamArtPath("SUN", "sun-team-southern-miss-golden-eagles.png"),
+    [normTeamKey("South Alabama Jaguars")]: teamArtPath("SUN", "sun-team-south-alabama-jaguars.png"),
+    [normTeamKey("James Madison Dukes")]: teamArtPath("SUN", "sun-team-james-madison-dukes.png"),
+    [normTeamKey("Georgia Southern Eagles")]: teamArtPath("SUN", "sun-team-georgia-southern-eagles.png"),
+    [normTeamKey("Troy Trojans")]: teamArtPath("SUN", "sun-team-troy-trojans.png"),
+    [normTeamKey("Marshall Thundering Herd")]: teamArtPath("SUN", "sun-team-marshall-thundering-herd.png"),
+    [normTeamKey("Louisiana Monroe Warhawks")]: teamArtPath("SUN", "sun-team-louisiana-monroe-warhawks.png"),
+    [normTeamKey("Texas State Bobcats")]: teamArtPath("SUN", "sun-team-texas-state-bobcats.png"),
+    [normTeamKey("Old Dominion Monarchs")]: teamArtPath("SUN", "sun-team-old-dominion-monarchs.png"),
+    [normTeamKey("Louisiana Ragin Cajuns")]: teamArtPath("SUN", "sun-team-louisiana-ragin-cajuns.png"),
+    [normTeamKey("Carolina Chanticleers")]: teamArtPath("SUN", "sun-team-carolina-chanticleers.png"),
+    // App State (Appalachian State) intentionally has no entry yet — not
+    // included in this batch; falls back to the color crest until she
+    // sends it.
   },
 };
 
