@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { loginUser, registerUser } from "./auth.js";
+import { loginUser, registerUser, resetPassword } from "./auth.js";
 
 // Same palette as App.jsx's own `C` — duplicated here rather than imported
 // since App.jsx has no exports of its own to pull from.
@@ -24,7 +24,28 @@ const inputStyle = {
   outline: "none",
 };
 
+const btnStyle = {
+  padding: "10px 0",
+  background: C.gold,
+  color: C.ink,
+  border: "none",
+  borderRadius: 4,
+  fontWeight: 700,
+  fontSize: 13,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  cursor: "pointer",
+};
+
+const ghostBtnStyle = {
+  ...btnStyle,
+  background: "transparent",
+  border: `1px solid ${C.line}`,
+  color: C.slate,
+};
+
 export default function LandingPage({ onAuth }) {
+  const [screen, setScreen] = useState("auth"); // "auth" | "forgot" | "forgot_sent"
   const [mode, setMode] = useState("login"); // "login" | "register"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +53,7 @@ export default function LandingPage({ onAuth }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [logoOk, setLogoOk] = useState(true);
+  const [resetSending, setResetSending] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -45,6 +67,19 @@ export default function LandingPage({ onAuth }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotSubmit(e) {
+    e.preventDefault();
+    setResetSending(true);
+    try {
+      await resetPassword(email);
+    } finally {
+      // Always land on the same "sent" screen regardless of outcome — see
+      // resetPassword's own comment on why (avoids account enumeration).
+      setResetSending(false);
+      setScreen("forgot_sent");
     }
   }
 
@@ -79,77 +114,146 @@ export default function LandingPage({ onAuth }) {
         className="w-full"
         style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 8, padding: "32px 36px", maxWidth: 400 }}
       >
-        <div className="flex mb-7 overflow-hidden" style={{ border: `1px solid ${C.line}`, borderRadius: 6 }}>
-          {["login", "register"].map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setMode(m);
-                setError("");
-              }}
-              className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider"
-              style={{
-                border: "none",
-                cursor: "pointer",
-                background: mode === m ? C.gold : "transparent",
-                color: mode === m ? C.ink : C.slate,
-              }}
-            >
-              {m === "login" ? "Sign In" : "Register"}
-            </button>
-          ))}
-        </div>
+        {screen === "auth" && (
+          <>
+            <div className="flex mb-7 overflow-hidden" style={{ border: `1px solid ${C.line}`, borderRadius: 6 }}>
+              {["login", "register"].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMode(m);
+                    setError("");
+                  }}
+                  className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider"
+                  style={{
+                    border: "none",
+                    cursor: "pointer",
+                    background: mode === m ? C.gold : "transparent",
+                    color: mode === m ? C.ink : C.slate,
+                  }}
+                >
+                  {m === "login" ? "Sign In" : "Register"}
+                </button>
+              ))}
+            </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          {mode === "register" && (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+              {mode === "register" && (
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Display Name"
+                  required
+                  style={inputStyle}
+                />
+              )}
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+                style={inputStyle}
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+                style={inputStyle}
+              />
+
+              {error && (
+                <div className="text-xs" style={{ color: C.ember }}>
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-1"
+                style={{ ...btnStyle, cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}
+              >
+                {loading ? "…" : mode === "login" ? "Sign In" : "Create Account"}
+              </button>
+
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScreen("forgot");
+                    setError("");
+                  }}
+                  className="text-xs text-center"
+                  style={{ background: "none", border: "none", color: C.slate, cursor: "pointer", textDecoration: "underline", marginTop: 2 }}
+                >
+                  Forgot password?
+                </button>
+              )}
+
+              {mode === "register" && (
+                <p className="text-xs text-center" style={{ color: C.slate, lineHeight: 1.6, margin: "2px 0 0" }}>
+                  You'll get a verification email after registering — click the
+                  link, then sign back in. New accounts also need a quick
+                  admin review before full access opens up.
+                </p>
+              )}
+            </form>
+          </>
+        )}
+
+        {screen === "forgot" && (
+          <form onSubmit={handleForgotSubmit} className="flex flex-col gap-3.5">
+            <h2
+              className="text-lg uppercase"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, letterSpacing: "0.06em", color: C.gold, margin: "0 0 4px" }}
+            >
+              Reset Password
+            </h2>
+            <p className="text-xs" style={{ color: C.slate, lineHeight: 1.6, margin: "0 0 4px" }}>
+              Enter your email and we'll send you a reset link.
+            </p>
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Display Name"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
               required
               style={inputStyle}
             />
-          )}
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            required
-            style={inputStyle}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required
-            style={inputStyle}
-          />
+            <button
+              type="submit"
+              disabled={resetSending}
+              style={{ ...btnStyle, cursor: resetSending ? "default" : "pointer", opacity: resetSending ? 0.7 : 1 }}
+            >
+              {resetSending ? "Sending…" : "Send Reset Link"}
+            </button>
+            <button type="button" onClick={() => setScreen("auth")} style={ghostBtnStyle}>
+              Back to Sign In
+            </button>
+          </form>
+        )}
 
-          {error && (
-            <div className="text-xs" style={{ color: C.ember }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-1 py-2.5 text-sm font-bold uppercase tracking-wider"
-            style={{
-              background: C.gold,
-              color: C.ink,
-              border: "none",
-              borderRadius: 4,
-              cursor: loading ? "default" : "pointer",
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading ? "…" : mode === "login" ? "Sign In" : "Create Account"}
-          </button>
-        </form>
+        {screen === "forgot_sent" && (
+          <div className="text-center flex flex-col gap-3.5">
+            <div style={{ fontSize: 36 }}>📧</div>
+            <h2
+              className="text-lg uppercase"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, letterSpacing: "0.06em", color: C.gold, margin: 0 }}
+            >
+              Check Your Email
+            </h2>
+            <p className="text-xs" style={{ color: C.slate, lineHeight: 1.6 }}>
+              If an account exists for {email}, a password reset link has been sent.
+            </p>
+            <button onClick={() => setScreen("auth")} style={btnStyle}>
+              Back to Sign In
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

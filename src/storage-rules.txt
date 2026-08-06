@@ -1,0 +1,21 @@
+Firebase Console → Storage → Rules. Storage has never been used on this
+project before, so this is the WHOLE rules file, not a merge.
+
+Before pasting this in, you first need to enable Storage at all: Firebase
+Console → Build → Storage → Get Started (choose the default bucket,
+same region as your Firestore).
+
+---
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /avatars/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 2 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

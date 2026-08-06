@@ -18,6 +18,11 @@ import {
 import { onAuthChange, logoutUser } from "./auth.js";
 import LandingPage from "./LandingPage.jsx";
 import AdminPanel from "./AdminPanel.jsx";
+import AgeGate from "./AgeGate.jsx";
+import UserMenu from "./UserMenu.jsx";
+import SettingsPanel from "./SettingsPanel.jsx";
+import Footer from "./Footer.jsx";
+import { authenticator } from "otplib";
 
 // ─────────────────────────────────────────────────────────────
 // PAINLESS FOOTBALL ALLIANCE — fan hub
@@ -5411,6 +5416,60 @@ export default function App() {
     return unsub;
   }, []);
 
+  // Age gate — sessionStorage so it re-asks each browser session, same
+  // pattern AgeGate.jsx itself uses to record a pass.
+  const [gatePassed, setGatePassed] = useState(() => sessionStorage.getItem("pfa_gate_passed") === "1");
+
+  // 2FA — this is a UI-level gate only. Firebase itself already considers
+  // the person signed in the instant loginUser() resolves (that's a
+  // separate listener from this component's own render), so this can't be
+  // enforced at the data layer without a Cloud Function issuing custom
+  // claims — flagged to Lainey as a known limitation, not fixed here.
+  // Verified once per browser session per uid, mirroring the age gate.
+  const [twoFAVerified, setTwoFAVerified] = useState(false);
+  useEffect(() => {
+    if (currentUser?.twoFAEnabled) {
+      setTwoFAVerified(sessionStorage.getItem(`pfa_2fa_ok_${currentUser.uid}`) === "1");
+    } else {
+      setTwoFAVerified(false);
+    }
+  }, [currentUser?.uid, currentUser?.twoFAEnabled]);
+
+  const [twoFACode, setTwoFACode] = useState("");
+  const [twoFAGateError, setTwoFAGateError] = useState("");
+
+  function verifyTwoFAGate() {
+    setTwoFAGateError("");
+    const valid = authenticator.verify({ token: twoFACode.replace(/\s/g, ""), secret: currentUser.twoFASecret });
+    if (!valid) {
+      setTwoFAGateError("Invalid code. Please try again.");
+      return;
+    }
+    sessionStorage.setItem(`pfa_2fa_ok_${currentUser.uid}`, "1");
+    setTwoFAVerified(true);
+    setTwoFACode("");
+  }
+
+  // Passed to SettingsPanel — if 2FA was just turned ON in this same
+  // authenticated session, the person already proved code possession to
+  // get there, so don't immediately re-demand it via the gate above.
+  function handleProfileUpdate(updated) {
+    if (updated.twoFAEnabled && !currentUser?.twoFAEnabled) {
+      sessionStorage.setItem(`pfa_2fa_ok_${updated.uid}`, "1");
+      setTwoFAVerified(true);
+    }
+    if (updated.twoFAEnabled === false) {
+      sessionStorage.removeItem(`pfa_2fa_ok_${updated.uid}`);
+    }
+    setCurrentUser(updated);
+  }
+
+  function handleAccountDeleted() {
+    setView("home");
+    // currentUser will flip to null on its own once onAuthChange's listener
+    // observes the deletion — no need to set it here.
+  }
+
   const j = (url) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))));
 
   // buildStandings is only ever called from inside loadLeague, which is
@@ -6496,9 +6555,17 @@ export default function App() {
     </th>
   );
 
-  // Auth render gate — must sit before any of the app's own JSX. Order
-  // matters: still-checking, then logged-out, then logged-in-but-suspended,
-  // and only then the real app below.
+  // Age gate — outermost, ahead of everything else, including the auth
+  // loading check below. Has nothing to do with Firebase and shouldn't wait
+  // on it.
+  if (!gatePassed) {
+    return <AgeGate onPass={() => setGatePassed(true)} />;
+  }
+
+  // Auth render gate — order matters: still-checking, then logged-out, then
+  // the several logged-in-but-not-fully-in states (rejected / unverified /
+  // pending admin review / banned), then a same-session 2FA check, and only
+  // then the real app below.
   if (!authReady) {
     return (
       <div
@@ -6515,12 +6582,99 @@ export default function App() {
   }
 
   if (!currentUser.approved) {
+    let gateMsg, gateColor;
+    if (currentUser.rejected) {
+      gateMsg = "Your application was not approved. Contact an admin if you believe this is a mistake.";
+      gateColor = C.ember;
+    } else if (currentUser.everApproved) {
+      // Was approved before, isn't now — this is a ban, not new-user onboarding.
+      gateMsg = "Your account has been suspended. Contact an admin.";
+      gateColor = C.ember;
+    } else if (currentUser.pendingApproval) {
+      gateMsg = "Your email has been verified. Your account is pending review by an admin — you'll get access once it's approved.";
+      gateColor = C.gold;
+    } else {
+      gateMsg = `We've sent a verification link to ${currentUser.email}. Click it, then sign back in to continue.`;
+      gateColor = C.gold;
+    }
     return (
       <div
         className="min-h-screen w-full flex items-center justify-center text-center px-6"
-        style={{ background: C.ink, color: C.ember, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18 }}
+        style={{ background: C.ink, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18 }}
       >
-        Your account has been suspended. Contact an admin.
+        <div style={{ maxWidth: 440 }}>
+          <div style={{ color: gateColor, marginBottom: 20 }}>{gateMsg}</div>
+          <button
+            onClick={logoutUser}
+            className="px-3 py-1.5 text-xs font-bold uppercase rounded-sm"
+            style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.slate, cursor: "pointer" }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentUser.twoFAEnabled && !twoFAVerified) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center px-6" style={{ background: C.ink, fontFamily: "'Barlow', sans-serif" }}>
+        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 8, padding: "32px 36px", maxWidth: 380, width: "100%" }}>
+          <h2
+            className="text-lg uppercase text-center"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, letterSpacing: "0.06em", color: C.gold, margin: "0 0 16px" }}
+          >
+            Two-Factor Code
+          </h2>
+          <p className="text-xs text-center" style={{ color: C.slate, lineHeight: 1.6, marginBottom: 18 }}>
+            Enter the 6-digit code from your authenticator app.
+          </p>
+          <input
+            value={twoFACode}
+            onChange={(e) => setTwoFACode(e.target.value)}
+            placeholder="000 000"
+            maxLength={6}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              background: C.ink,
+              border: `1px solid ${C.gold}`,
+              borderRadius: 4,
+              color: C.gold,
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: "0.2em",
+              textAlign: "center",
+              outline: "none",
+              boxSizing: "border-box",
+              marginBottom: 12,
+            }}
+          />
+          {twoFAGateError && <div className="text-xs text-center mb-3" style={{ color: C.ember }}>{twoFAGateError}</div>}
+          <button
+            onClick={verifyTwoFAGate}
+            disabled={twoFACode.replace(/\s/g, "").length < 6}
+            className="w-full py-2.5 text-sm font-bold uppercase tracking-wider"
+            style={{
+              background: C.gold,
+              color: C.ink,
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+              opacity: twoFACode.replace(/\s/g, "").length < 6 ? 0.5 : 1,
+              marginBottom: 10,
+            }}
+          >
+            Verify
+          </button>
+          <button
+            onClick={logoutUser}
+            className="w-full py-2 text-xs font-bold uppercase"
+            style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.slate, borderRadius: 4, cursor: "pointer" }}
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
     );
   }
@@ -6568,23 +6722,7 @@ export default function App() {
                   ? `● Live · ${nflState ? `${nflState.season} Wk ${nflState.week}` : ""}`
                   : "Offline · sample data"}
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs" style={{ color: C.slate }}>
-                  {currentUser.displayName || currentUser.email}
-                  {currentUser.role !== "user" && (
-                    <span className="ml-1.5 font-bold uppercase" style={{ color: C.gold, fontSize: 10 }}>
-                      [{currentUser.role}]
-                    </span>
-                  )}
-                </span>
-                <button
-                  onClick={logoutUser}
-                  className="px-2.5 py-1 text-xs font-bold uppercase rounded-sm"
-                  style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.slate, cursor: "pointer" }}
-                >
-                  Sign Out
-                </button>
-              </div>
+              <UserMenu currentUser={currentUser} onOpenSettings={() => setView("settings")} />
             </div>
           </div>
           <nav className="mt-4 flex overflow-x-auto">
@@ -7846,15 +7984,14 @@ export default function App() {
           </div>
         )}
 
+        {view === "settings" && (
+          <SettingsPanel currentUser={currentUser} onUpdate={handleProfileUpdate} onAccountDeleted={handleAccountDeleted} />
+        )}
+
         {view === "admin" && currentUser.role === "admin" && <AdminPanel currentUser={currentUser} />}
       </main>
 
-      <footer className="px-4 sm:px-6 py-4 text-xs" style={{ borderTop: `1px solid ${C.line}`, color: C.slate }}>
-        <div className="max-w-6xl mx-auto flex justify-between flex-wrap gap-2">
-          <span>Painless Football Alliance</span>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>sleeper api · firebase · alliance sheet</span>
-        </div>
-      </footer>
+      <Footer />
 
       <CoachProfileModal coach={selectedCoach} onClose={() => setSelectedCoach(null)} />
       <TeamProfileModal

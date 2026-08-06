@@ -1,0 +1,65 @@
+Paste this into the Firebase Console → Firestore Database → Rules.
+
+This is NOT your whole rules file — replace only the existing
+`match /users/{uid} { ... }` block (and add the two helper functions if
+they aren't already there under different names) inside your existing
+`service cloud.firestore { match /databases/{database}/documents { ... } }`.
+Leave every other collection's rules (chat, news, applications, settings)
+exactly as they are.
+
+---
+
+function isSignedIn() {
+  return request.auth != null;
+}
+
+function isSelf(uid) {
+  return isSignedIn() && request.auth.uid == uid;
+}
+
+function isAdmin() {
+  return isSignedIn()
+    && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+}
+
+match /users/{uid} {
+  allow read: if isSelf(uid) || isAdmin();
+
+  // Account creation — only the user themself, and only with safe
+  // defaults. Stops a crafted client write from self-granting
+  // admin/approved status at signup. Seed admins are the two allowlisted
+  // emails; everyone else must start as role "user", approved false,
+  // pendingApproval false.
+  allow create: if isSelf(uid)
+    && request.resource.data.role ==
+       (request.resource.data.email in ["jdshort99@gmail.com", "painlessfootball@gmail.com"] ? "admin" : "user")
+    && request.resource.data.approved ==
+       (request.resource.data.email in ["jdshort99@gmail.com", "painlessfootball@gmail.com"])
+    && request.resource.data.pendingApproval == false;
+
+  // Self-service profile edits — role/approved/pendingApproval/
+  // everApproved/rejected/email must never change via a self-update,
+  // only via the admin path below.
+  allow update: if isSelf(uid)
+    && request.resource.data.role == resource.data.role
+    && request.resource.data.approved == resource.data.approved
+    && request.resource.data.pendingApproval == resource.data.pendingApproval
+    && request.resource.data.everApproved == resource.data.everApproved
+    && request.resource.data.rejected == resource.data.rejected
+    && request.resource.data.email == resource.data.email;
+
+  // Admin path — full write access, needed for role changes, approvals,
+  // rejections, and bans.
+  allow update: if isAdmin();
+
+  allow delete: if isSelf(uid) || isAdmin();
+}
+
+---
+
+Note: if your existing rules already define an isAdmin()-equivalent
+function under a different name (used by the chat/news/applications/
+settings rules), reconcile the two rather than defining it twice —
+Firestore rules will reject a duplicate function name in the same
+service block.
