@@ -4439,6 +4439,24 @@ const TEAM_ART = {
     [normTeamKey("Dartmouth Big Green")]: teamArtPath("IVY", "ivy-team-dartmouth-big-green.png"),
     [normTeamKey("Holy Cross Crusaders")]: teamArtPath("IVY", "ivy-team-holy-cross-crusaders.png"),
   },
+  SOCO: {
+    [normTeamKey("Belmont Bruins")]: teamArtPath("SOCO", "soco-team-belmont-bruins.png"),
+    [normTeamKey("Mercer Bears")]: teamArtPath("SOCO", "soco-team-mercer-bears.png"),
+    [normTeamKey("Western Carolina Catamounts")]: teamArtPath("SOCO", "soco-team-western-carolina-catamounts.png"),
+    [normTeamKey("Jacksonville State Gamecocks")]: teamArtPath("SOCO", "soco-team-jacksonville-state-gamecocks.png"),
+    [normTeamKey("Austin Peay Governors")]: teamArtPath("SOCO", "soco-team-austin-peay-governors.png"),
+    [normTeamKey("Tennessee State Tigers")]: teamArtPath("SOCO", "soco-team-tennessee-state-tigers.png"),
+    [normTeamKey("Citadel Bulldogs")]: teamArtPath("SOCO", "soco-team-citadel-bulldogs.png"),
+    [normTeamKey("Elon Phoenix")]: teamArtPath("SOCO", "soco-team-elon-phoenix.png"),
+    [normTeamKey("VMI Keydets")]: teamArtPath("SOCO", "soco-team-vmi-keydets.png"),
+    [normTeamKey("Chattanooga Mocs")]: teamArtPath("SOCO", "soco-team-chattanooga-mocs.png"),
+    [normTeamKey("Nicholls State Colonels")]: teamArtPath("SOCO", "soco-team-nicholls-state-colonels.png"),
+    [normTeamKey("Tennessee Martin Skyhawks")]: teamArtPath("SOCO", "soco-team-tennessee-martin-skyhawks.png"),
+    [normTeamKey("East Tennessee Buccaneers")]: teamArtPath("SOCO", "soco-team-east-tennessee-buccaneers.png"),
+    [normTeamKey("Murray State Racers")]: teamArtPath("SOCO", "soco-team-murray-state-racers.png"),
+    [normTeamKey("Samford Bulldogs")]: teamArtPath("SOCO", "soco-team-samford-bulldogs.png"),
+    [normTeamKey("Tennessee Tech Golden Eagles")]: teamArtPath("SOCO", "soco-team-tennessee-tech-golden-eagles.png"),
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
@@ -8450,8 +8468,8 @@ export default function App() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} cp={5} />
-                <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} cp={-5} />
+                <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} valueColor={C.turf} cp={5} />
+                <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} valueColor={C.ember} cp={-5} />
                 <AwardCard label="Best Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} cp={5} />
                 <AwardCard label="Worst Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} cp={-5} />
                 <AwardPairCard label="Closest Margin" pair={weeklyAwards.closest} value={weeklyAwards.closest.margin} />
