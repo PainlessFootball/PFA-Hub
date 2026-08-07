@@ -1346,7 +1346,7 @@ const CLUB_300 = [
   { coach: "Jaquise", team: "Austin Peay Governors", conf: "SOCO", pts: 303.9, week: 11, year: 2024 },
   { coach: "z1856z", team: "Mississippi Valley Delta Devils", conf: "SWAC", pts: 303.9, week: 12, year: 2025 },
   { coach: "alexfinnis", team: "Missouri Tigers", conf: "SEC", pts: 303.8, week: 9, year: 2024 },
-  { coach: "Coopdaddy510", team: "Arizona Wildcats", conf: "XII", pts: 303.65, week: 15, year: 2022 },
+  { coach: "Coopdaddy510", team: "Arizona Wildcats", conf: "PAC 12", pts: 303.65, week: 15, year: 2022 },
   { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 303.65, week: 8, year: 2024 },
   { coach: "TheColburnator01", team: "Bucknell Bison", conf: "IVY", pts: 303.5, week: 8, year: 2024 },
   { coach: "wdh76", team: "Iowa State Cyclones", conf: "XII", pts: 303.05, week: 6, year: 2023 },
@@ -6898,6 +6898,36 @@ export default function App() {
     return { highScore, lowScore, bestBench, worstBench, closest, blowout, highLoss };
   }, [weeklyAwardsPairs]);
 
+  // Per-league breakdown of the same week's data: one High Score winner and
+  // one Least Bench Points winner PER TIER, instead of one Alliance-wide
+  // winner across all 13. Requested 2026-08-06 to sit below the existing
+  // Alliance award cards, styled like the 300 Club's row list. Reuses
+  // weeklyAwardsPairs (already fetched for the Alliance awards above) —
+  // no new fetch needed, just grouped by tierKey instead of flattened.
+  const leagueWeeklyAwards = useMemo(() => {
+    const byTier = {};
+    weeklyAwardsPairs.forEach((p) => {
+      (byTier[p.tierKey] = byTier[p.tierKey] || []).push(p.a, p.b);
+    });
+    const out = [];
+    TIERS.forEach((t) => {
+      const sides = byTier[t.key];
+      if (!sides || !sides.length) return;
+      const highScore = sides.reduce((best, s) => (!best || s.points > best.points ? s : best), null);
+      const leastBench = sides.reduce((best, s) => (!best || s.benchPoints < best.benchPoints ? s : best), null);
+      out.push({ tierKey: t.key, highScore, leastBench });
+    });
+    return out;
+  }, [weeklyAwardsPairs]);
+  const leagueHighScoresSorted = useMemo(
+    () => [...leagueWeeklyAwards].sort((a, b) => b.highScore.points - a.highScore.points),
+    [leagueWeeklyAwards]
+  );
+  const leagueLeastBenchSorted = useMemo(
+    () => [...leagueWeeklyAwards].sort((a, b) => a.leastBench.benchPoints - b.leastBench.benchPoints),
+    [leagueWeeklyAwards]
+  );
+
   // 300 Club: static CLUB_300 merged with live-detected entries, sorted
   // highest score first. CLUB_300 happens to already be hand-authored in
   // descending order, but that's not something to rely on — a live entry
@@ -7040,6 +7070,31 @@ export default function App() {
       </div>
     );
   };
+
+  // Per-league Weekly Awards row — same visual treatment as a 300 Club row
+  // (score badge, TeamMark, coach/team buttons), one row per tier instead
+  // of one flat ranked list. `valueKey`/`valueColor` pick which field the
+  // score badge reads and what color it renders in, same pattern as
+  // AwardCard above.
+  const LeagueAwardRow = ({ side, tierKey, valueKey = "points", valueColor = C.turf }) => (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+      <span className="text-xl leading-none w-20 shrink-0" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: valueColor }}>
+        {fmt(side[valueKey])}
+      </span>
+      <TeamMark team={side.team} tierKey={tierKey} size={38} />
+      <div className="min-w-0 flex-1">
+        <button type="button" onClick={() => openCoachProfile(side.coach)} className="text-sm font-semibold truncate block" style={{ color: "inherit" }}>
+          {side.coach || "—"}
+        </button>
+        <div className="text-xs truncate" style={{ color: C.slate }}>
+          <button type="button" onClick={() => openTeamProfile(side, tierKey)} style={{ color: "inherit" }}>
+            {side.team || "—"}
+          </button>{" "}
+          · {tierKey}
+        </div>
+      </div>
+    </div>
+  );
 
   // Age gate — outermost, ahead of everything else, including the auth
   // loading check below. Has nothing to do with Firebase and shouldn't wait
@@ -8555,11 +8610,36 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <AwardCard label="Alliance High Score" side={weeklyAwards.highScore} valueColor={C.turf} cp={5} />
                 <AwardCard label="Alliance Low Score" side={weeklyAwards.lowScore} valueColor={C.ember} cp={-5} />
-                <AwardCard label="Best Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} cp={5} />
-                <AwardCard label="Worst Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} cp={-5} />
+                <AwardCard label="Least Bench Points" side={weeklyAwards.bestBench} valueKey="benchPoints" valueColor={C.turf} cp={5} />
+                <AwardCard label="Most Bench Points" side={weeklyAwards.worstBench} valueKey="benchPoints" valueColor={C.ember} cp={-5} />
                 <AwardPairCard label="Closest Margin" pair={weeklyAwards.closest} value={weeklyAwards.closest.margin} />
                 <AwardPairCard label="Biggest Blowout" pair={weeklyAwards.blowout} value={weeklyAwards.blowout.margin} />
                 <AwardPairCard label="Highest-Scoring Loss" pair={weeklyAwards.highLoss} value={weeklyAwards.highLoss.loserPts} markLoser />
+              </div>
+            )}
+
+            {mode === "live" && !weeklyAwardsLoading && leagueWeeklyAwards.length > 0 && (
+              <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                    By League — High Score
+                  </div>
+                  <div className="space-y-1.5">
+                    {leagueHighScoresSorted.map(({ tierKey, highScore }) => (
+                      <LeagueAwardRow key={tierKey} side={highScore} tierKey={tierKey} valueKey="points" valueColor={C.turf} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                    By League — Least Bench Points
+                  </div>
+                  <div className="space-y-1.5">
+                    {leagueLeastBenchSorted.map(({ tierKey, leastBench }) => (
+                      <LeagueAwardRow key={tierKey} side={leastBench} tierKey={tierKey} valueKey="benchPoints" valueColor={C.turf} />
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
