@@ -1263,7 +1263,7 @@ const CLUB_300 = [
   { coach: "dark-sarcasm9", team: "Old Dominion Monarchs", conf: "SUN", pts: 321.95, week: 4, year: 2022 },
   { coach: "Dylan3380", team: "Florida State Seminoles", conf: "ACC", pts: 321.8, week: 10, year: 2024 },
   { coach: "z1856z", team: "DC Defenders", conf: "XFL", pts: 321.5, week: 12, year: 2025 },
-  { coach: "Motty", team: "Tampa Bay Bandits", conf: "XFL", pts: 320.85, week: 14, year: 2022 },
+  { coach: "Motty", team: "Tampa Bay Bandits", conf: "USFL", pts: 320.85, week: 14, year: 2022 },
   { coach: "Jaquise", team: "Austin Peay Governors", conf: "SOCO", pts: 320.85, week: 5, year: 2024 },
   { coach: "Broncos8804", team: "Coral Springs Colts", conf: "FLHS", pts: 320.65, week: 2, year: 2025 },
   { coach: "WillStephensSr", team: "Alabama State Hornets", conf: "SWAC", pts: 320.45, week: 8, year: 2023 },
@@ -1284,7 +1284,7 @@ const CLUB_300 = [
   { coach: "BBlew52", team: "Georgia Bulldogs", conf: "SEC", pts: 314.2, week: 13, year: 2025 },
   { coach: "Harold2576", team: "Davenport Panthers", conf: "GLIAC", pts: 313.65, week: 13, year: 2024 },
   { coach: "runhaags", team: "Arkansas State Red Wolves", conf: "SUN", pts: 313.5, week: 17, year: 2024 },
-  { coach: "acubes21", team: "Belmont Bruins", conf: "USFL", pts: 313.3, week: 16, year: 2024 },
+  { coach: "acubes21", team: "Belmont Bruins", conf: "SOCO", pts: 313.3, week: 16, year: 2024 },
   { coach: "Goobravich", team: "Northern Colorado Bears", conf: "XII", pts: 312.95, week: 5, year: 2024 },
   { coach: "Dilly314", team: "Georgetown Hoyas", conf: "IVY", pts: 312.75, week: 17, year: 2024 },
   { coach: "StokesCity", team: "Western Wildcats", conf: "FLHS", pts: 312.5, week: 15, year: 2024 },
@@ -1300,7 +1300,7 @@ const CLUB_300 = [
   { coach: "zero00", team: "New Jersey Generals", conf: "USFL", pts: 311.6, week: 12, year: 2025 },
   { coach: "g8trb8", team: "Denver Broncos", conf: "NFL", pts: 311.2, week: 16, year: 2024 },
   { coach: "StokesCity", team: "Western Wildcats", conf: "FLHS", pts: 310.8, week: 7, year: 2025 },
-  { coach: "amkm324", team: "Louisville Cardinals", conf: "SEC", pts: 310.65, week: 11, year: 2022 },
+  { coach: "amkm324", team: "Louisville Cardinals", conf: "ACC", pts: 310.65, week: 11, year: 2022 },
   { coach: "JJBInc", team: "Palmetto Panthers", conf: "FLHS", pts: 310.35, week: 12, year: 2022 },
   { coach: "cspeece", team: "James Madison Dukes", conf: "SUN", pts: 310.0, week: 10, year: 2025 },
   { coach: "samwow123", team: "South Carolina Gamecocks", conf: "SEC", pts: 309.65, week: 11, year: 2025 },
@@ -6898,9 +6898,16 @@ export default function App() {
     return { highScore, lowScore, bestBench, worstBench, closest, blowout, highLoss };
   }, [weeklyAwardsPairs]);
 
-  // 300 Club: static CLUB_300 merged with live-detected entries. Kept as a
+  // 300 Club: static CLUB_300 merged with live-detected entries, sorted
+  // highest score first. CLUB_300 happens to already be hand-authored in
+  // descending order, but that's not something to rely on — a live entry
+  // from club300Live can land anywhere in the score range, so this needs
+  // an explicit sort rather than trusting insertion order. Kept as a
   // useMemo (not a module constant) since club300Live changes at runtime.
-  const club300All = useMemo(() => (club300Live.length ? [...CLUB_300, ...club300Live] : CLUB_300), [club300Live]);
+  const club300All = useMemo(
+    () => (club300Live.length ? [...CLUB_300, ...club300Live].sort((a, b) => b.pts - a.pts) : CLUB_300),
+    [club300Live]
+  );
   const club300TopCoaches = useMemo(() => tally(club300All, (r) => r.coach).slice(0, 10), [club300All]);
   const club300TopTeams = useMemo(() => tally(club300All, (r) => r.team).slice(0, 8), [club300All]);
   const club300ByConf = useMemo(() => tally(club300All, (r) => r.conf), [club300All]);
