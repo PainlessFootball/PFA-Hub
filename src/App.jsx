@@ -4562,6 +4562,81 @@ const TEAM_ART = {
     [normTeamKey("Texas Longhorns")]: teamArtPath("SEC", "sec-team-texas-longhorns.png"),
     [normTeamKey("Vanderbilt Commodores")]: teamArtPath("SEC", "sec-team-vanderbilt-commodores.png"),
   },
+  // XFL (2026-08-07, first batch — 18 of this tier's 20 teams). 15 of 18
+  // sources arrived as clean transparent PNGs needing only a crop; Boston
+  // Brawlers, Omaha Mammoths, and Brooklyn Bolts arrived on solid white
+  // backgrounds and needed a standard border-flood cutout; Chicago
+  // Enforcers had a partial-alpha white halo baked into its source export,
+  // cleared with a de-halo pass. Birmingham Thunderbolts and San Francisco
+  // Demons landed clean the same day, completing the tier at 20/20. 18 of
+  // 20 names cross-checked directly against CAREER_STATS/CLUB_300 live
+  // data. Las Vegas Outlaws and Houston Roughnecks have NO live data
+  // anywhere in the file to confirm against — used the real historical XFL
+  // franchise name for each city (same convention as every confirmed name
+  // here) but these two are UNCONFIRMED, flag to her.
+  XFL: {
+    [normTeamKey("Tampa Bay Vipers")]: teamArtPath("XFL", "xfl-team-tampa-bay-vipers.png"),
+    [normTeamKey("Memphis Maniax")]: teamArtPath("XFL", "xfl-team-memphis-maniax.png"),
+    [normTeamKey("DC Defenders")]: teamArtPath("XFL", "xfl-team-dc-defenders.png"),
+    [normTeamKey("Dallas Renegades")]: teamArtPath("XFL", "xfl-team-dallas-renegades.png"),
+    [normTeamKey("St Louis Battlehawks")]: teamArtPath("XFL", "xfl-team-st-louis-battlehawks.png"),
+    [normTeamKey("Los Angeles Wildcats")]: teamArtPath("XFL", "xfl-team-los-angeles-wildcats.png"),
+    [normTeamKey("Las Vegas Outlaws")]: teamArtPath("XFL", "xfl-team-las-vegas-outlaws.png"), // UNCONFIRMED — see note above
+    [normTeamKey("Omaha Mammoths")]: teamArtPath("XFL", "xfl-team-omaha-mammoths.png"),
+    [normTeamKey("Chicago Enforcers")]: teamArtPath("XFL", "xfl-team-chicago-enforcers.png"),
+    [normTeamKey("Orlando Rage")]: teamArtPath("XFL", "xfl-team-orlando-rage.png"),
+    [normTeamKey("Los Angeles Xtreme")]: teamArtPath("XFL", "xfl-team-los-angeles-xtreme.png"),
+    [normTeamKey("New York Guardians")]: teamArtPath("XFL", "xfl-team-new-york-guardians.png"),
+    [normTeamKey("Boston Brawlers")]: teamArtPath("XFL", "xfl-team-boston-brawlers.png"),
+    [normTeamKey("Atlanta Legends")]: teamArtPath("XFL", "xfl-team-atlanta-legends.png"),
+    [normTeamKey("Seattle Dragons")]: teamArtPath("XFL", "xfl-team-seattle-dragons.png"),
+    [normTeamKey("Brooklyn Bolts")]: teamArtPath("XFL", "xfl-team-brooklyn-bolts.png"),
+    [normTeamKey("New Jersey Hitmen")]: teamArtPath("XFL", "xfl-team-new-jersey-hitmen.png"),
+    [normTeamKey("Houston Roughnecks")]: teamArtPath("XFL", "xfl-team-houston-roughnecks.png"), // UNCONFIRMED — see note above
+    [normTeamKey("Birmingham Thunderbolts")]: teamArtPath("XFL", "xfl-team-birmingham-thunderbolts.png"),
+    [normTeamKey("San Francisco Demons")]: teamArtPath("XFL", "xfl-team-san-francisco-demons.png"),
+  },
+  // USFL (2026-08-07, complete in one batch — 20/20). All 20 names
+  // confirmed directly against CAREER_STATS, zero unconfirmed — first
+  // tier this session with no naming flags at all. "Detroit Drive" is a
+  // genuine live team name (folta21, confirmed in CAREER_STATS/CLUB_300)
+  // — no real historical USFL team was ever based in Detroit, so this
+  // slot reuses an Arena Football League mark, same "borrow a real mark
+  // from elsewhere" pattern as SEC/BIG XII's cross-conference fills.
+  // 10 of 20 sources were already clean transparent PNGs; the other 10
+  // (jpgs, mostly) needed the standard border-flood cutout — all came
+  // out clean, including two badge-style marks (Denver Gold, Michigan
+  // Panthers) where the flood-fill correctly stopped at a closed ring/
+  // oval and left the enclosed background-color "plate" intact as part
+  // of the design, same as XFL's Boston Brawlers. Two files ran over the
+  // usual ~30KB flat-logo weight — Birmingham Stallions (31KB) and New
+  // Jersey Generals (50KB) — both are genuinely gradient-rich (8000+
+  // unique colors each) and fail the quantization gate's max-drift check
+  // at every tested color depth (256 colors still drifts up to 143-183 on
+  // a few pixels), so both are stored at full color depth un-quantized,
+  // same exception already made for PFA_MARK/USFL_MARK/SUN_TROPHY.
+  USFL: {
+    [normTeamKey("Los Angeles Express")]: teamArtPath("USFL", "usfl-team-los-angeles-express.png"),
+    [normTeamKey("Birmingham Stallions")]: teamArtPath("USFL", "usfl-team-birmingham-stallions.png"),
+    [normTeamKey("Michigan Panthers")]: teamArtPath("USFL", "usfl-team-michigan-panthers.png"),
+    [normTeamKey("Memphis Showboats")]: teamArtPath("USFL", "usfl-team-memphis-showboats.png"),
+    [normTeamKey("Boston Breakers")]: teamArtPath("USFL", "usfl-team-boston-breakers.png"),
+    [normTeamKey("Detroit Drive")]: teamArtPath("USFL", "usfl-team-detroit-drive.png"),
+    [normTeamKey("Houston Gamblers")]: teamArtPath("USFL", "usfl-team-houston-gamblers.png"),
+    [normTeamKey("Chicago Blitz")]: teamArtPath("USFL", "usfl-team-chicago-blitz.png"),
+    [normTeamKey("Jacksonville Bulls")]: teamArtPath("USFL", "usfl-team-jacksonville-bulls.png"),
+    [normTeamKey("Denver Gold")]: teamArtPath("USFL", "usfl-team-denver-gold.png"),
+    [normTeamKey("Arizona Wranglers")]: teamArtPath("USFL", "usfl-team-arizona-wranglers.png"),
+    [normTeamKey("Pittsburgh Maulers")]: teamArtPath("USFL", "usfl-team-pittsburgh-maulers.png"),
+    [normTeamKey("San Antonio Gunslingers")]: teamArtPath("USFL", "usfl-team-san-antonio-gunslingers.png"),
+    [normTeamKey("Oklahoma Outlaws")]: teamArtPath("USFL", "usfl-team-oklahoma-outlaws.png"),
+    [normTeamKey("Orlando Renegades")]: teamArtPath("USFL", "usfl-team-orlando-renegades.png"),
+    [normTeamKey("Tampa Bay Bandits")]: teamArtPath("USFL", "usfl-team-tampa-bay-bandits.png"),
+    [normTeamKey("Washington Federals")]: teamArtPath("USFL", "usfl-team-washington-federals.png"),
+    [normTeamKey("Philadelphia Stars")]: teamArtPath("USFL", "usfl-team-philadelphia-stars.png"),
+    [normTeamKey("New Jersey Generals")]: teamArtPath("USFL", "usfl-team-new-jersey-generals.png"),
+    [normTeamKey("Oakland Invaders")]: teamArtPath("USFL", "usfl-team-oakland-invaders.png"),
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
