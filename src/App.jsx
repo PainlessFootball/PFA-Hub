@@ -1329,7 +1329,7 @@ const CLUB_300 = [
   { coach: "treetwig", team: "Pine Bluff Golden Lions", conf: "SWAC", pts: 306.65, week: 15, year: 2023 },
   { coach: "catinthehat2", team: "St Francis Red Flash", conf: "PION", pts: 306.4, week: 6, year: 2023 },
   { coach: "WillStephensSr", team: "Alabama State Hornets", conf: "SWAC", pts: 306.35, week: 2, year: 2022 },
-  { coach: "heavyd1017", team: "Mississippi State", conf: "SEC", pts: 306.35, week: 5, year: 2022 },
+  { coach: "heavyd1017", team: "Miss State Bulldogs", conf: "SEC", pts: 306.35, week: 5, year: 2022 },
   { coach: "beardmantv", team: "Auburn Tigers", conf: "SEC", pts: 306.25, week: 6, year: 2023 },
   { coach: "Wynnguy", team: "Brown Bears", conf: "IVY", pts: 305.95, week: 15, year: 2025 },
   { coach: "SpacebarRacecar", team: "The Citadel Bulldogs", conf: "SOCO", pts: 305.75, week: 3, year: 2022 },
@@ -4534,6 +4534,33 @@ const TEAM_ART = {
     // Colorado" already covers the one N-Colorado/N-Iowa-adjacent slot;
     // Oklahoma Sooners is a different real-world school than this tier's
     // "OSU" = Oklahoma State) — not used.
+  },
+  // SEC (10th tier, 2026-08-07). All 16 arrived as clean transparent
+  // PNGs, no cutout needed. Names cross-checked against CAREER_STATS
+  // before finalizing keys (not filename-derived) — same lesson as every
+  // prior tier, a wrong key fails silently. She also sent an "OSU"
+  // wordmark (Oklahoma State's branding) that isn't one of this tier's 16
+  // real teams — this tier's real Oklahoma team is "Oklahoma Sooners"
+  // (OK_201_copy_2.png, the crimson interlocking OU mark), not Oklahoma
+  // State — not used, same pattern as the BIG XII batch's unused extras
+  // above.
+  SEC: {
+    [normTeamKey("Alabama Crimson Tide")]: teamArtPath("SEC", "sec-team-alabama-crimson-tide.png"),
+    [normTeamKey("Arkansas Razorbacks")]: teamArtPath("SEC", "sec-team-arkansas-razorbacks.png"),
+    [normTeamKey("Auburn Tigers")]: teamArtPath("SEC", "sec-team-auburn-tigers.png"),
+    [normTeamKey("Florida Gators")]: teamArtPath("SEC", "sec-team-florida-gators.png"),
+    [normTeamKey("Georgia Bulldogs")]: teamArtPath("SEC", "sec-team-georgia-bulldogs.png"),
+    [normTeamKey("Kentucky Wildcats")]: teamArtPath("SEC", "sec-team-kentucky-wildcats.png"),
+    [normTeamKey("LSU Tigers")]: teamArtPath("SEC", "sec-team-lsu-tigers.png"),
+    [normTeamKey("Miss State Bulldogs")]: teamArtPath("SEC", "sec-team-miss-state-bulldogs.png"),
+    [normTeamKey("Missouri Tigers")]: teamArtPath("SEC", "sec-team-missouri-tigers.png"),
+    [normTeamKey("Oklahoma Sooners")]: teamArtPath("SEC", "sec-team-oklahoma-sooners.png"),
+    [normTeamKey("Ole Miss Rebels")]: teamArtPath("SEC", "sec-team-ole-miss-rebels.png"),
+    [normTeamKey("South Carolina Gamecocks")]: teamArtPath("SEC", "sec-team-south-carolina-gamecocks.png"),
+    [normTeamKey("Tennessee Volunteers")]: teamArtPath("SEC", "sec-team-tennessee-volunteers.png"),
+    [normTeamKey("Texas A&M Aggies")]: teamArtPath("SEC", "sec-team-texas-am-aggies.png"),
+    [normTeamKey("Texas Longhorns")]: teamArtPath("SEC", "sec-team-texas-longhorns.png"),
+    [normTeamKey("Vanderbilt Commodores")]: teamArtPath("SEC", "sec-team-vanderbilt-commodores.png"),
   },
 };
 
