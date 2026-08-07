@@ -5920,7 +5920,17 @@ export default function App() {
         const rows = buildStandings(users, rosters, leagueId, tierKeyArg, year === CURRENT_SEASON);
         const m = await j(`${SLEEPER}/league/${leagueId}/matchups/${week}`);
         const pairs = buildPairsWithBench(m, rows);
-        detect300(pairs, tierKeyArg, year, week);
+        // Only auto-detect for the CURRENT season. Every past season is
+        // already fully covered by the hand-typed CLUB_300 array, so
+        // re-running this on a historical week (which happens any time
+        // Weekly Awards browses a past season/week) was writing a SECOND,
+        // separate club300Live entry for a game already recorded — a real
+        // duplicate-causing bug found from her screenshots 2026-08-07, not
+        // a hypothetical. The historical coach name from a past-season fetch
+        // is also unreliable anyway (buildStandings intentionally skips the
+        // sheet-tag override for non-current seasons), so there's no
+        // upside to detecting here even setting the duplication aside.
+        if (year === CURRENT_SEASON) detect300(pairs, tierKeyArg, year, week);
         const result = { tierKey: tierKeyArg, year, week, pairs };
         setWeeklyResultsCache((c) => ({ ...c, [cacheKey]: result }));
         if (isCompleted) setWeeklyResult(tierKeyArg, year, week, result).catch(() => {});
@@ -6929,15 +6939,38 @@ export default function App() {
   );
 
   // 300 Club: static CLUB_300 merged with live-detected entries, sorted
-  // highest score first. CLUB_300 happens to already be hand-authored in
-  // descending order, but that's not something to rely on — a live entry
-  // from club300Live can land anywhere in the score range, so this needs
-  // an explicit sort rather than trusting insertion order. Kept as a
-  // useMemo (not a module constant) since club300Live changes at runtime.
-  const club300All = useMemo(
-    () => (club300Live.length ? [...CLUB_300, ...club300Live].sort((a, b) => b.pts - a.pts) : CLUB_300),
-    [club300Live]
-  );
+  // highest score first, deduplicated by (tier, week, year, points). The
+  // dedup matters because of the detect300 bug fixed just above — any
+  // club300Live docs already written for a past-season game that's ALSO a
+  // hand-typed CLUB_300 entry would otherwise show twice (found from her
+  // screenshots 2026-08-07: same tier/week/year/score, sometimes even the
+  // identical coach name, appearing as two separate rows). The fingerprint
+  // doesn't include coach/team name on purpose — those can legitimately
+  // differ between the two copies of the SAME real game (a live-detected
+  // past-season entry uses buildStandings' non-current-season fallback,
+  // which is Sleeper's raw current owner name, not necessarily who
+  // actually held the roster that season), so matching on tier+week+year+
+  // points is the reliable identity for "this is the same game" and
+  // whichever copy is encountered FIRST wins — CLUB_300 is spread first,
+  // so a real duplicate always keeps the curated static entry. CLUB_300
+  // happens to already be hand-authored in descending order, but that's
+  // not something to rely on — a live entry from club300Live can land
+  // anywhere in the score range, so this needs an explicit sort rather
+  // than trusting insertion order. Kept as a useMemo (not a module
+  // constant) since club300Live changes at runtime.
+  const club300All = useMemo(() => {
+    const merged = club300Live.length ? [...CLUB_300, ...club300Live] : CLUB_300;
+    const seen = new Set();
+    const deduped = [];
+    merged.forEach((r) => {
+      const tierKey = CONF_TO_TIER_KEY[r.conf] || r.conf;
+      const key = `${tierKey}|${r.week}|${r.year}|${r.pts.toFixed(2)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(r);
+    });
+    return deduped.sort((a, b) => b.pts - a.pts);
+  }, [club300Live]);
   const club300TopCoaches = useMemo(() => tally(club300All, (r) => r.coach).slice(0, 10), [club300All]);
   const club300TopTeams = useMemo(() => tally(club300All, (r) => r.team).slice(0, 8), [club300All]);
   const club300ByConf = useMemo(() => tally(club300All, (r) => r.conf), [club300All]);
