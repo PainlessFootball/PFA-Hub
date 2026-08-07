@@ -4638,10 +4638,15 @@ const TEAM_ART = {
     [normTeamKey("New Jersey Generals")]: teamArtPath("USFL", "usfl-team-new-jersey-generals.png"),
     [normTeamKey("Oakland Invaders")]: teamArtPath("USFL", "usfl-team-oakland-invaders.png"),
   },
-  // NFL (13th and final tier). 24 of 32 teams so far across two batches
-  // (2026-08-07), all confirmed directly against CAREER_STATS full
-  // names, zero unconfirmed. All 24 sources arrived as clean transparent
-  // PNGs, no cutout needed on any of them yet. Cleveland's real name is
+  // NFL (13th and final tier) — COMPLETE 32/32, shipped across three
+  // batches, all 2026-08-07. All 32 confirmed directly against
+  // CAREER_STATS full names, zero unconfirmed; all 32 sources arrived
+  // as clean transparent PNGs EXCEPT Washington Commanders (a JPEG on
+  // white, needed a standard border-flood cutout + de-halo pass — its
+  // source has the logo's yellow spike tips touching the image's top
+  // edge, so the border-ring background estimate mixed in a few logo
+  // pixels; median-of-ring was still robust enough to land on true
+  // white and the cutout came out clean). Cleveland's real name is
   // "Cleveland Browns" — the CAREER_STATS entry has a stray "20" suffix
   // ("Cleveland Browns 20", already a documented pre-existing alias in
   // R3_LIVE for the bracket colour matcher) which is NOT part of the
@@ -4649,11 +4654,14 @@ const TEAM_ART = {
   // Raiders" is CAREER_STATS' real live team name (old city, current
   // Sleeper roster) — same team the bracket colour matcher already
   // aliases "Oakland Raiders"->"Las Vegas" for; the TEAM_ART key follows
-  // the live full name, not the current city. Baltimore Ravens and
-  // Atlanta Falcons are gradient-rich and failed the quantization gate
-  // even at 256 colors — stored at full RGBA depth, same exception class
-  // as PFA_MARK/USFL_MARK/Birmingham Stallions/New Jersey Generals. 8
-  // teams still needed to complete this tier (and the whole project).
+  // the live full name, not the current city. Baltimore Ravens, Atlanta
+  // Falcons, Tampa Bay Buccaneers, and Washington Commanders are all
+  // gradient-rich/detailed and failed the quantization gate even at 256
+  // colors — stored at full RGBA depth, same exception class as
+  // PFA_MARK/USFL_MARK/Birmingham Stallions/New Jersey Generals.
+  // **THIS COMPLETES TEAM_ART FOR ALL 13 TIERS — 232/232 real per-team
+  // slots the project ever needed are now filled (every tier's real
+  // roster size, not the 13x20 theoretical max).**
   NFL: {
     [normTeamKey("Green Bay Packers")]: teamArtPath("NFL", "nfl-team-green-bay-packers.png"),
     [normTeamKey("Cleveland Browns")]: teamArtPath("NFL", "nfl-team-cleveland-browns.png"),
@@ -4679,6 +4687,14 @@ const TEAM_ART = {
     [normTeamKey("New England Patriots")]: teamArtPath("NFL", "nfl-team-new-england-patriots.png"),
     [normTeamKey("Kansas City Chiefs")]: teamArtPath("NFL", "nfl-team-kansas-city-chiefs.png"),
     [normTeamKey("Minnesota Vikings")]: teamArtPath("NFL", "nfl-team-minnesota-vikings.png"),
+    [normTeamKey("Pittsburgh Steelers")]: teamArtPath("NFL", "nfl-team-pittsburgh-steelers.png"),
+    [normTeamKey("San Francisco 49ers")]: teamArtPath("NFL", "nfl-team-san-francisco-49ers.png"),
+    [normTeamKey("Seattle Seahawks")]: teamArtPath("NFL", "nfl-team-seattle-seahawks.png"),
+    [normTeamKey("Tennessee Titans")]: teamArtPath("NFL", "nfl-team-tennessee-titans.png"),
+    [normTeamKey("New York Jets")]: teamArtPath("NFL", "nfl-team-new-york-jets.png"),
+    [normTeamKey("Philadelphia Eagles")]: teamArtPath("NFL", "nfl-team-philadelphia-eagles.png"),
+    [normTeamKey("Tampa Bay Buccaneers")]: teamArtPath("NFL", "nfl-team-tampa-bay-buccaneers.png"),
+    [normTeamKey("Washington Commanders")]: teamArtPath("NFL", "nfl-team-washington-commanders.png"),
   },
 };
 
