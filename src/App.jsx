@@ -149,7 +149,7 @@ const HISTORICAL_FINAL_ORDER = {
       "SMU", "GA Tech", "Wake Forest", "Pittsburgh", "Florida St", "Miami", "NC State", "Boston College",
     ],
     "BIG XII": [
-      "OSU", "S Dakota", "Cincinnati", "Arizona", "Houston", "BYU", "Iowa State", "Denver",
+      "OSU", "S Dakota", "Cincinnati", "N Iowa", "Houston", "BYU", "Iowa State", "Denver",
       "Baylor", "TCU", "Kansas", "N Colorado", "W Virginia", "UCF", "Kansas State", "Texas Tech",
     ],
     NFL: [
@@ -472,7 +472,7 @@ const CAREER_STATS = {
   "chorn16": [{ "tierKey": "TEN", "team": "Michigan Wolverines", "stats": { "Career CP": "208.56", "Career Avg CP": "52.14", "Record": "18-16", "Win %": "52.9%", "Total Points": "6932.60", "Avg Pts / Season": "198.43", "Alliance High Score": "0", "Alliance Low Score": "3", "League High Score": "0", "League Low Score": "3", "Best Manager": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "chrisevans": [{ "tierKey": "IVY", "team": "MIT Engineers", "stats": { "Career CP": "385.16", "Career Avg CP": "96.29", "Record": "28-40", "Win %": "41.2%", "Total Points": "13834.20", "Avg Pts / Season": "197.92", "Alliance High Score": "0", "Alliance Low Score": "2", "League High Score": "1", "League Low Score": "2", "Best Manager": "-2", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "chuckiv": [{ "tierKey": "NFL", "team": "Dallas Cowboys", "stats": { "Career CP": "821.05", "Career Avg CP": "205.26", "Record": "39-29", "Win %": "57.4%", "Total Points": "11403.20", "Avg Pts / Season": "162.95", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "0", "League Low Score": "0", "Best Manager": "3", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "3" } }],
-  "coopdaddy510": [{ "tierKey": "BIG XII", "team": "Arizona Wildcats", "stats": { "Career CP": "546.90", "Career Avg CP": "136.73", "Record": "31-20", "Win %": "60.8%", "Total Points": "10839.05", "Avg Pts / Season": "204.62", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" } }],
+  "coopdaddy510": [{ "tierKey": "BIG XII", "team": "Northern Iowa Panthers", "stats": { "Career CP": "546.90", "Career Avg CP": "136.73", "Record": "31-20", "Win %": "60.8%", "Total Points": "10839.05", "Avg Pts / Season": "204.62", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "4" } }],
   "cozzin": [{ "tierKey": "SOCO", "team": "Tenn Tech Eagles", "stats": { "Career CP": "273.98", "Career Avg CP": "68.50", "Record": "21-30", "Win %": "41.2%", "Total Points": "9456.40", "Avg Pts / Season": "178.78", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "1", "League Low Score": "0", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "1" } }],
   "crb2121": [{ "tierKey": "SUN", "team": "South Alabama Jaguars", "stats": { "Career CP": "283.44", "Career Avg CP": "70.86", "Record": "21-13", "Win %": "61.8%", "Total Points": "7521.25", "Avg Pts / Season": "214.83", "Alliance High Score": "0", "Alliance Low Score": "0", "League High Score": "3", "League Low Score": "0", "Best Manager": "4", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "0" } }],
   "cre8t1v3": [{ "tierKey": "XFL", "team": "Los Angeles Wildcats", "stats": { "Career CP": "604.49", "Career Avg CP": "151.12", "Record": "34-32", "Win %": "51.5%", "Total Points": "13575.49", "Avg Pts / Season": "202.67", "Alliance High Score": "0", "Alliance Low Score": "3", "League High Score": "7", "League Low Score": "3", "Best Manager": "-1", "Conference Wins": "0", "Division Wins": "0", "Playoff Wins": "2" } }],
@@ -3855,15 +3855,15 @@ const XII_2025_PLAYOFFS = {
         [224, 19, "OSU", "260.35", 1], [224, 133, "Cincinnati", "234.40"],
         [336, 76, "OSU", "226.10", 1],
         [560, 76, "S Dakota", "164.00"],
-        [672, 19, "S Dakota", "266.00", 1], [672, 133, "Arizona", "165.75"],
+        [672, 19, "S Dakota", "266.00", 1], [672, 133, "N Iowa", "165.75"],
         [784, 0, "S Dakota", "238.25", 1], [784, 38, "BYU", "223.70"],
-        [784, 114, "Denver", "162.35"], [784, 152, "Arizona", "184.30", 1],
+        [784, 114, "Denver", "162.35"], [784, 152, "N Iowa", "184.30", 1],
       ],
     },
     {
       cols: WK_COLS_3, h: 258, paths: R3_PLACE_PATHS,
       boxes: [
-        [336, 38, "Cincinnati", "245.25", 1], [560, 38, "Arizona", "210.70"],
+        [336, 38, "Cincinnati", "245.25", 1], [560, 38, "N Iowa", "210.70"],
         [224, 95, "Iowa State", "205.55"], [224, 133, "Houston", "243.40", 1],
         [336, 114, "Houston", "227.10", 1],
         [560, 114, "BYU", "181.65"],
@@ -4527,15 +4527,13 @@ const TEAM_ART = {
     [normTeamKey("UCF Knights")]: teamArtPath("BIG XII", "xii-team-ucf-knights.png"),
     [normTeamKey("Kansas State Wildcats")]: teamArtPath("BIG XII", "xii-team-kansas-state-wildcats.png"),
     [normTeamKey("Texas Tech Red Raiders")]: teamArtPath("BIG XII", "xii-team-texas-tech-red-raiders.png"),
+    [normTeamKey("Northern Iowa Panthers")]: teamArtPath("BIG XII", "xii-team-northern-iowa-panthers.png"),
     // "Arizona" was a data artifact in her spreadsheet, corrected
     // 2026-08-07 — this slot's real team is Northern Iowa Panthers (see
-    // XII_CLR/aliases above). No entry here yet: she sent a Northern
-    // Iowa Panthers logo in the original batch, but it was set aside at
-    // the time on the wrong assumption that Denver's "Northern Colorado"
-    // already covered it — that file wasn't kept, so it needs to be
-    // resent to close out this tier. Oklahoma Sooners is still correctly
-    // unused (a different real-world school than this tier's "OSU" =
-    // Oklahoma State).
+    // XII_CLR/aliases above). Logo resent and added 2026-08-07, closing
+    // out BIG XII's TEAM_ART at a genuine 16/16. Oklahoma Sooners is
+    // still correctly unused (a different real-world school than this
+    // tier's "OSU" = Oklahoma State).
   },
   // SEC (10th tier, 2026-08-07). All 16 arrived as clean transparent
   // PNGs, no cutout needed. Names cross-checked against CAREER_STATS
