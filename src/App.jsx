@@ -4493,6 +4493,24 @@ const TEAM_ART = {
     [normTeamKey("Rutgers Scarlet Knights")]: teamArtPath("TEN", "ten-team-rutgers-scarlet-knights.png"),
     [normTeamKey("Utah Utes")]: teamArtPath("TEN", "ten-team-utah-utes.png"),
   },
+  ACC: {
+    [normTeamKey("Virginia Tech Hokies")]: teamArtPath("ACC", "acc-team-virginia-tech-hokies.png"),
+    [normTeamKey("Duke Blue Devils")]: teamArtPath("ACC", "acc-team-duke-blue-devils.png"),
+    [normTeamKey("Louisville Cardinals")]: teamArtPath("ACC", "acc-team-louisville-cardinals.png"),
+    [normTeamKey("Syracuse Orange")]: teamArtPath("ACC", "acc-team-syracuse-orange.png"),
+    [normTeamKey("North Carolina Tarheels")]: teamArtPath("ACC", "acc-team-north-carolina-tarheels.png"),
+    [normTeamKey("Notre Dame Fighting Irish")]: teamArtPath("ACC", "acc-team-notre-dame-fighting-irish.png"),
+    [normTeamKey("Clemson Tigers")]: teamArtPath("ACC", "acc-team-clemson-tigers.png"),
+    [normTeamKey("Virginia Cavaliers")]: teamArtPath("ACC", "acc-team-virginia-cavaliers.png"),
+    [normTeamKey("SMU Mustangs")]: teamArtPath("ACC", "acc-team-smu-mustangs.png"),
+    [normTeamKey("Georgia Tech Yellowjackets")]: teamArtPath("ACC", "acc-team-georgia-tech-yellowjackets.png"),
+    [normTeamKey("Wake Forest Demon Deacons")]: teamArtPath("ACC", "acc-team-wake-forest-demon-deacons.png"),
+    [normTeamKey("Pittsburgh Panthers")]: teamArtPath("ACC", "acc-team-pittsburgh-panthers.png"),
+    [normTeamKey("Florida State Seminoles")]: teamArtPath("ACC", "acc-team-florida-state-seminoles.png"),
+    [normTeamKey("Miami Hurricanes")]: teamArtPath("ACC", "acc-team-miami-hurricanes.png"),
+    [normTeamKey("NC State Wolfpack")]: teamArtPath("ACC", "acc-team-nc-state-wolfpack.png"),
+    [normTeamKey("Boston College Eagles")]: teamArtPath("ACC", "acc-team-boston-college-eagles.png"),
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
