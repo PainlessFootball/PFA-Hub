@@ -4638,6 +4638,48 @@ const TEAM_ART = {
     [normTeamKey("New Jersey Generals")]: teamArtPath("USFL", "usfl-team-new-jersey-generals.png"),
     [normTeamKey("Oakland Invaders")]: teamArtPath("USFL", "usfl-team-oakland-invaders.png"),
   },
+  // NFL (13th and final tier). 24 of 32 teams so far across two batches
+  // (2026-08-07), all confirmed directly against CAREER_STATS full
+  // names, zero unconfirmed. All 24 sources arrived as clean transparent
+  // PNGs, no cutout needed on any of them yet. Cleveland's real name is
+  // "Cleveland Browns" — the CAREER_STATS entry has a stray "20" suffix
+  // ("Cleveland Browns 20", already a documented pre-existing alias in
+  // R3_LIVE for the bracket colour matcher) which is NOT part of the
+  // real team name, so the TEAM_ART key correctly omits it. "Oakland
+  // Raiders" is CAREER_STATS' real live team name (old city, current
+  // Sleeper roster) — same team the bracket colour matcher already
+  // aliases "Oakland Raiders"->"Las Vegas" for; the TEAM_ART key follows
+  // the live full name, not the current city. Baltimore Ravens and
+  // Atlanta Falcons are gradient-rich and failed the quantization gate
+  // even at 256 colors — stored at full RGBA depth, same exception class
+  // as PFA_MARK/USFL_MARK/Birmingham Stallions/New Jersey Generals. 8
+  // teams still needed to complete this tier (and the whole project).
+  NFL: {
+    [normTeamKey("Green Bay Packers")]: teamArtPath("NFL", "nfl-team-green-bay-packers.png"),
+    [normTeamKey("Cleveland Browns")]: teamArtPath("NFL", "nfl-team-cleveland-browns.png"),
+    [normTeamKey("Baltimore Ravens")]: teamArtPath("NFL", "nfl-team-baltimore-ravens.png"),
+    [normTeamKey("Detroit Lions")]: teamArtPath("NFL", "nfl-team-detroit-lions.png"),
+    [normTeamKey("Dallas Cowboys")]: teamArtPath("NFL", "nfl-team-dallas-cowboys.png"),
+    [normTeamKey("Arizona Cardinals")]: teamArtPath("NFL", "nfl-team-arizona-cardinals.png"),
+    [normTeamKey("Denver Broncos")]: teamArtPath("NFL", "nfl-team-denver-broncos.png"),
+    [normTeamKey("Indianapolis Colts")]: teamArtPath("NFL", "nfl-team-indianapolis-colts.png"),
+    [normTeamKey("Houston Texans")]: teamArtPath("NFL", "nfl-team-houston-texans.png"),
+    [normTeamKey("Cincinnati Bengals")]: teamArtPath("NFL", "nfl-team-cincinnati-bengals.png"),
+    [normTeamKey("Atlanta Falcons")]: teamArtPath("NFL", "nfl-team-atlanta-falcons.png"),
+    [normTeamKey("Carolina Panthers")]: teamArtPath("NFL", "nfl-team-carolina-panthers.png"),
+    [normTeamKey("Jacksonville Jaguars")]: teamArtPath("NFL", "nfl-team-jacksonville-jaguars.png"),
+    [normTeamKey("Buffalo Bills")]: teamArtPath("NFL", "nfl-team-buffalo-bills.png"),
+    [normTeamKey("Chicago Bears")]: teamArtPath("NFL", "nfl-team-chicago-bears.png"),
+    [normTeamKey("Oakland Raiders")]: teamArtPath("NFL", "nfl-team-oakland-raiders.png"),
+    [normTeamKey("New Orleans Saints")]: teamArtPath("NFL", "nfl-team-new-orleans-saints.png"),
+    [normTeamKey("New York Giants")]: teamArtPath("NFL", "nfl-team-new-york-giants.png"),
+    [normTeamKey("Los Angeles Chargers")]: teamArtPath("NFL", "nfl-team-los-angeles-chargers.png"),
+    [normTeamKey("Los Angeles Rams")]: teamArtPath("NFL", "nfl-team-los-angeles-rams.png"),
+    [normTeamKey("Miami Dolphins")]: teamArtPath("NFL", "nfl-team-miami-dolphins.png"),
+    [normTeamKey("New England Patriots")]: teamArtPath("NFL", "nfl-team-new-england-patriots.png"),
+    [normTeamKey("Kansas City Chiefs")]: teamArtPath("NFL", "nfl-team-kansas-city-chiefs.png"),
+    [normTeamKey("Minnesota Vikings")]: teamArtPath("NFL", "nfl-team-minnesota-vikings.png"),
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
