@@ -4473,9 +4473,7 @@ const TEAM_ART = {
     [normTeamKey("Old Dominion Monarchs")]: teamArtPath("SUN", "sun-team-old-dominion-monarchs.png"),
     [normTeamKey("Louisiana Ragin Cajuns")]: teamArtPath("SUN", "sun-team-louisiana-ragin-cajuns.png"),
     [normTeamKey("Carolina Chanticleers")]: teamArtPath("SUN", "sun-team-carolina-chanticleers.png"),
-    // App State (Appalachian State) intentionally has no entry yet — not
-    // included in this batch; falls back to the color crest until she
-    // sends it.
+    [normTeamKey("App State Mountaineers")]: teamArtPath("SUN", "sun-team-app-state-mountaineers.png"),
   },
   TEN: {
     [normTeamKey("Northwestern Wildcats")]: teamArtPath("TEN", "ten-team-northwestern-wildcats.png"),
@@ -4493,9 +4491,7 @@ const TEAM_ART = {
     [normTeamKey("Maryland Terrapins")]: teamArtPath("TEN", "ten-team-maryland-terrapins.png"),
     [normTeamKey("USC Trojans")]: teamArtPath("TEN", "ten-team-usc-trojans.png"),
     [normTeamKey("Rutgers Scarlet Knights")]: teamArtPath("TEN", "ten-team-rutgers-scarlet-knights.png"),
-    // Utah intentionally has no entry yet — not included in this batch
-    // (she sent Iowa instead, which isn't one of this tier's 16 real
-    // teams) — falls back to the color crest until she sends the right one.
+    [normTeamKey("Utah Utes")]: teamArtPath("TEN", "ten-team-utah-utes.png"),
   },
 };
 
