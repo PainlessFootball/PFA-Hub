@@ -6966,27 +6966,34 @@ export default function App() {
   );
 
   // 300 Club: static CLUB_300 merged with live-detected entries, sorted
-  // highest score first, deduplicated by (tier, week, year, points). The
-  // dedup matters because of the detect300 bug fixed just above — any
-  // club300Live docs already written for a past-season game that's ALSO a
-  // hand-typed CLUB_300 entry would otherwise show twice (found from her
-  // screenshots 2026-08-07: same tier/week/year/score, sometimes even the
-  // identical coach name, appearing as two separate rows). The fingerprint
-  // doesn't include coach/team name on purpose — those can legitimately
-  // differ between the two copies of the SAME real game (a live-detected
-  // past-season entry uses buildStandings' non-current-season fallback,
-  // which is Sleeper's raw current owner name, not necessarily who
-  // actually held the roster that season), so matching on tier+week+year+
-  // points is the reliable identity for "this is the same game" and
-  // whichever copy is encountered FIRST wins — CLUB_300 is spread first,
-  // so a real duplicate always keeps the curated static entry. CLUB_300
-  // happens to already be hand-authored in descending order, but that's
-  // not something to rely on — a live entry from club300Live can land
-  // anywhere in the score range, so this needs an explicit sort rather
-  // than trusting insertion order. Kept as a useMemo (not a module
-  // constant) since club300Live changes at runtime.
+  // highest score first. Two defensive filters, both needed because of
+  // the detect300 bug fixed just above (it used to fire on every past
+  // week Weekly Awards browsed, not just the current season):
+  // 1. Drop any club300Live entry whose year isn't CURRENT_SEASON. A
+  //    past-season live entry is always a leftover from before the fix —
+  //    it can never be created again going forward, and even where it
+  //    exists it's unreliable (buildStandings' non-current-season
+  //    fallback shows Sleeper's CURRENT account name/metadata, not who
+  //    actually held the roster that season, so the team name often
+  //    doesn't match TEAM_ART at all — found from her screenshot
+  //    2026-08-07: a stray past-season entry with a mismatched team name
+  //    showed no logo, and wasn't even a duplicate of anything in
+  //    CLUB_300, so the tier+week+year+points dedup below couldn't have
+  //    caught it). Historical years belong to the curated static array
+  //    only now.
+  // 2. Dedupe what's left by (tier, week, year, points) — still needed
+  //    for the current season, where a live entry could theoretically
+  //    collide with something hand-typed into CLUB_300 later. The
+  //    fingerprint doesn't include coach/team name on purpose, since
+  //    those could differ; tier+week+year+points is the reliable game
+  //    identity, and CLUB_300 (spread first) always wins a collision.
+  // CLUB_300 happens to already be hand-authored in descending order,
+  // but that's not something to rely on, so this still ends with an
+  // explicit sort. Kept as a useMemo (not a module constant) since
+  // club300Live changes at runtime.
   const club300All = useMemo(() => {
-    const merged = club300Live.length ? [...CLUB_300, ...club300Live] : CLUB_300;
+    const currentLive = club300Live.filter((r) => r.year === CURRENT_SEASON);
+    const merged = currentLive.length ? [...CLUB_300, ...currentLive] : CLUB_300;
     const seen = new Set();
     const deduped = [];
     merged.forEach((r) => {
