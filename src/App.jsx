@@ -3834,7 +3834,7 @@ const XII_CLR = {
   "Iowa State": ["#9E1B32", "#F1BE48"], "OSU": ["#FF7300", "#0A0A0A"],
   "Cincinnati": ["#E00122", "#0A0A0A"], "Houston": ["#FFFFFF", "#C8102E"],
   "S Dakota": ["#FFD100", "#003DA5"], "BYU": ["#002E5D", "#FFFFFF"],
-  "Denver": ["#7A1F2B", "#F0B323"], "Arizona": ["#E03A3E", "#0C234B"],
+  "Denver": ["#7A1F2B", "#F0B323"], "N Iowa": ["#4B116F", "#FFCC00"],
   "Kansas State": ["#512888", "#FFFFFF"], "N Colorado": ["#003B5C", "#FFC72C"],
   "Baylor": ["#154734", "#FFB81C"], "W Virginia": ["#002855", "#EAAA00"],
   "Kansas": ["#0051BA", "#E8000D"], "Texas Tech": ["#0A0A0A", "#CC0000"],
@@ -4527,13 +4527,15 @@ const TEAM_ART = {
     [normTeamKey("UCF Knights")]: teamArtPath("BIG XII", "xii-team-ucf-knights.png"),
     [normTeamKey("Kansas State Wildcats")]: teamArtPath("BIG XII", "xii-team-kansas-state-wildcats.png"),
     [normTeamKey("Texas Tech Red Raiders")]: teamArtPath("BIG XII", "xii-team-texas-tech-red-raiders.png"),
-    // Arizona intentionally has no entry yet — not included in this
-    // batch; falls back to the color crest until she sends it. She also
-    // sent Northern Iowa Panthers and Oklahoma Sooners logos, neither of
-    // which is one of this tier's 16 real teams (Denver's "Northern
-    // Colorado" already covers the one N-Colorado/N-Iowa-adjacent slot;
-    // Oklahoma Sooners is a different real-world school than this tier's
-    // "OSU" = Oklahoma State) — not used.
+    // "Arizona" was a data artifact in her spreadsheet, corrected
+    // 2026-08-07 — this slot's real team is Northern Iowa Panthers (see
+    // XII_CLR/aliases above). No entry here yet: she sent a Northern
+    // Iowa Panthers logo in the original batch, but it was set aside at
+    // the time on the wrong assumption that Denver's "Northern Colorado"
+    // already covered it — that file wasn't kept, so it needs to be
+    // resent to close out this tier. Oklahoma Sooners is still correctly
+    // unused (a different real-world school than this tier's "OSU" =
+    // Oklahoma State).
   },
   // SEC (10th tier, 2026-08-07). All 16 arrived as clean transparent
   // PNGs, no cutout needed. Names cross-checked against CAREER_STATS
@@ -4570,10 +4572,9 @@ const TEAM_ART = {
   // cleared with a de-halo pass. Birmingham Thunderbolts and San Francisco
   // Demons landed clean the same day, completing the tier at 20/20. 18 of
   // 20 names cross-checked directly against CAREER_STATS/CLUB_300 live
-  // data. Las Vegas Outlaws and Houston Roughnecks have NO live data
-  // anywhere in the file to confirm against — used the real historical XFL
-  // franchise name for each city (same convention as every confirmed name
-  // here) but these two are UNCONFIRMED, flag to her.
+  // data; Las Vegas Outlaws and Houston Roughnecks had no live data to
+  // check against but she confirmed 2026-08-07 both are real teams in the
+  // league — all 20 XFL names now confirmed.
   XFL: {
     [normTeamKey("Tampa Bay Vipers")]: teamArtPath("XFL", "xfl-team-tampa-bay-vipers.png"),
     [normTeamKey("Memphis Maniax")]: teamArtPath("XFL", "xfl-team-memphis-maniax.png"),
@@ -4581,7 +4582,7 @@ const TEAM_ART = {
     [normTeamKey("Dallas Renegades")]: teamArtPath("XFL", "xfl-team-dallas-renegades.png"),
     [normTeamKey("St Louis Battlehawks")]: teamArtPath("XFL", "xfl-team-st-louis-battlehawks.png"),
     [normTeamKey("Los Angeles Wildcats")]: teamArtPath("XFL", "xfl-team-los-angeles-wildcats.png"),
-    [normTeamKey("Las Vegas Outlaws")]: teamArtPath("XFL", "xfl-team-las-vegas-outlaws.png"), // UNCONFIRMED — see note above
+    [normTeamKey("Las Vegas Outlaws")]: teamArtPath("XFL", "xfl-team-las-vegas-outlaws.png"),
     [normTeamKey("Omaha Mammoths")]: teamArtPath("XFL", "xfl-team-omaha-mammoths.png"),
     [normTeamKey("Chicago Enforcers")]: teamArtPath("XFL", "xfl-team-chicago-enforcers.png"),
     [normTeamKey("Orlando Rage")]: teamArtPath("XFL", "xfl-team-orlando-rage.png"),
@@ -4592,7 +4593,7 @@ const TEAM_ART = {
     [normTeamKey("Seattle Dragons")]: teamArtPath("XFL", "xfl-team-seattle-dragons.png"),
     [normTeamKey("Brooklyn Bolts")]: teamArtPath("XFL", "xfl-team-brooklyn-bolts.png"),
     [normTeamKey("New Jersey Hitmen")]: teamArtPath("XFL", "xfl-team-new-jersey-hitmen.png"),
-    [normTeamKey("Houston Roughnecks")]: teamArtPath("XFL", "xfl-team-houston-roughnecks.png"), // UNCONFIRMED — see note above
+    [normTeamKey("Houston Roughnecks")]: teamArtPath("XFL", "xfl-team-houston-roughnecks.png"),
     [normTeamKey("Birmingham Thunderbolts")]: teamArtPath("XFL", "xfl-team-birmingham-thunderbolts.png"),
     [normTeamKey("San Francisco Demons")]: teamArtPath("XFL", "xfl-team-san-francisco-demons.png"),
   },
@@ -4705,7 +4706,13 @@ const R3_LIVE = {
     banners: XII_BANNERS, consoBanners: XII_CONSO_BANNERS,
     // "West Virgnia Mountaineers" is misspelled in the source data; without
     // this it renders as the full misspelled name in the default colour.
-    aliases: { "West Virgnia Mountaineers": "W Virginia" },
+    // "Arizona" was a data artifact in her spreadsheet — this slot's real
+    // team is Northern Iowa Panthers (corrected by her 2026-08-07,
+    // XII_CLR key renamed "Arizona"->"N Iowa" to match). Alias kept
+    // explicit rather than relying on token matching, since this tier
+    // also has "Iowa State" and a token-based match risks colliding
+    // with it.
+    aliases: { "West Virgnia Mountaineers": "W Virginia", "Northern Iowa Panthers": "N Iowa" },
   },
   ACC: {
     colors: ACC_CLR, logoSrc: ACC_MARK, trophy: ACC_TROPHY, logo: "ACC",
