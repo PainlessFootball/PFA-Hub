@@ -4511,6 +4511,30 @@ const TEAM_ART = {
     [normTeamKey("NC State Wolfpack")]: teamArtPath("ACC", "acc-team-nc-state-wolfpack.png"),
     [normTeamKey("Boston College Eagles")]: teamArtPath("ACC", "acc-team-boston-college-eagles.png"),
   },
+  "BIG XII": {
+    [normTeamKey("Oklahoma State Cowboys")]: teamArtPath("BIG XII", "xii-team-oklahoma-state-cowboys.png"),
+    [normTeamKey("South Dakota State Jackrabbits")]: teamArtPath("BIG XII", "xii-team-south-dakota-state-jackrabbits.png"),
+    [normTeamKey("Cincinnati Bearcats")]: teamArtPath("BIG XII", "xii-team-cincinnati-bearcats.png"),
+    [normTeamKey("Houston Cougars")]: teamArtPath("BIG XII", "xii-team-houston-cougars.png"),
+    [normTeamKey("BYU Cougars")]: teamArtPath("BIG XII", "xii-team-byu-cougars.png"),
+    [normTeamKey("Iowa State Cyclones")]: teamArtPath("BIG XII", "xii-team-iowa-state-cyclones.png"),
+    [normTeamKey("Denver Pioneers")]: teamArtPath("BIG XII", "xii-team-denver-pioneers.png"),
+    [normTeamKey("Baylor Bears")]: teamArtPath("BIG XII", "xii-team-baylor-bears.png"),
+    [normTeamKey("TCU Horned Frogs")]: teamArtPath("BIG XII", "xii-team-tcu-horned-frogs.png"),
+    [normTeamKey("Kansas Jayhawks")]: teamArtPath("BIG XII", "xii-team-kansas-jayhawks.png"),
+    [normTeamKey("Northern Colorado Bears")]: teamArtPath("BIG XII", "xii-team-northern-colorado-bears.png"),
+    [normTeamKey("West Virginia Mountaineers")]: teamArtPath("BIG XII", "xii-team-west-virginia-mountaineers.png"),
+    [normTeamKey("UCF Knights")]: teamArtPath("BIG XII", "xii-team-ucf-knights.png"),
+    [normTeamKey("Kansas State Wildcats")]: teamArtPath("BIG XII", "xii-team-kansas-state-wildcats.png"),
+    [normTeamKey("Texas Tech Red Raiders")]: teamArtPath("BIG XII", "xii-team-texas-tech-red-raiders.png"),
+    // Arizona intentionally has no entry yet — not included in this
+    // batch; falls back to the color crest until she sends it. She also
+    // sent Northern Iowa Panthers and Oklahoma Sooners logos, neither of
+    // which is one of this tier's 16 real teams (Denver's "Northern
+    // Colorado" already covers the one N-Colorado/N-Iowa-adjacent slot;
+    // Oklahoma Sooners is a different real-world school than this tier's
+    // "OSU" = Oklahoma State) — not used.
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
