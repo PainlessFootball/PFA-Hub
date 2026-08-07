@@ -4477,6 +4477,26 @@ const TEAM_ART = {
     // included in this batch; falls back to the color crest until she
     // sends it.
   },
+  TEN: {
+    [normTeamKey("Northwestern Wildcats")]: teamArtPath("TEN", "ten-team-northwestern-wildcats.png"),
+    [normTeamKey("UCLA Bruins")]: teamArtPath("TEN", "ten-team-ucla-bruins.png"),
+    [normTeamKey("Washington Huskies")]: teamArtPath("TEN", "ten-team-washington-huskies.png"),
+    [normTeamKey("Ohio State Buckeyes")]: teamArtPath("TEN", "ten-team-ohio-state-buckeyes.png"),
+    [normTeamKey("California Golden Bears")]: teamArtPath("TEN", "ten-team-california-golden-bears.png"),
+    [normTeamKey("Indiana Hoosiers")]: teamArtPath("TEN", "ten-team-indiana-hoosiers.png"),
+    [normTeamKey("Penn State Nittany Lions")]: teamArtPath("TEN", "ten-team-penn-state-nittany-lions.png"),
+    [normTeamKey("Oregon Ducks")]: teamArtPath("TEN", "ten-team-oregon-ducks.png"),
+    [normTeamKey("Purdue Boilermakers")]: teamArtPath("TEN", "ten-team-purdue-boilermakers.png"),
+    [normTeamKey("Michigan Wolverines")]: teamArtPath("TEN", "ten-team-michigan-wolverines.png"),
+    [normTeamKey("Wisconsin Badgers")]: teamArtPath("TEN", "ten-team-wisconsin-badgers.png"),
+    [normTeamKey("Illinois Illini")]: teamArtPath("TEN", "ten-team-illinois-illini.png"),
+    [normTeamKey("Maryland Terrapins")]: teamArtPath("TEN", "ten-team-maryland-terrapins.png"),
+    [normTeamKey("USC Trojans")]: teamArtPath("TEN", "ten-team-usc-trojans.png"),
+    [normTeamKey("Rutgers Scarlet Knights")]: teamArtPath("TEN", "ten-team-rutgers-scarlet-knights.png"),
+    // Utah intentionally has no entry yet — not included in this batch
+    // (she sent Iowa instead, which isn't one of this tier's 16 real
+    // teams) — falls back to the color crest until she sends the right one.
+  },
 };
 
 // No championship-game name and no week-18 bowls on the FLHS sheets.
