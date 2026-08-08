@@ -5299,6 +5299,9 @@ function tourneyCPTable(games) {
 const TOURNEY_GRID_W = 1220;
 const TOURNEY_H = 460;
 const tourneyMirrorX = (x) => TOURNEY_GRID_W - x;
+// Named column x-positions, referenced throughout TournamentBracket below —
+// left-half values only; the right half mirrors via tourneyMirrorX(x) - BW.
+const TOURNEY_X = { playin: 0, r16: 112, qf: 224, sf: 336, finalEntrant: 448, center: 560 };
 
 const TOURNEY_MAIN_PATHS = [
   "M212 38 L218 38 L218 95 L224 95", "M212 152 L218 152 L218 95 L224 95",
