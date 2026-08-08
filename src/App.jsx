@@ -5478,7 +5478,7 @@ function tourneyName(team) {
 // since the Fall-iday colors were always specific to that theme, not a
 // shared site convention (her correction 2026-08-08, after they leaked
 // into Pro Bowl by simply reusing this component unchanged).
-function TourneyPair({ x, y, g, colors, scoreBgPlayed = "#f0edb4", scoreBgUnplayed = "#5f0f40", scoreBorder = "#9a031e" }) {
+function TourneyPair({ x, y, g, colors, scoreBgPlayed = "#fdfcd1", scoreBgUnplayed = "#5f0f40", scoreBorder = "#9a031e" }) {
   if (!g) return null;
   const played = g.played;
   // Empty (not-yet-played) score cells match the TBD box color rather than
@@ -9765,7 +9765,7 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                    <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#072b08", border: "1px solid #9a031e", padding: 16 }}>
+                    <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#072908", border: "1px solid #9a031e", padding: 16 }}>
                       <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                     </div>
                     <div>
