@@ -2430,7 +2430,7 @@ function DirBand({ tier, count, strength }) {
   );
 }
 
-function GBox({ x, y, team, score, win, colors }) {
+function GBox({ x, y, team, score, win, colors, scoreBg }) {
   const clr = (colors && colors[team]) || TEAM_CLR[team] || ["#2A3550", C.chalk];
   // Two teams of one matchup are stacked 38px apart (see r3Stack/brStack) and
   // used to render with zero gap between them -- one continuous colour block
@@ -2449,7 +2449,7 @@ function GBox({ x, y, team, score, win, colors }) {
       {score != null && (
         <div style={{
           height: rowH, lineHeight: `${rowH}px`, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
-          background: "rgba(255,255,255,0.03)", boxSizing: "border-box", textAlign: "center",
+          background: scoreBg || "rgba(255,255,255,0.03)", boxSizing: "border-box", textAlign: "center",
           border: `1px solid ${BR_LINE}`, borderTop: "none",
           color: win ? C.turf : C.slate, fontWeight: win ? 700 : 400,
         }}>{score}</div>
@@ -5361,8 +5361,8 @@ function TourneyPair({ x, y, g, colors }) {
   const played = g.played;
   return (
     <>
-      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} />
-      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} />
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#DE925D" />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#DE925D" />
     </>
   );
 }
@@ -9382,7 +9382,7 @@ export default function App() {
               </div>
             ) : (
               <>
-                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#784434", border: `1px solid ${C.line}`, padding: 16 }}>
+                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#361705", border: `1px solid ${C.line}`, padding: 16 }}>
                   <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                 </div>
                 <div>
