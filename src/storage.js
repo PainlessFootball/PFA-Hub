@@ -242,3 +242,37 @@ export function watchClub300Live(cb) {
   });
   return () => unsub();
 }
+
+// ── Tournament (frozen seed snapshot, written once per season) ──
+// One doc per season — tournamentSeeds/{year}. Written ONCE, at the
+// Week7->Week8 rollover, then only ever read from for the rest of that
+// season's event — a real single-elimination bracket can't reseed itself
+// mid-tournament the way R3_LIVE/BR_LIVE harmlessly do every render. The
+// Firestore rules also enforce write-once at the security layer (create
+// allowed only if the doc doesn't already exist; update/delete always
+// denied) — the existence check below just avoids an unnecessary
+// round-trip and gives the caller a clean "already existed" signal, it
+// isn't the only thing preventing an overwrite.
+export async function getTournamentSeeds(year) {
+  const key = `pfa-tournament-seeds-${year}`;
+  if (!firebaseReady) {
+    return localGet(key);
+  }
+  await ensureDb();
+  const snap = await fs.getDoc(fs.doc(db, "tournamentSeeds", String(year)));
+  return snap.exists() ? snap.data().seeds : null;
+}
+
+export async function setTournamentSeeds(year, seeds) {
+  const key = `pfa-tournament-seeds-${year}`;
+  if (!firebaseReady) {
+    if (localGet(key)) return; // already set locally — never overwrite
+    localSet(key, seeds);
+    return;
+  }
+  await ensureDb();
+  const ref = fs.doc(db, "tournamentSeeds", String(year));
+  const existing = await fs.getDoc(ref);
+  if (existing.exists()) return;
+  await fs.setDoc(ref, { seeds, frozenAt: fs.serverTimestamp() });
+}
