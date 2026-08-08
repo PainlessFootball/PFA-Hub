@@ -5183,20 +5183,22 @@ const TOURNEY_QF = [
 const TOURNEY_SF = [{ key: "LSF", a: "LQ1", b: "LQ2" }, { key: "RSF", a: "RQ1", b: "RQ2" }];
 const TOURNEY_FINAL = { key: "FINAL", a: "LSF", b: "RSF" };
 
-// Cross-tier seeding: flattens every ELIGIBLE tier's already-fetched
+// Cross-tier ranking: flattens every ELIGIBLE tier's already-fetched
 // standingsCache rows into one list, ranked by W-L then points scored (her
-// stated rule), and takes the top 20. Scoped to the 16-team leagues only
-// (SEC through FLHS) per her explicit correction 2026-08-08 -- NFL (32
-// teams)/USFL/XFL (20 teams each) are excluded, both because she said so
-// directly and because mixing league sizes let NFL's much larger points
-// scale swamp the ranking on live data (confirmed from her screenshot: an
-// early-season points tiebreak returned an all-NFL top 8). Skips unowned
-// rosters -- an open coaching job can't hold a tournament seed. Requires
-// every eligible tier's standings to already be cached (the bulk-discovery
-// effect does this for the whole site already, not something this feature
-// needs to trigger itself).
+// stated rule). Scoped to the 16-team leagues only (SEC through FLHS) per
+// her explicit correction 2026-08-08 -- NFL (32 teams)/USFL/XFL (20 teams
+// each) are excluded, both because she said so directly and because mixing
+// league sizes let NFL's much larger points scale swamp the ranking on live
+// data (confirmed from her screenshot: an early-season points tiebreak
+// returned an all-NFL top 8). Skips unowned rosters -- an open coaching job
+// can't hold a tournament seed. Requires every eligible tier's standings to
+// already be cached (the bulk-discovery effect does this for the whole
+// site already, not something this feature needs to trigger itself).
+// Returns the FULL ranked pool (every eligible, owned team) -- callers
+// slice whatever range they need (top 20 for the real seeds, 21-36 for the
+// "In The Hunt" live display, etc.) rather than each computing their own cut.
 const TOURNEY_ELIGIBLE_TIERS = ["SEC", "BIG XII", "ACC", "TEN", "SUN", "SOCO", "IVY", "SWAC", "GLIAC", "FLHS"];
-function computeTourneySeeds(standingsCache, leagueMap) {
+function computeTourneyRankedPool(standingsCache, leagueMap) {
   const rows = [];
   TIERS.filter((t) => TOURNEY_ELIGIBLE_TIERS.includes(t.key)).forEach((t) => {
     const leagueId = leagueMap[t.key];
@@ -5211,7 +5213,12 @@ function computeTourneySeeds(standingsCache, leagueMap) {
     });
   });
   rows.sort((a, b) => b.w - a.w || b.pts - a.pts);
-  return rows.slice(0, 20).map((r, i) => ({ ...r, seed: i + 1 }));
+  return rows.map((r, i) => ({ ...r, seed: i + 1 }));
+}
+// The real 20 tournament seeds -- unchanged contract/behavior from before
+// this refactor, still what the Week7->8 freeze effect uses.
+function computeTourneySeeds(standingsCache, leagueMap) {
+  return computeTourneyRankedPool(standingsCache, leagueMap).slice(0, 20);
 }
 
 // One game between two team-refs at a given week. `countsAsWin=false` is
@@ -5378,8 +5385,8 @@ function TourneyPair({ x, y, g, colors }) {
   const played = g.played;
   return (
     <>
-      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#FFE1CC" />
-      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#FFE1CC" />
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#D4611E" />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#D4611E" />
     </>
   );
 }
@@ -6714,10 +6721,16 @@ export default function App() {
   // (the real frozen snapshot) exists, it always wins over this.
   const tourneyTiersLoaded = TIERS.filter((t) => TOURNEY_ELIGIBLE_TIERS.includes(t.key))
     .every((t) => leagueMap[t.key] && standingsCache[leagueMap[t.key]]);
-  const tourneySeedsLive = useMemo(
-    () => (tourneyTiersLoaded ? computeTourneySeeds(standingsCache, leagueMap) : null),
+  const tourneyRankedPool = useMemo(
+    () => (tourneyTiersLoaded ? computeTourneyRankedPool(standingsCache, leagueMap) : null),
     [tourneyTiersLoaded, standingsCache, leagueMap]
   );
+  const tourneySeedsLive = tourneyRankedPool ? tourneyRankedPool.slice(0, 20) : null;
+  // "In The Hunt" — the next 16 teams (ranks 21-36) just outside the field,
+  // live-display only (her request 2026-08-08). Never part of the actual
+  // seeding/freeze logic, and only shown pre-freeze — once the real field
+  // is locked there's nothing left to be "in the hunt" for.
+  const tourneyInTheHunt = tourneyRankedPool ? tourneyRankedPool.slice(20, 36) : null;
   const tourneyIsProvisional = !tourneySeeds && Boolean(tourneySeedsLive);
   const tourneyDisplaySeeds = tourneySeeds || tourneySeedsLive;
   const tourneyDisplayGames = useMemo(
@@ -9382,11 +9395,6 @@ export default function App() {
             <p className="text-sm mb-4" style={{ color: C.slate }}>
               The top 20 teams from SEC through High School. Seeded by record then points.
             </p>
-            {tourneyIsProvisional && (
-              <div className="text-xs mb-4 px-3 py-2 rounded-sm" style={{ background: "rgba(232,163,61,0.12)", color: C.gold, border: `1px solid ${C.goldDim}` }}>
-                Provisional seeding, updated live —  final seeding locks Week 8.
-              </div>
-            )}
 
             {mode !== "live" ? (
               <div className="text-sm" style={{ color: C.slate }}>
@@ -9413,18 +9421,38 @@ export default function App() {
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                    {tourneyIsProvisional ? "Seeds — if the field locked in today" : "Seeds"}
+                    {tourneyIsProvisional
+                      ? "Seeding if the field locked in today, updated live — final seeding locks Week 8."
+                      : "Seeds"}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                     {tourneyDisplaySeeds.map((s) => (
                       <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
                         <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
                         <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
-                        <span className="ml-auto shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
+                        <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                        <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
                       </div>
                     ))}
                   </div>
                 </div>
+                {tourneyIsProvisional && tourneyInTheHunt && tourneyInTheHunt.length > 0 && (
+                  <div className="mt-6">
+                    <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                      In The Hunt
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {tourneyInTheHunt.map((s) => (
+                        <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, width: 18 }}>{s.seed}</span>
+                          <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                          <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                          <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
