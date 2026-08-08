@@ -5361,8 +5361,8 @@ function TourneyPair({ x, y, g, colors }) {
   const played = g.played;
   return (
     <>
-      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#DE925D" />
-      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#DE925D" />
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#FFE1CC" />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#FFE1CC" />
     </>
   );
 }
@@ -9382,7 +9382,7 @@ export default function App() {
               </div>
             ) : (
               <>
-                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#361705", border: `1px solid ${C.line}`, padding: 16 }}>
+                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#241103", border: `1px solid ${C.line}`, padding: 16 }}>
                   <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                 </div>
                 <div>
