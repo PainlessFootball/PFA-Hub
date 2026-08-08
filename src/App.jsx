@@ -5385,8 +5385,8 @@ function TourneyPair({ x, y, g, colors }) {
   const played = g.played;
   return (
     <>
-      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#D4611E" />
-      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#D4611E" />
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#BF581B" />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#BF581B" />
     </>
   );
 }
@@ -5487,24 +5487,33 @@ function TournamentBracket({ data }) {
           <GSlot x={X.center} y={0} w={BW} h={50} label="PFA" src={PFA_MARK} />
           <GSlot x={tourneyMirrorX(X.finalEntrant) - BW} y={0} w={BW} h={40} label="" src={TOURNEY_DECOR_TOP_RIGHT} />
           <GSlot x={X.center} y={55} w={BW} h={70} label="Trophy" src={TOURNEY_TROPHY} />
-          {/* cpRow boxes are 130px wide vs the 100px (BW) slots above --
-              offset left by half the difference so they share the same
-              horizontal center as the trophy/PFA mark/leaves, instead of
-              both starting at the same x and drifting off-center (her
-              screenshot 2026-08-08). Champion sits on its own, moved up a
-              touch per her request; 2nd/QF-loser/Win keep their existing
-              tight spacing (gap:4, unchanged) but move down TOGETHER as one
-              unit so the leaf cluster below lands near the panel's bottom
-              edge instead of leaving a gap. */}
-          <div style={{ position: "absolute", left: X.center - 15, top: 165 }}>
-            {cpRow("Champion", `${(cp[(g("FINAL") || {}).winner && g("FINAL").winner.rosterId] || {}).cp ?? 20} CP`, C.gold, C.ink)}
+          {/* Champion styled to match the site's other brackets: a "CHAMPION"
+              label ABOVE a gold-bordered box (same pattern as GridBracket's
+              own s.champion rendering), with the box showing the CP value
+              rather than a team name, since this slot is a static CP-tier
+              legend, not a live champion display. 2nd/QF-loser/Win keep the
+              original compact cpRow bar style and their own tight mutual
+              spacing (gap:4, unchanged), but as a group they and the leaf
+              cluster below have moved further down per her request so the
+              leaves land at the very bottom of the panel. cpRow/champion
+              boxes offset left by (130-BW)/2=15px so they share the same
+              horizontal center as the trophy/PFA mark/leaves above. */}
+          <div style={{ position: "absolute", left: X.center - 15, top: 165, width: 130, textAlign: "center" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: C.gold, textTransform: "uppercase", marginBottom: 4 }}>
+              Champion
+            </div>
+            <div style={{ border: `2px solid ${C.gold}`, borderRadius: 3, padding: "6px 4px", background: "rgba(232,163,61,0.12)", boxSizing: "border-box" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>
+                {`${(cp[(g("FINAL") || {}).winner && g("FINAL").winner.rosterId] || {}).cp ?? 20} CP`}
+              </div>
+            </div>
           </div>
-          <div style={{ position: "absolute", left: X.center - 15, top: 225, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ position: "absolute", left: X.center - 15, top: 245, display: "flex", flexDirection: "column", gap: 4 }}>
             {cpRow("2nd", `${(cp[(g("FINAL") || {}).loser && g("FINAL").loser.rosterId] || {}).cp ?? 10} CP`, "#B4B2A9", "#2C2C2A")}
             {cpRow("QF loser", "5 CP", "#D9711C", "#2A1200")}
             {cpRow("Win", "2 CP", C.turf, "#0E3A1B")}
           </div>
-          <GSlot x={X.center} y={360} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
+          <GSlot x={X.center} y={370} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
         </div>
       </div>
     </div>
