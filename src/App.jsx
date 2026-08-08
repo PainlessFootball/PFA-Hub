@@ -5487,13 +5487,24 @@ function TournamentBracket({ data }) {
           <GSlot x={X.center} y={0} w={BW} h={50} label="PFA" src={PFA_MARK} />
           <GSlot x={tourneyMirrorX(X.finalEntrant) - BW} y={0} w={BW} h={40} label="" src={TOURNEY_DECOR_TOP_RIGHT} />
           <GSlot x={X.center} y={55} w={BW} h={70} label="Trophy" src={TOURNEY_TROPHY} />
-          <div style={{ position: "absolute", left: X.center, top: 190, display: "flex", flexDirection: "column", gap: 4 }}>
+          {/* cpRow boxes are 130px wide vs the 100px (BW) slots above --
+              offset left by half the difference so they share the same
+              horizontal center as the trophy/PFA mark/leaves, instead of
+              both starting at the same x and drifting off-center (her
+              screenshot 2026-08-08). Champion sits on its own, moved up a
+              touch per her request; 2nd/QF-loser/Win keep their existing
+              tight spacing (gap:4, unchanged) but move down TOGETHER as one
+              unit so the leaf cluster below lands near the panel's bottom
+              edge instead of leaving a gap. */}
+          <div style={{ position: "absolute", left: X.center - 15, top: 165 }}>
             {cpRow("Champion", `${(cp[(g("FINAL") || {}).winner && g("FINAL").winner.rosterId] || {}).cp ?? 20} CP`, C.gold, C.ink)}
+          </div>
+          <div style={{ position: "absolute", left: X.center - 15, top: 225, display: "flex", flexDirection: "column", gap: 4 }}>
             {cpRow("2nd", `${(cp[(g("FINAL") || {}).loser && g("FINAL").loser.rosterId] || {}).cp ?? 10} CP`, "#B4B2A9", "#2C2C2A")}
             {cpRow("QF loser", "5 CP", "#D9711C", "#2A1200")}
             {cpRow("Win", "2 CP", C.turf, "#0E3A1B")}
           </div>
-          <GSlot x={X.center} y={330} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
+          <GSlot x={X.center} y={360} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
         </div>
       </div>
     </div>
