@@ -2512,10 +2512,10 @@ function GSeries({ x, y, cum, label, score, win }) {
   );
 }
 
-function GPaths({ h, d }) {
+function GPaths({ h, d, w = GRID_W, color = BR_LINE }) {
   return (
-    <svg width={GRID_W} height={h} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden="true">
-      <g fill="none" stroke={BR_LINE} strokeWidth="1">
+    <svg width={w} height={h} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden="true">
+      <g fill="none" stroke={color} strokeWidth="1">
         {d.map((p, i) => <path key={i} d={p} />)}
       </g>
     </svg>
@@ -5183,15 +5183,22 @@ const TOURNEY_QF = [
 const TOURNEY_SF = [{ key: "LSF", a: "LQ1", b: "LQ2" }, { key: "RSF", a: "RQ1", b: "RQ2" }];
 const TOURNEY_FINAL = { key: "FINAL", a: "LSF", b: "RSF" };
 
-// Cross-tier seeding: flattens every tier's already-fetched standingsCache
-// rows into one list, ranked by W-L then points scored (her stated rule),
-// and takes the top 20. Skips unowned rosters -- an open coaching job can't
-// hold a tournament seed. Requires every tier's standings to already be
-// cached (the bulk-discovery effect does this for the whole site already,
-// not something this feature needs to trigger itself).
+// Cross-tier seeding: flattens every ELIGIBLE tier's already-fetched
+// standingsCache rows into one list, ranked by W-L then points scored (her
+// stated rule), and takes the top 20. Scoped to the 16-team leagues only
+// (SEC through FLHS) per her explicit correction 2026-08-08 -- NFL (32
+// teams)/USFL/XFL (20 teams each) are excluded, both because she said so
+// directly and because mixing league sizes let NFL's much larger points
+// scale swamp the ranking on live data (confirmed from her screenshot: an
+// early-season points tiebreak returned an all-NFL top 8). Skips unowned
+// rosters -- an open coaching job can't hold a tournament seed. Requires
+// every eligible tier's standings to already be cached (the bulk-discovery
+// effect does this for the whole site already, not something this feature
+// needs to trigger itself).
+const TOURNEY_ELIGIBLE_TIERS = ["SEC", "BIG XII", "ACC", "TEN", "SUN", "SOCO", "IVY", "SWAC", "GLIAC", "FLHS"];
 function computeTourneySeeds(standingsCache, leagueMap) {
   const rows = [];
-  TIERS.forEach((t) => {
+  TIERS.filter((t) => TOURNEY_ELIGIBLE_TIERS.includes(t.key)).forEach((t) => {
     const leagueId = leagueMap[t.key];
     const tierRows = leagueId && standingsCache[leagueId];
     if (!tierRows) return;
@@ -5327,7 +5334,12 @@ const TOURNEY_PLAYIN_PATHS = [
 // bracket has). `g` is a resolved game slot ({a,b,winner,scoreA,scoreB,...})
 // from resolveTourneyBracket, or null if that game doesn't apply to this box.
 function tourneyColorsMap(seeds) {
-  const map = {};
+  // "TBD" is the fallback name tourneyName() gives an undetermined slot
+  // (see below) — giving it a real entry here, rather than letting GBox
+  // fall through to the site-wide default slate colour, keeps every other
+  // bracket's own fallback untouched while giving just this one its own
+  // fall palette (her request 2026-08-08: dark brown for empty boxes).
+  const map = { TBD: ["#4A2D20", C.chalk] };
   (seeds || []).forEach((s) => {
     const cfg = TIER_COLOR_CFG[s.tierKey];
     if (!cfg) return;
@@ -5337,7 +5349,7 @@ function tourneyColorsMap(seeds) {
   return map;
 }
 function tourneyName(team) {
-  if (!team) return "";
+  if (!team) return "TBD";
   const cfg = TIER_COLOR_CFG[team.tierKey];
   return cfg ? r3ShortName(team.team, cfg.colors, cfg.aliases) : team.team;
 }
@@ -5403,7 +5415,7 @@ function TournamentBracket({ data }) {
     <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: TOURNEY_H * scale }}>
       <div style={{ width: TOURNEY_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
         <div style={{ position: "relative", width: TOURNEY_GRID_W, height: TOURNEY_H }}>
-          <GPaths h={TOURNEY_H} d={[...TOURNEY_PLAYIN_PATHS, ...TOURNEY_MAIN_PATHS]} />
+          <GPaths h={TOURNEY_H} w={TOURNEY_GRID_W} color="#eb5009" d={[...TOURNEY_PLAYIN_PATHS, ...TOURNEY_MAIN_PATHS]} />
 
           {/* --- LEFT half --- */}
           <TourneyPair x={X.playin} y={19} g={g("L1")} colors={colors} />
@@ -6683,7 +6695,8 @@ export default function App() {
   // render where standings change; NEVER written to Firestore — only the
   // real Week7->8 rollover freeze (above) does that. Once tourneySeeds
   // (the real frozen snapshot) exists, it always wins over this.
-  const tourneyTiersLoaded = TIERS.every((t) => leagueMap[t.key] && standingsCache[leagueMap[t.key]]);
+  const tourneyTiersLoaded = TIERS.filter((t) => TOURNEY_ELIGIBLE_TIERS.includes(t.key))
+    .every((t) => leagueMap[t.key] && standingsCache[leagueMap[t.key]]);
   const tourneySeedsLive = useMemo(
     () => (tourneyTiersLoaded ? computeTourneySeeds(standingsCache, leagueMap) : null),
     [tourneyTiersLoaded, standingsCache, leagueMap]
@@ -9350,8 +9363,7 @@ export default function App() {
               )}
             </div>
             <p className="text-sm mb-4" style={{ color: C.slate }}>
-              The top 20 teams across every tier, seeded by record then points, in a single-elimination
-              knockout — Week 8 through Week 12.
+              The top 20 teams from SEC through High School. Seeded by record then points.
             </p>
             {tourneyIsProvisional && (
               <div className="text-xs mb-4 px-3 py-2 rounded-sm" style={{ background: "rgba(232,163,61,0.12)", color: C.gold, border: `1px solid ${C.goldDim}` }}>
@@ -9370,7 +9382,7 @@ export default function App() {
               </div>
             ) : (
               <>
-                <div className="rounded-sm overflow-hidden mb-6" style={{ background: C.panel, border: `1px solid ${C.line}`, padding: 16 }}>
+                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#784434", border: `1px solid ${C.line}`, padding: 16 }}>
                   <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                 </div>
                 <div>
