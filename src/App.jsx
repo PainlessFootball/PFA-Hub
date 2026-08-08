@@ -5309,6 +5309,23 @@ const tourneyMirrorX = (x) => TOURNEY_GRID_W - x;
 // Named column x-positions, referenced throughout TournamentBracket below —
 // left-half values only; the right half mirrors via tourneyMirrorX(x) - BW.
 const TOURNEY_X = { playin: 0, r16: 112, qf: 224, sf: 336, finalEntrant: 448, center: 560 };
+// Week-number header row, shown above the bracket panel (not inside
+// TournamentBracket's own scaled coordinate system) -- positions given as
+// percentages of TOURNEY_GRID_W so they track the panel's rendered width at
+// any viewport size the same way the panel's own internal scale does.
+const TOURNEY_WEEK_COLS = [
+  { label: "Week 8", left: "0.000%", width: "8.197%" },
+  { label: "Week 9", left: "9.180%", width: "8.197%" },
+  { label: "Week 10", left: "18.361%", width: "8.197%" },
+  { label: "Week 11", left: "27.541%", width: "8.197%" },
+  { label: "Week 12", left: "36.721%", width: "8.197%" },
+  { label: "Week 13", left: "45.902%", width: "8.197%" },
+  { label: "Week 12", left: "55.082%", width: "8.197%" },
+  { label: "Week 11", left: "64.262%", width: "8.197%" },
+  { label: "Week 10", left: "73.443%", width: "8.197%" },
+  { label: "Week 9", left: "82.623%", width: "8.197%" },
+  { label: "Week 8", left: "91.803%", width: "8.197%" },
+];
 
 const TOURNEY_MAIN_PATHS = [
   "M212 38 L218 38 L218 95 L224 95", "M212 152 L218 152 L218 95 L224 95",
@@ -9367,8 +9384,7 @@ export default function App() {
             </p>
             {tourneyIsProvisional && (
               <div className="text-xs mb-4 px-3 py-2 rounded-sm" style={{ background: "rgba(232,163,61,0.12)", color: C.gold, border: `1px solid ${C.goldDim}` }}>
-                Provisional seeding, updated live — this is where the bracket would land if it locked in
-                today. Nothing's final until Week 8.
+                Provisional seeding, updated live —  final seeding locks Week 8.
               </div>
             )}
 
@@ -9382,7 +9398,17 @@ export default function App() {
               </div>
             ) : (
               <>
-                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#241103", border: `1px solid ${C.line}`, padding: 16 }}>
+                <div style={{ position: "relative", height: 16, marginBottom: 4 }}>
+                  <div style={{ position: "absolute", left: 16, right: 16, top: 0, height: "100%" }}>
+                    {TOURNEY_WEEK_COLS.map((c, i) => (
+                      <div key={i} style={{
+                        position: "absolute", left: c.left, width: c.width, textAlign: "center",
+                        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: C.slate,
+                      }}>{c.label}</div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#1F0D04", border: `1px solid ${C.line}`, padding: 16 }}>
                   <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                 </div>
                 <div>
