@@ -2328,6 +2328,15 @@ const PRO_BOWL_NAME = "The UFL Pro Bowl";
 const proBowlArt = (filename) => `/art/tournament/ufl-pro-bowl/${filename}`;
 const PRO_BOWL_LOGO = proBowlArt("ufl-logo.png");
 const PRO_BOWL_TROPHY = proBowlArt("ufl-trophy.png");
+// Registry of tournaments shown in the Tournament tab's selector — add a new
+// entry here (plus its own render branch in the JSX below) whenever a
+// future tournament is added. She's explicitly planning more, so this is a
+// selector/one-page-at-a-time UI, not everything stacked in one scrolling
+// page.
+const TOURNAMENT_LIST = [
+  { key: "main", name: TOURNAMENT_NAME },
+  { key: "ufl-pro-bowl", name: PRO_BOWL_NAME },
+];
 
 // --- SEC / Big Ten / SWAC artwork -----------------------------------------
 const SEC_MARK = "/art/sec-mark.png";
@@ -6374,6 +6383,10 @@ export default function App() {
   const [proBowlSeeds, setProBowlSeedsState] = useState(null);
   const [proBowlSeedsChecked, setProBowlSeedsChecked] = useState(false);
   const [proBowlScores, setProBowlScores] = useState({});
+  // Which tournament's "page" is showing in the tab's selector — mirrors
+  // the Weekly Awards season/week picker pattern, just picking a whole
+  // tournament instead of a week.
+  const [activeTournamentKey, setActiveTournamentKey] = useState("main");
 
   const [news, setNews] = useState(SEED_NEWS);
   const [chat, setChat] = useState([]);
@@ -9682,9 +9695,9 @@ export default function App() {
 
         {view === "tournament" && (
           <div>
-            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                {TOURNAMENT_NAME}
+                {(TOURNAMENT_LIST.find((t) => t.key === activeTournamentKey) || TOURNAMENT_LIST[0]).name}
               </h2>
               {nflState && (
                 <span className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
@@ -9692,95 +9705,84 @@ export default function App() {
                 </span>
               )}
             </div>
-            <p className="text-sm mb-4" style={{ color: C.slate }}>
-              The top 20 teams from SEC through High School. Seeded by record then points.
-            </p>
 
-            {mode !== "live" ? (
-              <div className="text-sm" style={{ color: C.slate }}>
-                The Tournament needs a live connection — check back once the site's connected to Sleeper.
-              </div>
-            ) : !tourneyDisplaySeeds ? (
-              <div className="text-sm" style={{ color: C.slate }}>
-                {nflState && nflState.week >= 8 ? "Setting the bracket…" : "Loading standings…"}
-              </div>
-            ) : (
+            {/* Tournament selector — one page at a time, not stacked, so
+                adding a future tournament here never means more scrolling. */}
+            <div className="flex gap-1 mb-4 flex-wrap">
+              {TOURNAMENT_LIST.map((t) => {
+                const active = t.key === activeTournamentKey;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTournamentKey(t.key)}
+                    className="px-3 py-1.5 text-xs uppercase tracking-wider rounded-sm transition-colors"
+                    style={{
+                      fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                      background: active ? C.gold : "transparent",
+                      color: active ? C.ink : C.slate,
+                      border: `1px solid ${active ? C.gold : C.line}`,
+                    }}
+                  >
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeTournamentKey === "main" && (
               <>
-                <div style={{ position: "relative", height: 16, marginBottom: 4 }}>
-                  <div style={{ position: "absolute", left: 16, right: 16, top: 0, height: "100%" }}>
-                    {TOURNEY_WEEK_COLS.map((c, i) => (
-                      <div key={i} style={{
-                        position: "absolute", left: c.left, width: c.width, textAlign: "center",
-                        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: C.slate,
-                      }}>{c.label}</div>
-                    ))}
+                <p className="text-sm mb-4" style={{ color: C.slate }}>
+                  The top 20 teams from SEC through High School. Seeded by record then points.
+                </p>
+                {mode !== "live" ? (
+                  <div className="text-sm" style={{ color: C.slate }}>
+                    The Tournament needs a live connection — check back once the site's connected to Sleeper.
                   </div>
-                </div>
-                <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#1F0D04", border: `1px solid ${C.line}`, padding: 16 }}>
-                  <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                    {tourneyIsProvisional
-                      ? "Seeding if the field locked in today, updated live — final seeding locks Week 8."
-                      : "Seeds"}
+                ) : !tourneyDisplaySeeds ? (
+                  <div className="text-sm" style={{ color: C.slate }}>
+                    {nflState && nflState.week >= 8 ? "Setting the bracket…" : "Loading standings…"}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    {tourneyDisplaySeeds.map((s) => (
-                      <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
-                        <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
-                        <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
-                        <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
+                ) : (
+                  <>
+                    <div style={{ position: "relative", height: 16, marginBottom: 4 }}>
+                      <div style={{ position: "absolute", left: 16, right: 16, top: 0, height: "100%" }}>
+                        {TOURNEY_WEEK_COLS.map((c, i) => (
+                          <div key={i} style={{
+                            position: "absolute", left: c.left, width: c.width, textAlign: "center",
+                            fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: C.slate,
+                          }}>{c.label}</div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-                {tourneyIsProvisional && tourneyInTheHunt && tourneyInTheHunt.length > 0 && (
-                  <div className="mt-6">
-                    <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                      In The Hunt
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                      {tourneyInTheHunt.map((s) => (
-                        <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, width: 18 }}>{s.seed}</span>
-                          <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
-                          <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
-                          <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
-                        </div>
-                      ))}
+                    <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#1F0D04", border: `1px solid ${C.line}`, padding: 16 }}>
+                      <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                     </div>
-                  </div>
-                )}
-
-                {/* --- UFL Pro Bowl — companion bracket, same tab --- */}
-                <div className="mt-10 pt-8" style={{ borderTop: `1px solid ${C.line}` }}>
-                  <h3 className="text-2xl uppercase leading-none mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
-                    {PRO_BOWL_NAME}
-                  </h3>
-                  <p className="text-sm mb-4" style={{ color: C.slate }}>
-                    Top 4 highest-scoring teams, USFL &amp; XFL.
-                  </p>
-                  {!proBowlDisplaySeeds ? (
-                    <div className="text-sm" style={{ color: C.slate }}>
-                      {nflState && nflState.week >= 10 ? "Setting the bracket…" : "Loading standings…"}
-                    </div>
-                  ) : (
-                    <>
-                      <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#0C1A2E", border: `1px solid ${C.line}`, padding: 16 }}>
-                        <ProBowlBracket data={{ seeds: proBowlDisplaySeeds, games: proBowlDisplayGames, cp: proBowlDisplayCP }} />
+                    <div>
+                      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                        {tourneyIsProvisional
+                          ? "Seeding if the field locked in today, updated live — final seeding locks Week 8."
+                          : "Seeds"}
                       </div>
-                      <div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {tourneyDisplaySeeds.map((s) => (
+                          <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
+                            <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                            <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                            <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {tourneyIsProvisional && tourneyInTheHunt && tourneyInTheHunt.length > 0 && (
+                      <div className="mt-6">
                         <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                          {proBowlIsProvisional
-                            ? "Seeding if the field locked in today, updated live — final seeding locks Week 10."
-                            : "Seeds"}
+                          In The Hunt
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                          {proBowlDisplaySeeds.map((s) => (
-                            <div key={`${s.tierKey}-${s.seed}`} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
+                          {tourneyInTheHunt.map((s) => (
+                            <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, width: 18 }}>{s.seed}</span>
                               <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
                               <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
                               <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
@@ -9788,32 +9790,72 @@ export default function App() {
                           ))}
                         </div>
                       </div>
-                      {proBowlIsProvisional && ((proBowlInTheHuntUsfl && proBowlInTheHuntUsfl.length > 0) || (proBowlInTheHuntXfl && proBowlInTheHuntXfl.length > 0)) && (
-                        <div className="mt-6">
-                          <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                            In The Hunt
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {activeTournamentKey === "ufl-pro-bowl" && (
+              <>
+                <p className="text-sm mb-4" style={{ color: C.slate }}>
+                  Top 4 highest-scoring teams, USFL &amp; XFL.
+                </p>
+                {mode !== "live" ? (
+                  <div className="text-sm" style={{ color: C.slate }}>
+                    The UFL Pro Bowl needs a live connection — check back once the site's connected to Sleeper.
+                  </div>
+                ) : !proBowlDisplaySeeds ? (
+                  <div className="text-sm" style={{ color: C.slate }}>
+                    {nflState && nflState.week >= 10 ? "Setting the bracket…" : "Loading standings…"}
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#0C1A2E", border: `1px solid ${C.line}`, padding: 16 }}>
+                      <ProBowlBracket data={{ seeds: proBowlDisplaySeeds, games: proBowlDisplayGames, cp: proBowlDisplayCP }} />
+                    </div>
+                    <div>
+                      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                        {proBowlIsProvisional
+                          ? "Seeding if the field locked in today, updated live — final seeding locks Week 10."
+                          : "Seeds"}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {proBowlDisplaySeeds.map((s) => (
+                          <div key={`${s.tierKey}-${s.seed}`} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
+                            <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                            <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                            <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {[["USFL", proBowlInTheHuntUsfl], ["XFL", proBowlInTheHuntXfl]].map(([label, list]) => (
-                              <div key={label}>
-                                <div className="text-xs uppercase tracking-widest mb-1.5" style={{ color: C.slate, letterSpacing: "0.15em" }}>{label}</div>
-                                <div className="space-y-1.5">
-                                  {(list || []).map((s, i) => (
-                                    <div key={s.rosterId} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
-                                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, width: 18 }}>{i + 5}</span>
-                                      <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
-                                      <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {proBowlIsProvisional && ((proBowlInTheHuntUsfl && proBowlInTheHuntUsfl.length > 0) || (proBowlInTheHuntXfl && proBowlInTheHuntXfl.length > 0)) && (
+                      <div className="mt-6">
+                        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                          In The Hunt
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {[["USFL", proBowlInTheHuntUsfl], ["XFL", proBowlInTheHuntXfl]].map(([label, list]) => (
+                            <div key={label}>
+                              <div className="text-xs uppercase tracking-widest mb-1.5" style={{ color: C.slate, letterSpacing: "0.15em" }}>{label}</div>
+                              <div className="space-y-1.5">
+                                {(list || []).map((s, i) => (
+                                  <div key={s.rosterId} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, width: 18 }}>{i + 5}</span>
+                                    <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                                    <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
           </div>
