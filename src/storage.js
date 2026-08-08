@@ -272,3 +272,32 @@ export async function setTournamentSeeds(year, seeds) {
   if (existing.exists()) return;
   await fs.setDoc(ref, { seeds, frozenAt: fs.serverTimestamp() });
 }
+
+// ── UFL Pro Bowl (frozen seed snapshot, written once per season) ──
+// Same write-once/read-thereafter shape as tournamentSeeds above, just its
+// own collection since it's a separate companion event with its own
+// 8-team field (top 4 USFL + top 4 XFL) and its own freeze point
+// (Week9->Week10 rollover, one week later than the main Tournament's).
+export async function getUflProBowlSeeds(year) {
+  const key = `pfa-ufl-pro-bowl-seeds-${year}`;
+  if (!firebaseReady) {
+    return localGet(key);
+  }
+  await ensureDb();
+  const snap = await fs.getDoc(fs.doc(db, "uflProBowlSeeds", String(year)));
+  return snap.exists() ? snap.data().seeds : null;
+}
+
+export async function setUflProBowlSeeds(year, seeds) {
+  const key = `pfa-ufl-pro-bowl-seeds-${year}`;
+  if (!firebaseReady) {
+    if (localGet(key)) return; // already set locally — never overwrite
+    localSet(key, seeds);
+    return;
+  }
+  await ensureDb();
+  const ref = fs.doc(db, "uflProBowlSeeds", String(year));
+  const existing = await fs.getDoc(ref);
+  if (existing.exists()) return;
+  await fs.setDoc(ref, { seeds, frozenAt: fs.serverTimestamp() });
+}

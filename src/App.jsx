@@ -18,6 +18,8 @@ import {
   watchClub300Live,
   getTournamentSeeds,
   setTournamentSeeds,
+  getUflProBowlSeeds,
+  setUflProBowlSeeds,
 } from "./storage.js";
 import { onAuthChange, logoutUser } from "./auth.js";
 import LandingPage from "./LandingPage.jsx";
@@ -2316,6 +2318,16 @@ const TOURNEY_DECOR_TOP_RIGHT = tourneyArt("decor-top-right.png"); // leaf, flan
 const TOURNEY_DECOR_BOTTOM_LEFT = tourneyArt("decor-bottom-left.png"); // corner leaf
 const TOURNEY_DECOR_BOTTOM_RIGHT = tourneyArt("decor-bottom-right.png"); // corner leaf
 const TOURNEY_DECOR_CENTER = tourneyArt("decor-center.png"); // leaf cluster below the Win row
+
+// --- UFL Pro Bowl artwork ---------------------------------------------
+// Companion bracket living inside the Tournament tab (not the main 20-team
+// event) -- top 4 USFL vs top 4 XFL. Fixed UFL branding, not a swappable
+// annual theme like TOURNAMENT_THEME above, since it's tied to a real
+// league logo/trophy rather than a whimsical seasonal reskin.
+const PRO_BOWL_NAME = "The UFL Pro Bowl";
+const proBowlArt = (filename) => `/art/tournament/ufl-pro-bowl/${filename}`;
+const PRO_BOWL_LOGO = proBowlArt("ufl-logo.png");
+const PRO_BOWL_TROPHY = proBowlArt("ufl-trophy.png");
 
 // --- SEC / Big Ten / SWAC artwork -----------------------------------------
 const SEC_MARK = "/art/sec-mark.png";
@@ -5291,6 +5303,78 @@ function tourneyCPTable(games) {
 }
 
 // ===========================================================================
+// UFL PRO BOWL -- companion bracket living inside the Tournament tab: top 4
+// highest-SCORING teams (points, not W-L -- her explicit rule, differs from
+// the main Tournament above) from USFL play top 4 from XFL, 8-team
+// single-elim, no byes/play-in. Seeds 1-4 = USFL ranked 1-4, seeds 5-8 = XFL
+// ranked 1-4. Pairings from her CSV (not consecutive-seed): left QF =
+// seed1 v seed8 (USFL1 v XFL4), seed2 v seed7 (USFL2 v XFL3); right QF =
+// seed5 v seed4 (XFL1 v USFL4), seed6 v seed3 (XFL2 v USFL3) -- so the final
+// is naturally USFL's top pair vs XFL's top pair unless an upset crosses
+// bracket halves. Reuses tourneyPlay/tourneyName/TIER_COLOR_CFG above --
+// generic helpers despite the name, not Tournament-specific.
+// ===========================================================================
+function computeProBowlRankedPool(standingsCache, leagueMap, tierKey) {
+  const leagueId = leagueMap[tierKey];
+  const tierRows = leagueId && standingsCache[leagueId];
+  if (!tierRows) return [];
+  const rows = tierRows
+    .filter((r) => r.userId && r.rosterId)
+    .map((r) => ({ tierKey, rosterId: r.rosterId, coach: r.coach, team: r.team, w: r.w, l: r.l, pts: r.pts }));
+  rows.sort((a, b) => b.pts - a.pts);
+  return rows;
+}
+// The real 8 Pro Bowl seeds -- top 4 USFL + top 4 XFL by points.
+function computeProBowlSeeds(standingsCache, leagueMap) {
+  const usfl = computeProBowlRankedPool(standingsCache, leagueMap, "USFL").slice(0, 4);
+  const xfl = computeProBowlRankedPool(standingsCache, leagueMap, "XFL").slice(0, 4);
+  if (usfl.length < 4 || xfl.length < 4) return [];
+  return [...usfl, ...xfl].map((r, i) => ({ ...r, seed: i + 1 }));
+}
+
+const PRO_BOWL_QF = [
+  { key: "LQ1", a: { seed: 1 }, b: { seed: 8 } }, // USFL1 v XFL4
+  { key: "LQ2", a: { seed: 2 }, b: { seed: 7 } }, // USFL2 v XFL3
+  { key: "RQ1", a: { seed: 5 }, b: { seed: 4 } }, // XFL1 v USFL4
+  { key: "RQ2", a: { seed: 6 }, b: { seed: 3 } }, // XFL2 v USFL3
+];
+const PRO_BOWL_SF = [{ key: "LSF", a: "LQ1", b: "LQ2" }, { key: "RSF", a: "RQ1", b: "RQ2" }];
+const PRO_BOWL_FINAL = { key: "FINAL", a: "LSF", b: "RSF" };
+
+// QF played Week 10, SF Week 11, Final Week 12 -- same week numbers as the
+// main Tournament's own QF->SF->Final portion (her template's own labels).
+function resolveProBowlBracket(seeds, scores) {
+  if (!seeds || seeds.length < 8) return {};
+  const bySeed = (n) => { const t = seeds[n - 1]; return t ? { ...t, wins: 0 } : null; };
+  const games = {};
+  PRO_BOWL_QF.forEach((g) => { games[g.key] = tourneyPlay(bySeed(g.a.seed), bySeed(g.b.seed), 10, scores); });
+  const byGame = (key) => (games[key] || {}).winner || null;
+  PRO_BOWL_SF.forEach((g) => { games[g.key] = tourneyPlay(byGame(g.a), byGame(g.b), 11, scores, false); });
+  games[PRO_BOWL_FINAL.key] = tourneyPlay(byGame(PRO_BOWL_FINAL.a), byGame(PRO_BOWL_FINAL.b), 12, scores, false);
+  return games;
+}
+
+// Flat CP per her exact numbers -- NOT a stacking formula like the main
+// Tournament's. Champion 20, 2nd place 10, EVERY quarterfinal loser 5
+// regardless of path. Semifinal losers aren't a named CP tier in her
+// template (only Champion/2nd/Quarterfinal L are labeled) -- no entry here
+// (0 CP), flagged to her as an assumption, not explicitly confirmed.
+function proBowlCPTable(games) {
+  const cp = {};
+  const set = (team, amount, result) => {
+    if (!team) return;
+    cp[team.rosterId] = { team: team.team, coach: team.coach, tierKey: team.tierKey, cp: amount, result };
+  };
+  PRO_BOWL_QF.forEach((g) => { const r = games[g.key]; if (r && r.played) set(r.loser, 5, "Quarterfinal loss"); });
+  const fin = games[PRO_BOWL_FINAL.key];
+  if (fin && fin.played) {
+    set(fin.winner, 20, "Champion");
+    set(fin.loser, 10, "2nd place");
+  }
+  return cp;
+}
+
+// ===========================================================================
 // TOURNAMENT bracket geometry & rendering -- see the data-layer block near
 // GRID_BRACKETS (computeTourneySeeds/resolveTourneyBracket/tourneyCPTable)
 // for the seeding/results/CP logic this renders. Needs its own width and
@@ -5513,6 +5597,128 @@ function TournamentBracket({ data }) {
             {cpRow("Win", "2 CP", C.turf, "#0E3A1B")}
           </div>
           <GSlot x={X.center} y={370} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// UFL PRO BOWL bracket geometry & rendering. Structurally identical to the
+// main Tournament's own QF->SF->Final portion (same week numbers even --
+// Week10/11/12 on both) -- just 8 teams instead of 16, so no play-in/bye
+// columns are needed. Reuses TourneyPair/TourneySolo/GBox/GSlot/GPaths (all
+// generic, not Tournament-specific despite their names) and the same 112px
+// column pitch / 6px-stub elbow connector style as every other bracket in
+// this file -- just fewer named columns (qf/sf/finalEntrant/center only).
+// All positions verified overlap-free by coordinate script before writing.
+// ===========================================================================
+const PRO_BOWL_GRID_W = 772;
+const PRO_BOWL_H = 364;
+const proBowlMirrorX = (x) => PRO_BOWL_GRID_W - x;
+const PRO_BOWL_X = { qf: 0, sf: 112, finalEntrant: 224, center: 336 };
+
+const PRO_BOWL_PATHS = [
+  "M100 17 L106 17 L106 36 L112 36", "M100 55 L106 55 L106 36 L112 36",
+  "M100 297 L106 297 L106 316 L112 316", "M100 335 L106 335 L106 316 L112 316",
+  "M212 36 L218 36 L218 176 L224 176", "M212 316 L218 316 L218 176 L224 176",
+  "M324 176 L336 176",
+  "M672 17 L666 17 L666 36 L660 36", "M672 55 L666 55 L666 36 L660 36",
+  "M672 297 L666 297 L666 316 L660 316", "M672 335 L666 335 L666 316 L660 316",
+  "M560 36 L554 36 L554 176 L548 176", "M560 316 L554 316 L554 176 L548 176",
+  "M448 176 L436 176",
+];
+
+// Color is by LEAGUE OF ORIGIN (blue=USFL, green=XFL), not each team's real
+// city colors like every other bracket on the site -- her explicit choice,
+// confirmed against the approved preview mock, which demonstrated the color
+// correctly follows the ADVANCING team rather than the bracket slot (via a
+// seeded upset in the mock). Reuses tourneyName() for the label text
+// (existing USFLXFL_LIVE alias resolution) -- only the color is custom.
+const PRO_BOWL_USFL_CLR = ["#2E6DA4", C.chalk];
+const PRO_BOWL_XFL_CLR = ["#4F7A22", C.chalk];
+function proBowlColorsMap(seeds) {
+  const map = { TBD: ["#22314A", C.slate] };
+  (seeds || []).forEach((s) => {
+    map[tourneyName(s)] = s.tierKey === "USFL" ? PRO_BOWL_USFL_CLR : PRO_BOWL_XFL_CLR;
+  });
+  return map;
+}
+
+// data: { seeds (frozen 8), games (resolveProBowlBracket result), cp
+// (proBowlCPTable result) }.
+function ProBowlBracket({ data }) {
+  const wrapRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => { const w = el.clientWidth; if (w > 0) setScale(Math.min(1, w / PRO_BOWL_GRID_W)); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  if (!data || !data.seeds || data.seeds.length < 8) {
+    return (
+      <div style={{ padding: 20, textAlign: "center", color: C.slate, fontSize: 13 }}>
+        Seeds for this year's UFL Pro Bowl haven't been set yet.
+      </div>
+    );
+  }
+  const { seeds, games, cp } = data;
+  const colors = proBowlColorsMap(seeds);
+  const g = (key) => games[key];
+  const X = PRO_BOWL_X;
+
+  const cpRow = (label, value, bg, fg) => (
+    <div style={{
+      width: 130, display: "flex", justifyContent: "space-between", padding: "4px 8px",
+      borderRadius: 3, fontSize: 12, fontWeight: 700, background: bg, color: fg,
+    }}>
+      <span>{label}</span><span>{value}</span>
+    </div>
+  );
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: PRO_BOWL_H * scale }}>
+      <div style={{ width: PRO_BOWL_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
+        <div style={{ position: "relative", width: PRO_BOWL_GRID_W, height: PRO_BOWL_H }}>
+          <GPaths h={PRO_BOWL_H} w={PRO_BOWL_GRID_W} color="#2E6DA4" d={PRO_BOWL_PATHS} />
+
+          {/* --- LEFT half --- */}
+          <TourneyPair x={X.qf} y={0} g={g("LQ1")} colors={colors} />
+          <TourneyPair x={X.qf} y={280} g={g("LQ2")} colors={colors} />
+          <TourneySolo x={X.sf} y={19} team={(g("LQ1") || {}).winner} colors={colors} />
+          <TourneySolo x={X.sf} y={299} team={(g("LQ2") || {}).winner} colors={colors} />
+          <TourneySolo x={X.finalEntrant} y={159} team={(g("LSF") || {}).winner} colors={colors} />
+
+          {/* --- RIGHT half (mirrored) --- */}
+          <TourneyPair x={proBowlMirrorX(X.qf) - BW} y={0} g={g("RQ1")} colors={colors} />
+          <TourneyPair x={proBowlMirrorX(X.qf) - BW} y={280} g={g("RQ2")} colors={colors} />
+          <TourneySolo x={proBowlMirrorX(X.sf) - BW} y={19} team={(g("RQ1") || {}).winner} colors={colors} />
+          <TourneySolo x={proBowlMirrorX(X.sf) - BW} y={299} team={(g("RQ2") || {}).winner} colors={colors} />
+          <TourneySolo x={proBowlMirrorX(X.finalEntrant) - BW} y={159} team={(g("RSF") || {}).winner} colors={colors} />
+
+          {/* --- Center: logo, trophy, Champion, PFA mark, legend --- */}
+          <GSlot x={X.center} y={9} w={BW} h={50} label="UFL" src={PRO_BOWL_LOGO} />
+          <GSlot x={X.center} y={67} w={BW} h={70} label="Trophy" src={PRO_BOWL_TROPHY} />
+          <div style={{
+            position: "absolute", left: X.center, top: 145, width: BW, height: 14,
+            background: C.gold, textAlign: "center", fontSize: 10, fontWeight: 700,
+            lineHeight: "14px", color: C.ink,
+          }}>W</div>
+          <GBox
+            x={X.center} y={159} team="Champion"
+            score={`${(cp[(g("FINAL") || {}).winner && g("FINAL").winner.rosterId] || {}).cp ?? 20} CP`}
+            colors={{ Champion: [C.gold, C.ink] }}
+          />
+          <GSlot x={X.center} y={208} w={BW} h={40} label="PFA" src={PFA_MARK} />
+          <div style={{ position: "absolute", left: X.center - 15, top: 262, display: "flex", flexDirection: "column", gap: 4 }}>
+            {cpRow("2nd", `${(cp[(g("FINAL") || {}).loser && g("FINAL").loser.rosterId] || {}).cp ?? 10} CP`, "#B4B2A9", "#2C2C2A")}
+            {cpRow("QF loser", "5 CP", "#D9711C", "#2A1200")}
+          </div>
         </div>
       </div>
     </div>
@@ -6163,6 +6369,12 @@ export default function App() {
   const [tourneySeedsChecked, setTourneySeedsChecked] = useState(false);
   const [tourneyScores, setTourneyScores] = useState({});
 
+  // UFL PRO BOWL — same frozen/checked/scores pattern as the main
+  // Tournament above, just an 8-seed companion event living in the same tab.
+  const [proBowlSeeds, setProBowlSeedsState] = useState(null);
+  const [proBowlSeedsChecked, setProBowlSeedsChecked] = useState(false);
+  const [proBowlScores, setProBowlScores] = useState({});
+
   const [news, setNews] = useState(SEED_NEWS);
   const [chat, setChat] = useState([]);
   const [msgInput, setMsgInput] = useState("");
@@ -6729,6 +6941,84 @@ export default function App() {
     return () => { cancelled = true; };
   }, [view, tourneySeeds, nflState, leagueMap, getWeeklyResultCached]);
 
+  // UFL PRO BOWL — seeds lock in ONCE at the Week9->Week10 rollover (one
+  // week before its own Week10 QF round starts), mirroring the main
+  // Tournament's own Week7->Week8 freeze pattern one week later since the
+  // Pro Bowl's bracket itself starts a week later (Week10 vs Week8).
+  // ASSUMPTION, not explicitly confirmed with her — flagged in the delivery
+  // notes. Same relaxed-consistency approach as every other frozen
+  // snapshot in this file: whoever's browser computes it first writes the
+  // same deterministic list from the same standings.
+  useEffect(() => {
+    if (view !== "tournament" || mode !== "live" || proBowlSeedsChecked) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stored = await getUflProBowlSeeds(CURRENT_SEASON);
+        if (cancelled) return;
+        if (stored && stored.length === 8) {
+          setProBowlSeedsState(stored);
+          setProBowlSeedsChecked(true);
+          return;
+        }
+      } catch (e) {}
+      if (nflState && nflState.week >= 10 && leagueMap.USFL && leagueMap.XFL) {
+        const computed = computeProBowlSeeds(standingsCache, leagueMap);
+        if (computed.length === 8) {
+          setProBowlSeedsState(computed);
+          setProBowlSeedsChecked(true);
+          setUflProBowlSeeds(CURRENT_SEASON, computed).catch(() => {});
+          return;
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [view, mode, proBowlSeedsChecked, nflState, leagueMap, standingsCache]);
+
+  // Once Pro Bowl seeds are frozen, resolve as much of its bracket as real
+  // results allow — same round-by-round pattern as the main Tournament,
+  // just USFL/XFL only and starting at Week 10 (its QF week) instead of the
+  // Tournament's Week 8 play-in.
+  useEffect(() => {
+    if (view !== "tournament" || !proBowlSeeds || !nflState) return;
+    let cancelled = false;
+    (async () => {
+      const scores = {};
+      const fetchTeamsWeek = async (teams, week) => {
+        const tiers = [...new Set(teams.filter(Boolean).map((t) => t.tierKey))];
+        const weekMap = {};
+        await Promise.all(tiers.map(async (tierKey) => {
+          const leagueId = leagueMap[tierKey];
+          if (!leagueId) return;
+          const result = await getWeeklyResultCached(tierKey, leagueId, CURRENT_SEASON, week).catch(() => null);
+          if (!result) return;
+          result.pairs.forEach(({ a, b }) => { weekMap[a.rosterId] = a.points; weekMap[b.rosterId] = b.points; });
+        }));
+        scores[week] = weekMap;
+      };
+      const isPast = (wk) => nflState.week > wk;
+      let games = resolveProBowlBracket(proBowlSeeds, scores);
+      if (isPast(10)) {
+        const qfTeams = PRO_BOWL_QF.flatMap((g) => [proBowlSeeds[g.a.seed - 1], proBowlSeeds[g.b.seed - 1]]);
+        await fetchTeamsWeek(qfTeams, 10);
+      }
+      if (cancelled) return;
+      games = resolveProBowlBracket(proBowlSeeds, scores);
+      if (isPast(11)) {
+        const sfTeams = PRO_BOWL_SF.flatMap((g) => [(games[g.a] || {}).winner, (games[g.b] || {}).winner]);
+        await fetchTeamsWeek(sfTeams, 11);
+      }
+      if (cancelled) return;
+      games = resolveProBowlBracket(proBowlSeeds, scores);
+      if (isPast(12)) {
+        const finTeams = [(games[PRO_BOWL_FINAL.a] || {}).winner, (games[PRO_BOWL_FINAL.b] || {}).winner];
+        await fetchTeamsWeek(finTeams, 12);
+      }
+      if (!cancelled) setProBowlScores(scores);
+    })();
+    return () => { cancelled = true; };
+  }, [view, proBowlSeeds, nflState, leagueMap, getWeeklyResultCached]);
+
   // Provisional (pre-freeze) seeding — she wants the bracket visible from
   // the START of the season showing "if seeding locked in today," updating
   // every week to build excitement about qualifying, not just appearing
@@ -6755,6 +7045,33 @@ export default function App() {
     [tourneyDisplaySeeds, tourneyIsProvisional, tourneyScores]
   );
   const tourneyDisplayCP = useMemo(() => tourneyCPTable(tourneyDisplayGames), [tourneyDisplayGames]);
+
+  // UFL PRO BOWL — same live/provisional-then-frozen pattern as the main
+  // Tournament above, scoped to USFL/XFL only. "In the Hunt" here is
+  // per-league (ranks 5-8 in each of USFL/XFL) rather than one combined
+  // list, since the Pro Bowl's own cut is separate per league — depth of 4
+  // teams per side is an assumption, flagged in the delivery notes.
+  const proBowlTiersLoaded = Boolean(leagueMap.USFL && standingsCache[leagueMap.USFL] && leagueMap.XFL && standingsCache[leagueMap.XFL]);
+  const proBowlUsflPool = useMemo(
+    () => (proBowlTiersLoaded ? computeProBowlRankedPool(standingsCache, leagueMap, "USFL") : null),
+    [proBowlTiersLoaded, standingsCache, leagueMap]
+  );
+  const proBowlXflPool = useMemo(
+    () => (proBowlTiersLoaded ? computeProBowlRankedPool(standingsCache, leagueMap, "XFL") : null),
+    [proBowlTiersLoaded, standingsCache, leagueMap]
+  );
+  const proBowlSeedsLive = (proBowlUsflPool && proBowlXflPool && proBowlUsflPool.length >= 4 && proBowlXflPool.length >= 4)
+    ? [...proBowlUsflPool.slice(0, 4), ...proBowlXflPool.slice(0, 4)].map((r, i) => ({ ...r, seed: i + 1 }))
+    : null;
+  const proBowlInTheHuntUsfl = proBowlUsflPool ? proBowlUsflPool.slice(4, 8) : null;
+  const proBowlInTheHuntXfl = proBowlXflPool ? proBowlXflPool.slice(4, 8) : null;
+  const proBowlIsProvisional = !proBowlSeeds && Boolean(proBowlSeedsLive);
+  const proBowlDisplaySeeds = proBowlSeeds || proBowlSeedsLive;
+  const proBowlDisplayGames = useMemo(
+    () => resolveProBowlBracket(proBowlDisplaySeeds, proBowlIsProvisional ? {} : proBowlScores),
+    [proBowlDisplaySeeds, proBowlIsProvisional, proBowlScores]
+  );
+  const proBowlDisplayCP = useMemo(() => proBowlCPTable(proBowlDisplayGames), [proBowlDisplayGames]);
 
   // Weekly Awards week picker defaults to the current live week once it's
   // known — only set once (guarded by weeklyAwardsWeek == null) so it never
@@ -9436,6 +9753,67 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                {/* --- UFL Pro Bowl — companion bracket, same tab --- */}
+                <div className="mt-10 pt-8" style={{ borderTop: `1px solid ${C.line}` }}>
+                  <h3 className="text-2xl uppercase leading-none mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                    {PRO_BOWL_NAME}
+                  </h3>
+                  <p className="text-sm mb-4" style={{ color: C.slate }}>
+                    Top 4 highest-scoring teams, USFL &amp; XFL.
+                  </p>
+                  {!proBowlDisplaySeeds ? (
+                    <div className="text-sm" style={{ color: C.slate }}>
+                      {nflState && nflState.week >= 10 ? "Setting the bracket…" : "Loading standings…"}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#0C1A2E", border: `1px solid ${C.line}`, padding: 16 }}>
+                        <ProBowlBracket data={{ seeds: proBowlDisplaySeeds, games: proBowlDisplayGames, cp: proBowlDisplayCP }} />
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                          {proBowlIsProvisional
+                            ? "Seeding if the field locked in today, updated live — final seeding locks Week 10."
+                            : "Seeds"}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                          {proBowlDisplaySeeds.map((s) => (
+                            <div key={`${s.tierKey}-${s.seed}`} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
+                              <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                              <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                              <span className="shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {proBowlIsProvisional && ((proBowlInTheHuntUsfl && proBowlInTheHuntUsfl.length > 0) || (proBowlInTheHuntXfl && proBowlInTheHuntXfl.length > 0)) && (
+                        <div className="mt-6">
+                          <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                            In The Hunt
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {[["USFL", proBowlInTheHuntUsfl], ["XFL", proBowlInTheHuntXfl]].map(([label, list]) => (
+                              <div key={label}>
+                                <div className="text-xs uppercase tracking-widest mb-1.5" style={{ color: C.slate, letterSpacing: "0.15em" }}>{label}</div>
+                                <div className="space-y-1.5">
+                                  {(list || []).map((s, i) => (
+                                    <div key={s.rosterId} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, width: 18 }}>{i + 5}</span>
+                                      <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                                      <span className="ml-auto shrink-0" style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.slate, fontSize: 10 }}>{s.pts.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </>
             )}
           </div>
