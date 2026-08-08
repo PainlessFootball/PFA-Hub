@@ -6673,8 +6673,25 @@ export default function App() {
     return () => { cancelled = true; };
   }, [view, tourneySeeds, nflState, leagueMap, getWeeklyResultCached]);
 
-  const tourneyGames = useMemo(() => resolveTourneyBracket(tourneySeeds, tourneyScores), [tourneySeeds, tourneyScores]);
-  const tourneyCP = useMemo(() => tourneyCPTable(tourneyGames), [tourneyGames]);
+  // Provisional (pre-freeze) seeding — she wants the bracket visible from
+  // the START of the season showing "if seeding locked in today," updating
+  // every week to build excitement about qualifying, not just appearing
+  // once Week 8 arrives. Recomputed live from current standings on every
+  // render where standings change; NEVER written to Firestore — only the
+  // real Week7->8 rollover freeze (above) does that. Once tourneySeeds
+  // (the real frozen snapshot) exists, it always wins over this.
+  const tourneyTiersLoaded = TIERS.every((t) => leagueMap[t.key] && standingsCache[leagueMap[t.key]]);
+  const tourneySeedsLive = useMemo(
+    () => (tourneyTiersLoaded ? computeTourneySeeds(standingsCache, leagueMap) : null),
+    [tourneyTiersLoaded, standingsCache, leagueMap]
+  );
+  const tourneyIsProvisional = !tourneySeeds && Boolean(tourneySeedsLive);
+  const tourneyDisplaySeeds = tourneySeeds || tourneySeedsLive;
+  const tourneyDisplayGames = useMemo(
+    () => resolveTourneyBracket(tourneyDisplaySeeds, tourneyIsProvisional ? {} : tourneyScores),
+    [tourneyDisplaySeeds, tourneyIsProvisional, tourneyScores]
+  );
+  const tourneyDisplayCP = useMemo(() => tourneyCPTable(tourneyDisplayGames), [tourneyDisplayGames]);
 
   // Weekly Awards week picker defaults to the current live week once it's
   // known — only set once (guarded by weeklyAwardsWeek == null) so it never
@@ -9333,28 +9350,32 @@ export default function App() {
               The top 20 teams across every tier, seeded by record then points, in a single-elimination
               knockout — Week 8 through Week 12.
             </p>
+            {tourneyIsProvisional && (
+              <div className="text-xs mb-4 px-3 py-2 rounded-sm" style={{ background: "rgba(232,163,61,0.12)", color: C.gold, border: `1px solid ${C.goldDim}` }}>
+                Provisional seeding, updated live — this is where the bracket would land if it locked in
+                today. Nothing's final until Week 8.
+              </div>
+            )}
 
             {mode !== "live" ? (
               <div className="text-sm" style={{ color: C.slate }}>
                 The Tournament needs a live connection — check back once the site's connected to Sleeper.
               </div>
-            ) : !tourneySeeds ? (
+            ) : !tourneyDisplaySeeds ? (
               <div className="text-sm" style={{ color: C.slate }}>
-                {nflState && nflState.week >= 8
-                  ? "Setting the bracket…"
-                  : `Seeds lock in once Week 8 begins — check back then.`}
+                {nflState && nflState.week >= 8 ? "Setting the bracket…" : "Loading standings…"}
               </div>
             ) : (
               <>
                 <div className="rounded-sm overflow-hidden mb-6" style={{ background: C.panel, border: `1px solid ${C.line}`, padding: 16 }}>
-                  <TournamentBracket data={{ seeds: tourneySeeds, games: tourneyGames, cp: tourneyCP }} />
+                  <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
-                    Seeds
+                    {tourneyIsProvisional ? "Seeds — if the field locked in today" : "Seeds"}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    {tourneySeeds.map((s) => (
+                    {tourneyDisplaySeeds.map((s) => (
                       <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
                         <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
                         <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
