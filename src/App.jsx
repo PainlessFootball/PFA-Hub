@@ -8,8 +8,6 @@ import {
   removeNewsItem,
   pinNewsItem,
   removeChatMessage,
-  getCoachName,
-  setCoachNameStored,
   watchApplications,
   submitApplication,
   watchPromotionWindow,
@@ -6167,8 +6165,6 @@ export default function App() {
 
   const [news, setNews] = useState(SEED_NEWS);
   const [chat, setChat] = useState([]);
-  const [coachName, setCoachName] = useState(getCoachName());
-  const [nameInput, setNameInput] = useState("");
   const [msgInput, setMsgInput] = useState("");
   const [commish, setCommish] = useState(false);
   const [newsTitle, setNewsTitle] = useState("");
@@ -6798,18 +6794,11 @@ export default function App() {
     };
   }, [view, weeklyAwardsSeason, weeklyAwardsWeek, leagueMap, getWeeklyResultCached]);
 
-  const saveName = () => {
-    const nm = nameInput.trim().slice(0, 24);
-    if (!nm) return;
-    setCoachName(nm);
-    setCoachNameStored(nm);
-  };
-
   const sendMsg = async () => {
     const text = msgInput.trim().slice(0, 280);
-    if (!text || !coachName) return;
+    if (!text || !currentUser?.displayName) return;
     setMsgInput("");
-    const msg = { name: coachName, text, ts: Date.now() };
+    const msg = { name: currentUser.displayName, text, ts: Date.now() };
     const local = await sendChat(msg);
     if (local) setChat(local); // local fallback only; Firebase updates via snapshot
   };
@@ -7019,15 +7008,7 @@ export default function App() {
       });
 
   const applyToTeam = async (tKey, team) => {
-    let name = coachName;
-    if (!name) {
-      const entered = window.prompt("Enter your coach name to apply:");
-      if (!entered) return;
-      name = entered.trim().slice(0, 24);
-      if (!name) return;
-      setCoachName(name);
-      setCoachNameStored(name);
-    }
+    const name = currentUser.displayName;
     const already = applications.some(
       (a) => a.tierKey === tKey && a.team === team && a.coachName.toLowerCase() === name.toLowerCase()
     );
@@ -8176,7 +8157,7 @@ export default function App() {
                               type="button"
                               onClick={() => openCoachProfile(m.name)}
                               className="font-semibold"
-                              style={{ color: m.name === coachName ? C.gold : C.chalk }}
+                              style={{ color: m.name === currentUser?.displayName ? C.gold : C.chalk }}
                             >
                               {m.name}
                               <TrophyBadges name={m.name} size={11} />
@@ -8195,43 +8176,23 @@ export default function App() {
                     <div ref={chatEndRef} />
                   </div>
                   <div className="p-2.5" style={{ borderTop: `1px solid ${C.line}` }}>
-                    {coachName ? (
-                      <div className="flex gap-2">
-                        <input
-                          value={msgInput}
-                          onChange={(e) => setMsgInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && sendMsg()}
-                          placeholder={`Talk your talk, ${coachName}`}
-                          className="flex-1 px-3 py-2 text-sm rounded-sm outline-none min-w-0"
-                          style={{ background: C.ink, border: `1px solid ${C.line}`, color: C.chalk }}
-                        />
-                        <button
-                          onClick={sendMsg}
-                          className="px-3.5 py-2 text-sm uppercase tracking-wider rounded-sm shrink-0"
-                          style={{ background: C.gold, color: C.ink, fontWeight: 600 }}
-                        >
-                          Send
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <input
-                          value={nameInput}
-                          onChange={(e) => setNameInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && saveName()}
-                          placeholder="Pick your coach name to enter"
-                          className="flex-1 px-3 py-2 text-sm rounded-sm outline-none min-w-0"
-                          style={{ background: C.ink, border: `1px solid ${C.line}`, color: C.chalk }}
-                        />
-                        <button
-                          onClick={saveName}
-                          className="px-3.5 py-2 text-sm uppercase tracking-wider rounded-sm shrink-0"
-                          style={{ background: C.gold, color: C.ink, fontWeight: 600 }}
-                        >
-                          Enter
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      <input
+                        value={msgInput}
+                        onChange={(e) => setMsgInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && sendMsg()}
+                        placeholder={`Talk your talk, ${currentUser.displayName}`}
+                        className="flex-1 px-3 py-2 text-sm rounded-sm outline-none min-w-0"
+                        style={{ background: C.ink, border: `1px solid ${C.line}`, color: C.chalk }}
+                      />
+                      <button
+                        onClick={sendMsg}
+                        className="px-3.5 py-2 text-sm uppercase tracking-wider rounded-sm shrink-0"
+                        style={{ background: C.gold, color: C.ink, fontWeight: 600 }}
+                      >
+                        Send
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -8688,7 +8649,8 @@ export default function App() {
                       .map((r) => {
                         const teamApps = applicantsForTeam(tierKey, r.team);
                         const alreadyApplied =
-                          coachName && teamApps.some((a) => a.coachName.toLowerCase() === coachName.toLowerCase());
+                          currentUser?.displayName &&
+                          teamApps.some((a) => a.coachName.toLowerCase() === currentUser.displayName.toLowerCase());
                         return (
                           <div key={r.team} className="p-3 rounded-sm" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
                             <div className="flex items-center justify-between gap-2">

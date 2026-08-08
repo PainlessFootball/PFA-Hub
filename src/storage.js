@@ -112,10 +112,6 @@ export async function pinNewsItem(id, pinned) {
   return null;
 }
 
-// ── Coach name (always local to the device) ──
-export const getCoachName = () => localGet("pfa-coach-name") || "";
-export const setCoachNameStored = (n) => localSet("pfa-coach-name", n);
-
 // ── Applications (Apply-to-Team) ──
 export function watchApplications(cb) {
   if (!firebaseReady) {
