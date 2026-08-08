@@ -2449,7 +2449,7 @@ function DirBand({ tier, count, strength }) {
   );
 }
 
-function GBox({ x, y, team, score, win, colors, scoreBg }) {
+function GBox({ x, y, team, score, win, colors, scoreBg, scoreBorder }) {
   const clr = (colors && colors[team]) || TEAM_CLR[team] || ["#2A3550", C.chalk];
   // Two teams of one matchup are stacked 38px apart (see r3Stack/brStack) and
   // used to render with zero gap between them -- one continuous colour block
@@ -2469,7 +2469,7 @@ function GBox({ x, y, team, score, win, colors, scoreBg }) {
         <div style={{
           height: rowH, lineHeight: `${rowH}px`, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
           background: scoreBg || "rgba(255,255,255,0.03)", boxSizing: "border-box", textAlign: "center",
-          border: `1px solid ${BR_LINE}`, borderTop: "none",
+          border: `1px solid ${scoreBorder || BR_LINE}`, borderTop: "none",
           color: win ? C.turf : C.slate, fontWeight: win ? 700 : 400,
         }}>{score}</div>
       )}
@@ -5453,8 +5453,9 @@ function tourneyColorsMap(seeds) {
   // (see below) — giving it a real entry here, rather than letting GBox
   // fall through to the site-wide default slate colour, keeps every other
   // bracket's own fallback untouched while giving just this one its own
-  // fall palette (her request 2026-08-08: dark brown for empty boxes).
-  const map = { TBD: ["#4A2D20", C.chalk] };
+  // fall palette (her request 2026-08-08, updated to the new scheme
+  // 2026-08-08: plum for empty boxes, matching the new score/panel colors).
+  const map = { TBD: ["#5f0f40", C.chalk] };
   (seeds || []).forEach((s) => {
     const cfg = TIER_COLOR_CFG[s.tierKey];
     if (!cfg) return;
@@ -5471,18 +5472,24 @@ function tourneyName(team) {
 // Renders one game's two teams as a stacked GBox pair, resolving names/
 // scores/win-flag from a resolveTourneyBracket game slot. `y` is the pair's
 // TOP box position -- the bottom box sits at y+38, matching brStack.
-function TourneyPair({ x, y, g, colors }) {
+// scoreBgPlayed/scoreBgUnplayed/scoreBorder default to the Fall-iday
+// Madness palette (this component's original/only caller) but are
+// overridable per-bracket -- the Pro Bowl uses white score boxes instead,
+// since the Fall-iday colors were always specific to that theme, not a
+// shared site convention (her correction 2026-08-08, after they leaked
+// into Pro Bowl by simply reusing this component unchanged).
+function TourneyPair({ x, y, g, colors, scoreBgPlayed = "#fb8b24", scoreBgUnplayed = "#5f0f40", scoreBorder = "#9a031e" }) {
   if (!g) return null;
   const played = g.played;
   // Empty (not-yet-played) score cells match the TBD box color rather than
   // the real score color, so an unplayed game visually reads the same
   // "not determined yet" way as a TBD team name does (her request
   // 2026-08-08) -- only an ACTUAL score gets the real score color.
-  const scoreBg = played ? "#BF581B" : "#4A2D20";
+  const scoreBg = played ? scoreBgPlayed : scoreBgUnplayed;
   return (
     <>
-      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg={scoreBg} />
-      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg={scoreBg} />
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg={scoreBg} scoreBorder={scoreBorder} />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg={scoreBg} scoreBorder={scoreBorder} />
     </>
   );
 }
@@ -5700,21 +5707,21 @@ function ProBowlBracket({ data }) {
             <GPaths h={PRO_BOWL_H} w={PRO_BOWL_GRID_W} color="#2E6DA4" d={PRO_BOWL_PATHS} />
 
           {/* --- LEFT half --- */}
-          <TourneyPair x={X.qf} y={0} g={g("LQ1")} colors={colors} />
-          <TourneyPair x={X.qf} y={280} g={g("LQ2")} colors={colors} />
+          <TourneyPair x={X.qf} y={0} g={g("LQ1")} colors={colors} scoreBgPlayed="#FFFFFF" scoreBgUnplayed="#FFFFFF" scoreBorder={BR_LINE} />
+          <TourneyPair x={X.qf} y={280} g={g("LQ2")} colors={colors} scoreBgPlayed="#FFFFFF" scoreBgUnplayed="#FFFFFF" scoreBorder={BR_LINE} />
           <TourneySolo x={X.sf} y={19} team={(g("LQ1") || {}).winner} colors={colors} />
           <TourneySolo x={X.sf} y={299} team={(g("LQ2") || {}).winner} colors={colors} />
           <TourneySolo x={X.finalEntrant} y={159} team={(g("LSF") || {}).winner} colors={colors} />
 
           {/* --- RIGHT half (mirrored) --- */}
-          <TourneyPair x={proBowlMirrorX(X.qf) - BW} y={0} g={g("RQ1")} colors={colors} />
-          <TourneyPair x={proBowlMirrorX(X.qf) - BW} y={280} g={g("RQ2")} colors={colors} />
+          <TourneyPair x={proBowlMirrorX(X.qf) - BW} y={0} g={g("RQ1")} colors={colors} scoreBgPlayed="#FFFFFF" scoreBgUnplayed="#FFFFFF" scoreBorder={BR_LINE} />
+          <TourneyPair x={proBowlMirrorX(X.qf) - BW} y={280} g={g("RQ2")} colors={colors} scoreBgPlayed="#FFFFFF" scoreBgUnplayed="#FFFFFF" scoreBorder={BR_LINE} />
           <TourneySolo x={proBowlMirrorX(X.sf) - BW} y={19} team={(g("RQ1") || {}).winner} colors={colors} />
           <TourneySolo x={proBowlMirrorX(X.sf) - BW} y={299} team={(g("RQ2") || {}).winner} colors={colors} />
           <TourneySolo x={proBowlMirrorX(X.finalEntrant) - BW} y={159} team={(g("RSF") || {}).winner} colors={colors} />
 
           {/* --- Center: logo, trophy, Champion, PFA mark, legend --- */}
-          <GSlot x={X.center} y={9} w={BW} h={50} label="UFL" src={PRO_BOWL_LOGO} />
+          <GSlot x={X.center + 10} y={13} w={BW - 20} h={42} label="UFL" src={PRO_BOWL_LOGO} />
           <GSlot x={X.center} y={67} w={BW} h={70} label="Trophy" src={PRO_BOWL_TROPHY} />
           <div style={{
             position: "absolute", left: X.center, top: 145, width: BW, height: 14,
@@ -9758,7 +9765,7 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                    <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#1F0D04", border: `1px solid ${C.line}`, padding: 16 }}>
+                    <div className="rounded-sm overflow-hidden mb-6" style={{ background: "#293719", border: "1px solid #9a031e", padding: 16 }}>
                       <TournamentBracket data={{ seeds: tourneyDisplaySeeds, games: tourneyDisplayGames, cp: tourneyDisplayCP }} />
                     </div>
                     <div>
