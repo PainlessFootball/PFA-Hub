@@ -1,0 +1,16 @@
+Add this to your existing Firestore rules (merge into the same rules doc
+that already covers weeklyResults/club300Live — see the ruleset saved from
+the Weekly Awards build):
+
+    match /tournamentSeeds/{year} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && !exists(/databases/$(database)/documents/tournamentSeeds/$(year));
+      allow update, delete: if false;
+    }
+
+Same shape as weeklyResults/club300Live: anyone can read, any signed-in
+coach's browser can create it the first time (whoever happens to load the
+Tournament tab once Week 8 starts), but once it exists it can never be
+overwritten or deleted through the client — matches the "frozen once, then
+permanent" behavior the seeding needs.

@@ -18,6 +18,8 @@ import {
   setWeeklyResult,
   addClub300Entry,
   watchClub300Live,
+  getTournamentSeeds,
+  setTournamentSeeds,
 } from "./storage.js";
 import { onAuthChange, logoutUser } from "./auth.js";
 import LandingPage from "./LandingPage.jsx";
@@ -2296,6 +2298,26 @@ const XFL_TROPHY = "/art/xfl-trophy.png";
 
 const USFL_MARK = "/art/usfl-mark.png";
 const USFL_TROPHY = "/art/usfl-trophy.png";
+
+// --- Tournament artwork ----------------------------------------------------
+// The cross-tier 20-team Tournament (see TOURNEY_* below) is a themed annual
+// event, not a fixed tier — a future season may reuse this theme or bring a
+// whole new one. Every theme's art lives in its own subfolder under
+// public/art/tournament/, so switching or adding a theme is just a new
+// subfolder plus flipping TOURNAMENT_THEME below; nothing else in this file
+// changes. TOURNAMENT_NAME is the display name shown in the banner/nav — also
+// theme-specific, not hardcoded into any component.
+const TOURNAMENT_THEME = "fall-iday-madness";
+const TOURNAMENT_NAME = "Fall-iday Madness";
+const tourneyArt = (filename) => `/art/tournament/${TOURNAMENT_THEME}/${filename}`;
+const TOURNEY_TROPHY = tourneyArt("trophy.png");
+const TOURNEY_MASCOT_LEFT = tourneyArt("mascot-left.png"); // pumpkin
+const TOURNEY_MASCOT_RIGHT = tourneyArt("mascot-right.png"); // turkey
+const TOURNEY_DECOR_TOP_LEFT = tourneyArt("decor-top-left.png"); // leaf, flanks PFA mark
+const TOURNEY_DECOR_TOP_RIGHT = tourneyArt("decor-top-right.png"); // leaf, flanks PFA mark
+const TOURNEY_DECOR_BOTTOM_LEFT = tourneyArt("decor-bottom-left.png"); // corner leaf
+const TOURNEY_DECOR_BOTTOM_RIGHT = tourneyArt("decor-bottom-right.png"); // corner leaf
+const TOURNEY_DECOR_CENTER = tourneyArt("decor-center.png"); // leaf cluster below the Win row
 
 // --- SEC / Big Ten / SWAC artwork -----------------------------------------
 const SEC_MARK = "/art/sec-mark.png";
@@ -5107,6 +5129,338 @@ function buildUSFLXFLLive(tierKey, bracket) {
   };
 }
 
+// ===========================================================================
+// TOURNAMENT — cross-tier 20-team single-elimination bracket (this year's
+// theme: "Fall-iday Madness", see TOURNAMENT_THEME above). Unlike every
+// other bracket in this file, this one isn't scoped to a single tier: its 20
+// seeds are pulled from the TOP 20 teams across ALL 13 tiers by W-L then
+// points scored. Seeds lock in ONCE at the Week7->Week8 rollover (a frozen
+// snapshot in Firestore, see tournamentSeeds below) and stay fixed for the
+// rest of the event -- unlike R3_LIVE/BR_LIVE, which harmlessly reseed
+// themselves every render, a real single-elimination bracket can't do that
+// once games start.
+//
+// Shape (confirmed against her corrected template 2026-08-07): seeds 1-12
+// get a bye straight to the Round of 16 (Week 9). Seeds 13-20 play 4 Week-8
+// play-in games; from Week 9 on it's a clean power-of-2 single-elim tree
+// (16 -> 8 -> 4 -> 2 -> 1). Week 13 has no game -- it's a dedicated results
+// column (Champion/2nd/QF-loser/Win, trophy + team art), the same idea as
+// the R3 brackets' "week 18" centre space, just given its own explicit week
+// label here since every other column in this bracket IS a real matchup
+// week.
+// ===========================================================================
+
+// One shared lookup for every tier's colour map + live-name aliases --
+// R3_LIVE/BR_LIVE/USFLXFL_LIVE between them already cover all 13 tiers, this
+// just flattens those three registries into one tierKey-keyed table so a
+// cross-tier feature doesn't need its own 13-entry duplicate.
+const TIER_COLOR_CFG = { ...R3_LIVE, NFL: BR_LIVE.NFL, USFL: USFLXFL_LIVE.USFL, XFL: USFLXFL_LIVE.XFL };
+
+// Fixed bracket topology -- WHICH seeds share a play-in game and which bye
+// meets which play-in winner is permanent tournament structure (confirmed
+// against her corrected seeding 2026-08-07), not something that changes
+// season to season; only who HOLDS each seed number changes each year.
+const TOURNEY_PLAYIN = [
+  { key: "L1", seeds: [13, 20] },
+  { key: "L2", seeds: [16, 17] },
+  { key: "R1", seeds: [14, 19] },
+  { key: "R2", seeds: [15, 18] },
+];
+const TOURNEY_R16 = [
+  { key: "LA", a: { seed: 1 }, b: { playin: "L1" } },
+  { key: "LB", a: { seed: 8 }, b: { seed: 9 } },
+  { key: "LC", a: { seed: 4 }, b: { playin: "L2" } },
+  { key: "LD", a: { seed: 5 }, b: { seed: 12 } },
+  { key: "RA", a: { seed: 2 }, b: { playin: "R1" } },
+  { key: "RB", a: { seed: 7 }, b: { seed: 10 } },
+  { key: "RC", a: { seed: 3 }, b: { playin: "R2" } },
+  { key: "RD", a: { seed: 6 }, b: { seed: 11 } },
+];
+const TOURNEY_QF = [
+  { key: "LQ1", a: "LA", b: "LB" }, { key: "LQ2", a: "LC", b: "LD" },
+  { key: "RQ1", a: "RA", b: "RB" }, { key: "RQ2", a: "RC", b: "RD" },
+];
+const TOURNEY_SF = [{ key: "LSF", a: "LQ1", b: "LQ2" }, { key: "RSF", a: "RQ1", b: "RQ2" }];
+const TOURNEY_FINAL = { key: "FINAL", a: "LSF", b: "RSF" };
+
+// Cross-tier seeding: flattens every tier's already-fetched standingsCache
+// rows into one list, ranked by W-L then points scored (her stated rule),
+// and takes the top 20. Skips unowned rosters -- an open coaching job can't
+// hold a tournament seed. Requires every tier's standings to already be
+// cached (the bulk-discovery effect does this for the whole site already,
+// not something this feature needs to trigger itself).
+function computeTourneySeeds(standingsCache, leagueMap) {
+  const rows = [];
+  TIERS.forEach((t) => {
+    const leagueId = leagueMap[t.key];
+    const tierRows = leagueId && standingsCache[leagueId];
+    if (!tierRows) return;
+    tierRows.forEach((r) => {
+      if (!r.userId || !r.rosterId) return;
+      rows.push({
+        tierKey: t.key, rosterId: r.rosterId, coach: r.coach, team: r.team,
+        w: r.w, l: r.l, pts: r.pts,
+      });
+    });
+  });
+  rows.sort((a, b) => b.w - a.w || b.pts - a.pts);
+  return rows.slice(0, 20).map((r, i) => ({ ...r, seed: i + 1 }));
+}
+
+// One game between two team-refs at a given week. `countsAsWin=false` is
+// used for the semifinal and final -- per the confirmed CP formula, the
+// semifinal win is NOT separately worth +2 for either finalist; their SF win
+// plus final result are bundled into one flat number instead (see
+// tourneyCPTable). `scores` is { [week]: { [rosterId]: points } }, built
+// only from weeks actually fetched -- a missing entry means "not known yet",
+// not zero, so an unplayed/unfetched game correctly stays unresolved rather
+// than silently picking a false winner (same r3Played-style safety as every
+// other bracket in this file).
+function tourneyPlay(a, b, week, scores, countsAsWin = true) {
+  if (!a || !b) return { a, b, winner: null, loser: null, played: false };
+  const wk = scores[week] || {};
+  const sa = wk[a.rosterId], sb = wk[b.rosterId];
+  if (typeof sa !== "number" || typeof sb !== "number" || sa === sb) {
+    return { a, b, scoreA: sa, scoreB: sb, winner: null, loser: null, played: false };
+  }
+  const aWon = sa > sb;
+  const winnerBase = aWon ? a : b, loserBase = aWon ? b : a;
+  return {
+    a, b, scoreA: sa, scoreB: sb, played: true,
+    winner: { ...winnerBase, wins: winnerBase.wins + (countsAsWin ? 1 : 0) },
+    loser: { ...loserBase },
+  };
+}
+
+// Resolves as much of the bracket as `scores` currently allows -- exactly
+// the "build only what's knowable, leave the rest blank" principle every
+// live bracket in this file follows. `seeds` is the frozen 20-entry list
+// (index 0 = seed 1). Returns a flat map of every named game -> its
+// {a,b,winner,loser,played} result.
+function resolveTourneyBracket(seeds, scores) {
+  if (!seeds || seeds.length < 20) return {};
+  const bySeed = (n) => { const t = seeds[n - 1]; return t ? { ...t, wins: 0 } : null; };
+  const games = {};
+  TOURNEY_PLAYIN.forEach((g) => {
+    games[g.key] = tourneyPlay(bySeed(g.seeds[0]), bySeed(g.seeds[1]), 8, scores);
+  });
+  const entrant = (ref) => (ref.seed ? bySeed(ref.seed) : (games[ref.playin] || {}).winner || null);
+  TOURNEY_R16.forEach((g) => { games[g.key] = tourneyPlay(entrant(g.a), entrant(g.b), 9, scores); });
+  const byGame = (key) => (games[key] || {}).winner || null;
+  TOURNEY_QF.forEach((g) => { games[g.key] = tourneyPlay(byGame(g.a), byGame(g.b), 10, scores); });
+  TOURNEY_SF.forEach((g) => { games[g.key] = tourneyPlay(byGame(g.a), byGame(g.b), 11, scores, false); });
+  games[TOURNEY_FINAL.key] = tourneyPlay(byGame(TOURNEY_FINAL.a), byGame(TOURNEY_FINAL.b), 12, scores, false);
+  return games;
+}
+
+// CP per the formula confirmed against her exact numbers 2026-08-07 (every
+// play-in/R16/QF win is +2 and stacks; a QF loss adds a flat +5 on top of
+// whatever was already banked; the semifinal winner/loser's CP is a flat
+// 20/10 replacing what the SF win + final result would otherwise total).
+// Returns { [rosterId]: { team, coach, tierKey, cp, result } } for every
+// team whose tournament run has actually ended (played and lost, or won the
+// final) -- a team still alive simply has no entry yet.
+function tourneyCPTable(games) {
+  const cp = {};
+  const set = (team, amount, result) => {
+    if (!team) return;
+    cp[team.rosterId] = { team: team.team, coach: team.coach, tierKey: team.tierKey, cp: amount, result };
+  };
+  TOURNEY_PLAYIN.forEach((g) => { const r = games[g.key]; if (r && r.played) set(r.loser, 0, "Play-in loss"); });
+  TOURNEY_R16.forEach((g) => { const r = games[g.key]; if (r && r.played) set(r.loser, 2 * r.loser.wins, "Round of 16 loss"); });
+  TOURNEY_QF.forEach((g) => { const r = games[g.key]; if (r && r.played) set(r.loser, 2 * r.loser.wins + 5, "Quarterfinal loss"); });
+  TOURNEY_SF.forEach((g) => { const r = games[g.key]; if (r && r.played) set(r.loser, 2 * r.loser.wins, "Semifinal loss"); });
+  const fin = games[TOURNEY_FINAL.key];
+  if (fin && fin.played) {
+    set(fin.winner, 2 * fin.winner.wins + 20, "Champion");
+    set(fin.loser, 2 * fin.loser.wins + 10, "2nd place");
+  }
+  return cp;
+}
+
+// ===========================================================================
+// TOURNAMENT bracket geometry & rendering -- see the data-layer block near
+// GRID_BRACKETS (computeTourneySeeds/resolveTourneyBracket/tourneyCPTable)
+// for the seeding/results/CP logic this renders. Needs its own width and
+// column x-positions -- one column wider per half than any existing shape
+// (the extra Week-8 play-in column) -- so it can't reuse GRID_W/GridBracket
+// directly, though it reuses GBox for every team box so styling stays
+// identical to the rest of the site. The Week9-Week12 portion (Round of 16
+// -> Final) is geometrically identical to BR's own R1->R2->R3->Final shape
+// (brMainSide's proven layout: BR_R1_Y/BR_R2_Y/BR_R3_Y/BR_FINAL_Y, reused
+// as-is below) -- TOURNEY_MAIN_PATHS is BR_MAIN_PATHS with every
+// x-coordinate shifted +112 to make room for the extra play-in column at
+// x=0, re-derived programmatically rather than hand-retyped to avoid
+// exactly the kind of connector-fidelity bug documented elsewhere in this
+// file. TOURNEY_PLAYIN_PATHS (Week8->Week9) is new geometry -- no other
+// bracket shape has a play-in round feeding a full power-of-2 tree -- built
+// in the same 6px-stub elbow style as every other connector here.
+// ===========================================================================
+const TOURNEY_GRID_W = 1220;
+const TOURNEY_H = 460;
+const tourneyMirrorX = (x) => TOURNEY_GRID_W - x;
+
+const TOURNEY_MAIN_PATHS = [
+  "M212 38 L218 38 L218 95 L224 95", "M212 152 L218 152 L218 95 L224 95",
+  "M212 266 L218 266 L218 323 L224 323", "M212 380 L218 380 L218 323 L224 323",
+  "M324 95 L330 95 L330 209 L336 209", "M324 323 L330 323 L330 209 L336 209",
+  "M436 209 L448 209", "M548 209 L560 209",
+  "M1008 38 L1002 38 L1002 95 L996 95", "M1008 152 L1002 152 L1002 95 L996 95",
+  "M1008 266 L1002 266 L1002 323 L996 323", "M1008 380 L1002 380 L1002 323 L996 323",
+  "M896 95 L890 95 L890 209 L884 209", "M896 323 L890 323 L890 209 L884 209",
+  "M784 209 L772 209", "M672 209 L660 209",
+];
+const TOURNEY_PLAYIN_PATHS = [
+  "M100 19 L106 19 L106 38 L112 38", "M100 57 L106 57 L106 38 L112 38",
+  "M100 247 L106 247 L106 266 L112 266", "M100 285 L106 285 L106 266 L112 266",
+  "M1120 19 L1114 19 L1114 38 L1108 38", "M1120 57 L1114 57 L1114 38 L1108 38",
+  "M1120 247 L1114 247 L1114 266 L1108 266", "M1120 285 L1114 285 L1114 266 L1108 266",
+];
+
+// One team box for the tournament bracket -- thin wrapper around the shared
+// GBox so every box looks identical to the rest of the site, but resolves
+// its own colour from that team's HOME tier (tournament seeds span all 13
+// tiers, so there's no single per-tier colour map the way every other
+// bracket has). `g` is a resolved game slot ({a,b,winner,scoreA,scoreB,...})
+// from resolveTourneyBracket, or null if that game doesn't apply to this box.
+function tourneyColorsMap(seeds) {
+  const map = {};
+  (seeds || []).forEach((s) => {
+    const cfg = TIER_COLOR_CFG[s.tierKey];
+    if (!cfg) return;
+    const name = r3ShortName(s.team, cfg.colors, cfg.aliases);
+    if (cfg.colors && cfg.colors[name]) map[name] = cfg.colors[name];
+  });
+  return map;
+}
+function tourneyName(team) {
+  if (!team) return "";
+  const cfg = TIER_COLOR_CFG[team.tierKey];
+  return cfg ? r3ShortName(team.team, cfg.colors, cfg.aliases) : team.team;
+}
+// Renders one game's two teams as a stacked GBox pair, resolving names/
+// scores/win-flag from a resolveTourneyBracket game slot. `y` is the pair's
+// TOP box position -- the bottom box sits at y+38, matching brStack.
+function TourneyPair({ x, y, g, colors }) {
+  if (!g) return null;
+  const played = g.played;
+  return (
+    <>
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} />
+    </>
+  );
+}
+// A single-entrant slot (a team waiting on its next game, or a bye that
+// hasn't played yet) -- just the name, no score/win flag to show.
+function TourneySolo({ x, y, team, colors }) {
+  return <GBox x={x} y={y} team={tourneyName(team)} colors={colors} />;
+}
+
+// data: { seeds (frozen 20), games (resolveTourneyBracket result), cp
+// (tourneyCPTable result) }. Renders the full 11-column bracket: Week8
+// play-in through Week12 final, mirrored, with Week13's results column
+// (trophy/PFA mark/decor art + Champion/2nd/QF-loser/Win) in the centre.
+function TournamentBracket({ data }) {
+  const wrapRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => { const w = el.clientWidth; if (w > 0) setScale(Math.min(1, w / TOURNEY_GRID_W)); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  if (!data || !data.seeds || data.seeds.length < 20) {
+    return (
+      <div style={{ padding: 20, textAlign: "center", color: C.slate, fontSize: 13 }}>
+        Seeds for this year's Tournament haven't been set yet -- they lock in once Week 8 begins.
+      </div>
+    );
+  }
+  const { seeds, games, cp } = data;
+  const colors = tourneyColorsMap(seeds);
+  const bySeed = (n) => seeds[n - 1];
+  const g = (key) => games[key];
+  const X = TOURNEY_X;
+
+  const cpRow = (label, value, bg, fg) => (
+    <div style={{
+      width: 130, display: "flex", justifyContent: "space-between", padding: "4px 8px",
+      borderRadius: 3, fontSize: 12, fontWeight: 700, background: bg, color: fg,
+    }}>
+      <span>{label}</span><span>{value}</span>
+    </div>
+  );
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: TOURNEY_H * scale }}>
+      <div style={{ width: TOURNEY_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
+        <div style={{ position: "relative", width: TOURNEY_GRID_W, height: TOURNEY_H }}>
+          <GPaths h={TOURNEY_H} d={[...TOURNEY_PLAYIN_PATHS, ...TOURNEY_MAIN_PATHS]} />
+
+          {/* --- LEFT half --- */}
+          <TourneyPair x={X.playin} y={19} g={g("L1")} colors={colors} />
+          <TourneyPair x={X.playin} y={247} g={g("L2")} colors={colors} />
+          <TourneySolo x={X.r16} y={0} team={bySeed(1)} colors={colors} />
+          <TourneySolo x={X.r16} y={38} team={(g("L1") || {}).winner} colors={colors} />
+          <TourneyPair x={X.r16} y={114} g={g("LB")} colors={colors} />
+          <TourneySolo x={X.r16} y={228} team={bySeed(4)} colors={colors} />
+          <TourneySolo x={X.r16} y={266} team={(g("L2") || {}).winner} colors={colors} />
+          <TourneyPair x={X.r16} y={342} g={g("LD")} colors={colors} />
+          <TourneySolo x={X.qf} y={57} team={(g("LA") || {}).winner} colors={colors} />
+          <TourneySolo x={X.qf} y={95} team={(g("LB") || {}).winner} colors={colors} />
+          <TourneySolo x={X.qf} y={285} team={(g("LC") || {}).winner} colors={colors} />
+          <TourneySolo x={X.qf} y={323} team={(g("LD") || {}).winner} colors={colors} />
+          <TourneySolo x={X.sf} y={171} team={(g("LQ1") || {}).winner} colors={colors} />
+          <TourneySolo x={X.sf} y={209} team={(g("LQ2") || {}).winner} colors={colors} />
+          <TourneySolo x={X.finalEntrant} y={190} team={(g("LSF") || {}).winner} colors={colors} />
+
+          {/* --- RIGHT half (mirrored) --- */}
+          <TourneyPair x={tourneyMirrorX(X.playin) - BW} y={19} g={g("R1")} colors={colors} />
+          <TourneyPair x={tourneyMirrorX(X.playin) - BW} y={247} g={g("R2")} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.r16) - BW} y={0} team={bySeed(2)} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.r16) - BW} y={38} team={(g("R1") || {}).winner} colors={colors} />
+          <TourneyPair x={tourneyMirrorX(X.r16) - BW} y={114} g={g("RB")} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.r16) - BW} y={228} team={bySeed(3)} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.r16) - BW} y={266} team={(g("R2") || {}).winner} colors={colors} />
+          <TourneyPair x={tourneyMirrorX(X.r16) - BW} y={342} g={g("RD")} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.qf) - BW} y={57} team={(g("RA") || {}).winner} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.qf) - BW} y={95} team={(g("RB") || {}).winner} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.qf) - BW} y={285} team={(g("RC") || {}).winner} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.qf) - BW} y={323} team={(g("RD") || {}).winner} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.sf) - BW} y={171} team={(g("RQ1") || {}).winner} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.sf) - BW} y={209} team={(g("RQ2") || {}).winner} colors={colors} />
+          <TourneySolo x={tourneyMirrorX(X.finalEntrant) - BW} y={190} team={(g("RSF") || {}).winner} colors={colors} />
+
+          {/* --- Mascots either side of the play-in columns --- */}
+          <GSlot x={X.playin} y={140} w={BW} h={70} label="" src={TOURNEY_MASCOT_LEFT} />
+          <GSlot x={tourneyMirrorX(X.playin) - BW} y={140} w={BW} h={70} label="" src={TOURNEY_MASCOT_RIGHT} />
+          {/* --- Corner leaves, bottom of the play-in columns --- */}
+          <GSlot x={X.playin} y={330} w={BW} h={70} label="" src={TOURNEY_DECOR_BOTTOM_LEFT} />
+          <GSlot x={tourneyMirrorX(X.playin) - BW} y={330} w={BW} h={70} label="" src={TOURNEY_DECOR_BOTTOM_RIGHT} />
+
+          {/* --- Week 13: no game, results only --- */}
+          <GSlot x={X.finalEntrant} y={0} w={BW} h={40} label="" src={TOURNEY_DECOR_TOP_LEFT} />
+          <GSlot x={X.center} y={0} w={BW} h={50} label="PFA" src={PFA_MARK} />
+          <GSlot x={tourneyMirrorX(X.finalEntrant) - BW} y={0} w={BW} h={40} label="" src={TOURNEY_DECOR_TOP_RIGHT} />
+          <GSlot x={X.center} y={55} w={BW} h={70} label="Trophy" src={TOURNEY_TROPHY} />
+          <div style={{ position: "absolute", left: X.center, top: 190, display: "flex", flexDirection: "column", gap: 4 }}>
+            {cpRow("Champion", `${(cp[(g("FINAL") || {}).winner && g("FINAL").winner.rosterId] || {}).cp ?? 20} CP`, C.gold, C.ink)}
+            {cpRow("2nd", `${(cp[(g("FINAL") || {}).loser && g("FINAL").loser.rosterId] || {}).cp ?? 10} CP`, "#B4B2A9", "#2C2C2A")}
+            {cpRow("QF loser", "5 CP", "#D9711C", "#2A1200")}
+            {cpRow("Win", "2 CP", C.turf, "#0E3A1B")}
+          </div>
+          <GSlot x={X.center} y={330} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const GRID_BRACKETS = {
   NFL: { playoffs: NFL_2025_PLAYOFFS, consolation: NFL_2025_CONSOLATION },
   USFL: { playoffs: USFL_2025_PLAYOFFS, consolation: USFL_2025_CONSOLATION },
@@ -5741,6 +6095,16 @@ export default function App() {
   // week — what weeklyAwards (below) crowns a winner from.
   const [weeklyAwardsPairs, setWeeklyAwardsPairs] = useState([]);
 
+  // TOURNAMENT — this year's frozen 20-seed snapshot (null until it's been
+  // read from Firestore, or written for the first time once Week 8 starts),
+  // and the per-(week, rosterId) score cache used to resolve games as real
+  // weeks complete. Scoped to CURRENT_SEASON only — a past year's tournament
+  // isn't browsable the way Standings' season picker is, since it was a
+  // one-off live event, not a stored historical bracket.
+  const [tourneySeeds, setTourneySeedsState] = useState(null);
+  const [tourneySeedsChecked, setTourneySeedsChecked] = useState(false);
+  const [tourneyScores, setTourneyScores] = useState({});
+
   const [news, setNews] = useState(SEED_NEWS);
   const [chat, setChat] = useState([]);
   const [coachName, setCoachName] = useState(getCoachName());
@@ -6209,6 +6573,108 @@ export default function App() {
       if (id && !standingsCache[id]) loadLeague(id, undefined, tKey);
     });
   }, [mode, leagueMap, standingsCache, loadLeague]);
+
+  // TOURNAMENT — seeds lock in ONCE at the Week7->Week8 rollover, so this
+  // reads any existing frozen snapshot from Firestore first; only if none
+  // exists yet AND Week 8 has actually started does it compute one from
+  // current standings and write it. Gated on view === "tournament" (not
+  // bulk discovery's every-page-load pattern) since freezing only needs to
+  // happen once all season and isn't needed for anyone who never opens the
+  // tab — same reasoning as the weeklyAwards fetch below. A slight race if
+  // two people load the tab in the same moment right as Week 8 begins is
+  // fine and self-resolves: whoever's browser computes it writes the same
+  // deterministic list from the same standings, same relaxed-consistency
+  // approach already used for weeklyResults/club300Live.
+  useEffect(() => {
+    if (view !== "tournament" || mode !== "live" || tourneySeedsChecked) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stored = await getTournamentSeeds(CURRENT_SEASON);
+        if (cancelled) return;
+        if (stored && stored.length === 20) {
+          setTourneySeedsState(stored);
+          setTourneySeedsChecked(true);
+          return;
+        }
+      } catch (e) {}
+      if (nflState && nflState.week >= 8 && Object.keys(leagueMap).length >= 13) {
+        const computed = computeTourneySeeds(standingsCache, leagueMap);
+        if (computed.length === 20) {
+          setTourneySeedsState(computed);
+          setTourneySeedsChecked(true);
+          setTournamentSeeds(CURRENT_SEASON, computed).catch(() => {});
+          return;
+        }
+      }
+      // Not ready yet (before Week 8, or standings still loading) — leave
+      // tourneySeedsChecked false so this retries on the next relevant
+      // render instead of getting stuck believing there's nothing to show.
+    })();
+    return () => { cancelled = true; };
+  }, [view, mode, tourneySeedsChecked, nflState, leagueMap, standingsCache]);
+
+  // Once seeds are frozen, resolve as much of the bracket as real results
+  // allow — one round at a time, since which tiers matter for Week 9+
+  // depends on WHO won the previous round, not just which week it is.
+  // Refetches (cheaply, via getWeeklyResultCached's own cache) whenever the
+  // live week advances while she's on the tab.
+  useEffect(() => {
+    if (view !== "tournament" || !tourneySeeds || !nflState) return;
+    let cancelled = false;
+    (async () => {
+      const scores = {};
+      const fetchTeamsWeek = async (teams, week) => {
+        const tiers = [...new Set(teams.filter(Boolean).map((t) => t.tierKey))];
+        const weekMap = {};
+        await Promise.all(tiers.map(async (tierKey) => {
+          const leagueId = leagueMap[tierKey];
+          if (!leagueId) return;
+          const result = await getWeeklyResultCached(tierKey, leagueId, CURRENT_SEASON, week).catch(() => null);
+          if (!result) return;
+          result.pairs.forEach(({ a, b }) => { weekMap[a.rosterId] = a.points; weekMap[b.rosterId] = b.points; });
+        }));
+        scores[week] = weekMap;
+      };
+      const isPast = (wk) => nflState.week > wk;
+      if (isPast(8)) {
+        const playinTeams = TOURNEY_PLAYIN.flatMap((g) => g.seeds.map((n) => tourneySeeds[n - 1]));
+        await fetchTeamsWeek(playinTeams, 8);
+      }
+      if (cancelled) return;
+      let games = resolveTourneyBracket(tourneySeeds, scores);
+      if (isPast(9)) {
+        const r16Teams = TOURNEY_R16.flatMap((g) => {
+          const ent = (ref) => (ref.seed ? tourneySeeds[ref.seed - 1] : (games[ref.playin] || {}).winner);
+          return [ent(g.a), ent(g.b)];
+        });
+        await fetchTeamsWeek(r16Teams, 9);
+      }
+      if (cancelled) return;
+      games = resolveTourneyBracket(tourneySeeds, scores);
+      if (isPast(10)) {
+        const qfTeams = TOURNEY_QF.flatMap((g) => [(games[g.a] || {}).winner, (games[g.b] || {}).winner]);
+        await fetchTeamsWeek(qfTeams, 10);
+      }
+      if (cancelled) return;
+      games = resolveTourneyBracket(tourneySeeds, scores);
+      if (isPast(11)) {
+        const sfTeams = TOURNEY_SF.flatMap((g) => [(games[g.a] || {}).winner, (games[g.b] || {}).winner]);
+        await fetchTeamsWeek(sfTeams, 11);
+      }
+      if (cancelled) return;
+      games = resolveTourneyBracket(tourneySeeds, scores);
+      if (isPast(12)) {
+        const finTeams = [(games[TOURNEY_FINAL.a] || {}).winner, (games[TOURNEY_FINAL.b] || {}).winner];
+        await fetchTeamsWeek(finTeams, 12);
+      }
+      if (!cancelled) setTourneyScores(scores);
+    })();
+    return () => { cancelled = true; };
+  }, [view, tourneySeeds, nflState, leagueMap, getWeeklyResultCached]);
+
+  const tourneyGames = useMemo(() => resolveTourneyBracket(tourneySeeds, tourneyScores), [tourneySeeds, tourneyScores]);
+  const tourneyCP = useMemo(() => tourneyCPTable(tourneyGames), [tourneyGames]);
 
   // Weekly Awards week picker defaults to the current live week once it's
   // known — only set once (guarded by weeklyAwardsWeek == null) so it never
@@ -7479,6 +7945,7 @@ export default function App() {
             <Tab id="pyramid">Rules</Tab>
             <Tab id="300club">300 Club</Tab>
             <Tab id="weeklyawards">Weekly Awards</Tab>
+            <Tab id="tournament">Tournament</Tab>
             {currentUser.role === "admin" && <Tab id="admin">Admin</Tab>}
             <div className="flex-1" style={{ borderBottom: `1px solid ${C.line}` }} />
           </nav>
@@ -8846,6 +9313,57 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {view === "tournament" && (
+          <div>
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+              <h2 className="text-3xl uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>
+                {TOURNAMENT_NAME}
+              </h2>
+              {nflState && (
+                <span className="text-xs uppercase tracking-widest" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                  {CURRENT_SEASON} · Week {nflState.week}
+                </span>
+              )}
+            </div>
+            <p className="text-sm mb-4" style={{ color: C.slate }}>
+              The top 20 teams across every tier, seeded by record then points, in a single-elimination
+              knockout — Week 8 through Week 12.
+            </p>
+
+            {mode !== "live" ? (
+              <div className="text-sm" style={{ color: C.slate }}>
+                The Tournament needs a live connection — check back once the site's connected to Sleeper.
+              </div>
+            ) : !tourneySeeds ? (
+              <div className="text-sm" style={{ color: C.slate }}>
+                {nflState && nflState.week >= 8
+                  ? "Setting the bracket…"
+                  : `Seeds lock in once Week 8 begins — check back then.`}
+              </div>
+            ) : (
+              <>
+                <div className="rounded-sm overflow-hidden mb-6" style={{ background: C.panel, border: `1px solid ${C.line}`, padding: 16 }}>
+                  <TournamentBracket data={{ seeds: tourneySeeds, games: tourneyGames, cp: tourneyCP }} />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: C.slate, letterSpacing: "0.2em" }}>
+                    Seeds
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {tourneySeeds.map((s) => (
+                      <div key={s.seed} className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: C.gold, width: 18 }}>{s.seed}</span>
+                        <span className="truncate" style={{ color: C.chalk }}>{s.team}</span>
+                        <span className="ml-auto shrink-0 uppercase" style={{ color: C.slate, fontSize: 10 }}>{s.tierKey}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
