@@ -5383,10 +5383,15 @@ function tourneyName(team) {
 function TourneyPair({ x, y, g, colors }) {
   if (!g) return null;
   const played = g.played;
+  // Empty (not-yet-played) score cells match the TBD box color rather than
+  // the real score color, so an unplayed game visually reads the same
+  // "not determined yet" way as a TBD team name does (her request
+  // 2026-08-08) -- only an ACTUAL score gets the real score color.
+  const scoreBg = played ? "#BF581B" : "#4A2D20";
   return (
     <>
-      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg="#BF581B" />
-      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg="#BF581B" />
+      <GBox x={x} y={y} team={tourneyName(g.a)} score={played ? g.scoreA : g.a ? "" : ""} win={played && g.winner && g.a && g.winner.rosterId === g.a.rosterId ? 1 : 0} colors={colors} scoreBg={scoreBg} />
+      <GBox x={x} y={y + 38} team={tourneyName(g.b)} score={played ? g.scoreB : g.b ? "" : ""} win={played && g.winner && g.b && g.winner.rosterId === g.b.rosterId ? 1 : 0} colors={colors} scoreBg={scoreBg} />
     </>
   );
 }
