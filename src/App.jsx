@@ -2325,7 +2325,7 @@ const TOURNEY_DECOR_CENTER = tourneyArt("decor-center.png"); // leaf cluster bel
 // annual theme like TOURNAMENT_THEME above, since it's tied to a real
 // league logo/trophy rather than a whimsical seasonal reskin.
 const PRO_BOWL_NAME = "The UFL Pro Bowl";
-const proBowlArt = (filename) => `/art/tournament/ufl-pro-bowl/${filename}`;
+const proBowlArt = (filename) => `/art/tournament/ufl pro bowl/${filename}`.replace(/ /g, "%20");
 const PRO_BOWL_LOGO = proBowlArt("ufl-logo.png");
 const PRO_BOWL_TROPHY = proBowlArt("ufl-trophy.png");
 // Registry of tournaments shown in the Tournament tab's selector — add a new
@@ -5532,10 +5532,11 @@ function TournamentBracket({ data }) {
   );
 
   return (
-    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: TOURNEY_H * scale }}>
-      <div style={{ width: TOURNEY_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
-        <div style={{ position: "relative", width: TOURNEY_GRID_W, height: TOURNEY_H }}>
-          <GPaths h={TOURNEY_H} w={TOURNEY_GRID_W} color="#eb5009" d={[...TOURNEY_PLAYIN_PATHS, ...TOURNEY_MAIN_PATHS]} />
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: TOURNEY_H * scale, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: TOURNEY_GRID_W * scale, height: TOURNEY_H * scale }}>
+        <div style={{ width: TOURNEY_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
+          <div style={{ position: "relative", width: TOURNEY_GRID_W, height: TOURNEY_H }}>
+            <GPaths h={TOURNEY_H} w={TOURNEY_GRID_W} color="#eb5009" d={[...TOURNEY_PLAYIN_PATHS, ...TOURNEY_MAIN_PATHS]} />
 
           {/* --- LEFT half --- */}
           <TourneyPair x={X.playin} y={19} g={g("L1")} colors={colors} />
@@ -5606,6 +5607,7 @@ function TournamentBracket({ data }) {
             {cpRow("Win", "2 CP", C.turf, "#0E3A1B")}
           </div>
           <GSlot x={X.center} y={370} w={BW} h={90} label="" src={TOURNEY_DECOR_CENTER} />
+          </div>
         </div>
       </div>
     </div>
@@ -5691,10 +5693,11 @@ function ProBowlBracket({ data }) {
   );
 
   return (
-    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: PRO_BOWL_H * scale }}>
-      <div style={{ width: PRO_BOWL_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
-        <div style={{ position: "relative", width: PRO_BOWL_GRID_W, height: PRO_BOWL_H }}>
-          <GPaths h={PRO_BOWL_H} w={PRO_BOWL_GRID_W} color="#2E6DA4" d={PRO_BOWL_PATHS} />
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", height: PRO_BOWL_H * scale, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: PRO_BOWL_GRID_W * scale, height: PRO_BOWL_H * scale }}>
+        <div style={{ width: PRO_BOWL_GRID_W, transformOrigin: "top left", transform: `scale(${scale})` }}>
+          <div style={{ position: "relative", width: PRO_BOWL_GRID_W, height: PRO_BOWL_H }}>
+            <GPaths h={PRO_BOWL_H} w={PRO_BOWL_GRID_W} color="#2E6DA4" d={PRO_BOWL_PATHS} />
 
           {/* --- LEFT half --- */}
           <TourneyPair x={X.qf} y={0} g={g("LQ1")} colors={colors} />
@@ -5727,6 +5730,7 @@ function ProBowlBracket({ data }) {
           <div style={{ position: "absolute", left: X.center - 15, top: 262, display: "flex", flexDirection: "column", gap: 4 }}>
             {cpRow("2nd", `${(cp[(g("FINAL") || {}).loser && g("FINAL").loser.rosterId] || {}).cp ?? 10} CP`, "#B4B2A9", "#2C2C2A")}
             {cpRow("QF loser", "5 CP", "#D9711C", "#2A1200")}
+          </div>
           </div>
         </div>
       </div>
